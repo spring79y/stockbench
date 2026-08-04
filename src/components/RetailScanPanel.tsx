@@ -7,8 +7,11 @@ import { formatFlowShares } from "@/lib/market/flowFormat";
 import type { IndexChartSeries } from "@/lib/market/chartTypes";
 import type { MarketScope } from "@/lib/market/scope";
 import type { FlowLeg, MegaCapQuote, RetailScanBundle } from "@/lib/market/retailScan";
+import type { Ks200NightFuturesQuote } from "@/lib/market/fetchKs200NightFutures";
 import type { StockNewsItem } from "@/lib/market/fetchStockNews";
 import newsStyles from "./MegaNews.module.css";
+
+const NIGHT_POLL_MS = 60_000;
 
 const SIGNAL_TIPS: Record<string, string> = {
   "ks200-vs-kospi": "코스피200과 코스피 등락 차이. 대형주 온도를 가늠하는 참고.",
@@ -313,6 +316,75 @@ function MegaCapSplit({
   );
 }
 
+function Ks200NightFuturesCard({ active }: { active: boolean }) {
+  const [quote, setQuote] = useState<Ks200NightFuturesQuote | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!active) return;
+
+    let cancelled = false;
+
+    const load = async () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      setLoading(true);
+      try {
+        const res = await fetch("/api/ks200-night", { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as Ks200NightFuturesQuote;
+        if (cancelled) return;
+        setQuote(data);
+        setError(null);
+      } catch {
+        if (cancelled) return;
+        setError("야간선물 시세를 불러오지 못했습니다.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void load();
+    const id = window.setInterval(() => void load(), NIGHT_POLL_MS);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [active]);
+
+  return (
+    <article className="retail-card">
+      <h3 className="retail-card__title">코스피200야간선물</h3>
+      <p className="retail-card__tip">야간 온도 참고 · 주문·매매 판단용 아님 · 예측 아님</p>
+      {quote ? (
+        <>
+          <p
+            className={`retail-card__value ${changeToneClass(directionFromChange(quote.changePercent))}`}
+          >
+            {formatIndexValue(quote.price)}{" "}
+            <span>({formatSigned(quote.changePercent)}%)</span>
+          </p>
+          <p className="retail-card__note">
+            {quote.updated ? `갱신 ${quote.updated}` : quote.note}
+            {loading ? " · 확인 중" : ""}
+          </p>
+        </>
+      ) : error ? (
+        <p className="retail-card__note">{error}</p>
+      ) : (
+        <p className="retail-card__note">{loading ? "불러오는 중…" : "시세 대기"}</p>
+      )}
+    </article>
+  );
+}
+
 export function RetailScanPanel({
   scan,
   charts,
@@ -322,7 +394,7 @@ export function RetailScanPanel({
   charts: Record<string, IndexChartSeries>;
   scope?: MarketScope;
 }) {
-  const showKs200 = scope !== "us";
+  const showNightFutures = scope === "kr";
   const showMega = scope === "kr" || scope === "us";
   const topCaps = scope === "us" ? scan.topCapsUs : scan.topCapsKr;
   const topCapsTitle =
@@ -346,26 +418,8 @@ export function RetailScanPanel({
         </div>
       </div>
 
-      <div className={`retail-scan__grid ${showKs200 ? "" : "retail-scan__grid--single"}`}>
-        {showKs200 ? (
-          <article className="retail-card">
-            <h3 className="retail-card__title">코스피200</h3>
-            <p className="retail-card__tip">대형주 200개 지수. 야간선물 호가가 아닌 참고 시세.</p>
-            {scan.ks200 ? (
-              <>
-                <p
-                  className={`retail-card__value ${changeToneClass(directionFromChange(scan.ks200.changePercent))}`}
-                >
-                  {formatIndexValue(scan.ks200.value)}{" "}
-                  <span>({formatSigned(scan.ks200.changePercent)}%)</span>
-                </p>
-                <p className="retail-card__note">{scan.ks200.note}</p>
-              </>
-            ) : (
-              <p className="retail-card__note">코스피200 시세를 불러오지 못했습니다.</p>
-            )}
-          </article>
-        ) : null}
+      <div className={`retail-scan__grid ${showNightFutures ? "" : "retail-scan__grid--single"}`}>
+        {showNightFutures ? <Ks200NightFuturesCard active={showNightFutures} /> : null}
 
         <article className="retail-card">
           <h3 className="retail-card__title">기대·경계 신호</h3>

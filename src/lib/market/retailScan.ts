@@ -325,7 +325,7 @@ export function buildRetailScan(
           value: Number(ksRaw.regularMarketPrice),
           changePercent: Number(ksRaw.regularMarketChangePercent ?? 0),
           status: marketStateLabel(ksRaw.marketState, "KR"),
-          note: "야간선물 전용 피드 대신 지수 실시간(참고). KRX 야간선물 호가는 추후 연동.",
+          note: "현물 지수 참고(Yahoo ^KS200). 야간선물 UI와 별개 · 갭 신호용.",
         }
       : null;
 
