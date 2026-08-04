@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import type { StockNewsItem } from "@/lib/market/fetchStockNews";
 import styles from "./MegaNews.module.css";
 
+const NEWS_TIMEOUT_MS = 12_000;
+
 export function MarketFlashNews() {
   const [news, setNews] = useState<StockNewsItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -11,9 +13,11 @@ export function MarketFlashNews() {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), NEWS_TIMEOUT_MS);
     setLoading(true);
     setError(false);
-    fetch("/api/market-news?limit=8")
+    fetch("/api/market-news?limit=8", { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error("news failed");
         return res.json() as Promise<{ items: StockNewsItem[] }>;
@@ -28,10 +32,13 @@ export function MarketFlashNews() {
         setError(true);
       })
       .finally(() => {
+        window.clearTimeout(timer);
         if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
+      controller.abort();
+      window.clearTimeout(timer);
     };
   }, []);
 
@@ -51,7 +58,7 @@ export function MarketFlashNews() {
         {loading ? (
           <p className="retail-card__note">뉴스를 불러오는 중…</p>
         ) : error ? (
-          <p className="retail-card__note">속보를 불러오지 못했습니다.</p>
+          <p className="retail-card__note">속보를 불러오지 못했습니다. 잠시 후 새로고침해 보세요.</p>
         ) : news.length === 0 ? (
           <p className="retail-card__note">최근 속보가 없습니다.</p>
         ) : (

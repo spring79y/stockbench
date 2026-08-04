@@ -302,6 +302,31 @@ a {
   align-items: stretch;
 }
 
+.pulse__scoped--compact {
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+}
+
+.pulse__detail-toggle {
+  justify-self: start;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control, 8px);
+  background: var(--seg-track, #eef2f6);
+  color: var(--brand);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+
+.pulse__detail-toggle:hover {
+  background: var(--brand-tint, #f4f7fb);
+}
+
+.pulse__scoped--compact .pulse__chart {
+  grid-column: 1 / -1;
+}
+
 .pulse__chart {
   border: 1px solid var(--line);
   border-radius: var(--radius-panel);
@@ -670,6 +695,28 @@ a {
   font-weight: 700;
   color: var(--muted);
   letter-spacing: 0.01em;
+}
+
+.retail-card__tip {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.retail-signals__tip {
+  margin: 0.2rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.mega-split__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
 }
 
 .retail-card__value {

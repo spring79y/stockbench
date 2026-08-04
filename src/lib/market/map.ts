@@ -114,7 +114,7 @@ export function formatAsOfLabel(dates: Array<Date | undefined>): string {
     hour12: false,
   }).format(latest);
 
-  return `${formatted} · Yahoo 기준(지연 가능)`;
+  return `${formatted} · Yahoo 참고`;
 }
 
 export function toIndexQuote(

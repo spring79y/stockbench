@@ -10,6 +10,13 @@ import type { FlowLeg, MegaCapQuote, RetailScanBundle } from "@/lib/market/retai
 import type { StockNewsItem } from "@/lib/market/fetchStockNews";
 import newsStyles from "./MegaNews.module.css";
 
+const SIGNAL_TIPS: Record<string, string> = {
+  "ks200-vs-kospi": "코스피200과 코스피 등락 차이. 대형주 온도를 가늠하는 참고.",
+  "vix-temp": "미국 변동성 지수. 숫자가 커질수록 시장이 더 불안해 보일 수 있음.",
+  "top5-kr-avg": "국내 시총 큰 종목들의 평균 등락. 시장 체감 온도.",
+  "top5-us-avg": "미국 시총 큰 종목들의 평균 등락. 시장 체감 온도.",
+};
+
 function FlowShareAmount({ n }: { n: number }) {
   return <span className={changeToneClass(directionFromChange(n))}>{formatFlowShares(n)}</span>;
 }
@@ -79,6 +86,7 @@ function MegaCapSplit({
   showFlow: boolean;
   flow: RetailScanBundle["flow"];
 }) {
+  const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(topCaps[0]?.id ?? "");
   const [rightTab, setRightTab] = useState<"chart" | "flow">("chart");
   const [news, setNews] = useState<StockNewsItem[]>([]);
@@ -98,7 +106,7 @@ function MegaCapSplit({
   const stockFlowRows = (activeId ? flow.byStock[activeId] : undefined) ?? [];
 
   useEffect(() => {
-    if (!activeQuote) {
+    if (!open || !activeQuote) {
       setNews([]);
       return;
     }
@@ -110,9 +118,11 @@ function MegaCapSplit({
       region: activeQuote.region,
       limit: "5",
     });
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 12_000);
     setNewsLoading(true);
     setNewsError(false);
-    fetch(`/api/stock-news?${params.toString()}`)
+    fetch(`/api/stock-news?${params.toString()}`, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error("news failed");
         return res.json() as Promise<{ items: StockNewsItem[] }>;
@@ -127,146 +137,178 @@ function MegaCapSplit({
         setNewsError(true);
       })
       .finally(() => {
+        window.clearTimeout(timer);
         if (!cancelled) setNewsLoading(false);
       });
     return () => {
       cancelled = true;
+      controller.abort();
+      window.clearTimeout(timer);
     };
-  }, [activeQuote?.id, activeQuote?.name, activeQuote?.symbol, activeQuote?.region]);
+  }, [open, activeQuote?.id, activeQuote?.name, activeQuote?.symbol, activeQuote?.region]);
 
   return (
     <article className="retail-card retail-card--wide mega-split">
-      <h3 className="retail-card__title">{title}</h3>
-
-      <div className="mega-split__body">
-        <div className="mega-split__table">
-          <div className="mega-table">
-            {topCaps.map((q, i) => {
-              const selected = q.id === activeId;
-              return (
-                <button
-                  key={q.id}
-                  type="button"
-                  className={`mega-row mega-row--btn ${selected ? "mega-row--selected" : ""}`}
-                  onClick={() => setSelectedId(q.id)}
-                  aria-pressed={selected}
-                >
-                  <span className="mega-row__rank">{i + 1}</span>
-                  <span className="mega-row__name">
-                    {q.name}
-                    <small>{q.marketCapLabel}</small>
-                  </span>
-                  <span className={`mega-row__px ${changeToneClass(directionFromChange(q.changePercent))}`}>
-                    {q.region === "US"
-                      ? q.value.toLocaleString("en-US", { maximumFractionDigits: 2 })
-                      : q.value.toLocaleString("ko-KR")}
-                  </span>
-                  <span className={`mega-row__chg ${changeToneClass(directionFromChange(q.changePercent))}`}>
-                    {formatSigned(q.changePercent)}%
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+      <div className="mega-split__head">
+        <div>
+          <h3 className="retail-card__title">{title}</h3>
+          <p className="retail-card__tip">시장 온도 참고용 대표주 · 추천·관심종목 아님</p>
         </div>
+        <button
+          type="button"
+          className="pulse__detail-toggle"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {open ? "접기" : "펼치기"}
+        </button>
+      </div>
 
-        <div className="mega-split__side">
-          {showFlow ? (
-            <div className="mega-split__tabs" role="tablist" aria-label="시총 상위 보조 보기">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={rightTab === "chart"}
-                className={`mega-split__tab ${rightTab === "chart" ? "is-on" : ""}`}
-                onClick={() => setRightTab("chart")}
-              >
-                차트
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={rightTab === "flow"}
-                className={`mega-split__tab ${rightTab === "flow" ? "is-on" : ""}`}
-                onClick={() => setRightTab("flow")}
-              >
-                수급 1주
-              </button>
+      {!open ? (
+        <p className="retail-card__note">
+          {topCaps
+            .slice(0, 3)
+            .map((q) => q.name)
+            .join(" · ")}
+          {topCaps.length > 3 ? " 외" : ""}
+        </p>
+      ) : (
+        <>
+          <div className="mega-split__body">
+            <div className="mega-split__table">
+              <div className="mega-table">
+                {topCaps.map((q, i) => {
+                  const selected = q.id === activeId;
+                  return (
+                    <button
+                      key={q.id}
+                      type="button"
+                      className={`mega-row mega-row--btn ${selected ? "mega-row--selected" : ""}`}
+                      onClick={() => setSelectedId(q.id)}
+                      aria-pressed={selected}
+                    >
+                      <span className="mega-row__rank">{i + 1}</span>
+                      <span className="mega-row__name">
+                        {q.name}
+                        <small>{q.marketCapLabel}</small>
+                      </span>
+                      <span
+                        className={`mega-row__px ${changeToneClass(directionFromChange(q.changePercent))}`}
+                      >
+                        {q.region === "US"
+                          ? q.value.toLocaleString("en-US", { maximumFractionDigits: 2 })
+                          : q.value.toLocaleString("ko-KR")}
+                      </span>
+                      <span
+                        className={`mega-row__chg ${changeToneClass(directionFromChange(q.changePercent))}`}
+                      >
+                        {formatSigned(q.changePercent)}%
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          ) : null}
 
-          <div className="mega-split__panel">
-            {rightTab === "chart" || !showFlow ? (
-              <IndexMiniChart
-                seriesList={seriesList}
-                activeId={activeId}
-                onActiveChange={setSelectedId}
-                hideSelector
-                quoteChangePercent={activeQuote?.changePercent}
-              />
+            <div className="mega-split__side">
+              {showFlow ? (
+                <div className="mega-split__tabs" role="tablist" aria-label="시총 상위 보조 보기">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={rightTab === "chart"}
+                    className={`mega-split__tab ${rightTab === "chart" ? "is-on" : ""}`}
+                    onClick={() => setRightTab("chart")}
+                  >
+                    차트
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={rightTab === "flow"}
+                    className={`mega-split__tab ${rightTab === "flow" ? "is-on" : ""}`}
+                    onClick={() => setRightTab("flow")}
+                  >
+                    수급 1주
+                  </button>
+                </div>
+              ) : null}
+
+              <div className="mega-split__panel">
+                {rightTab === "chart" || !showFlow ? (
+                  <IndexMiniChart
+                    seriesList={seriesList}
+                    activeId={activeId}
+                    onActiveChange={setSelectedId}
+                    hideSelector
+                    quoteChangePercent={activeQuote?.changePercent}
+                  />
+                ) : (
+                  <StockFlowHistoryTable
+                    stockName={activeQuote?.name ?? "종목"}
+                    rows={stockFlowRows}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className={`flow-sheet ${newsStyles.wrap}`} aria-live="polite">
+            <div className="flow-sheet__head">
+              <h4 className="flow-sheet__title">{activeQuote?.name ?? "종목"} · 관련 뉴스</h4>
+              <span className="flow-sheet__unit">최신순 · 참고용</span>
+            </div>
+
+            {newsLoading ? (
+              <p className="retail-card__note">뉴스를 불러오는 중…</p>
+            ) : newsError ? (
+              <p className="retail-card__note">관련 뉴스를 불러오지 못했습니다.</p>
+            ) : news.length === 0 ? (
+              <p className="retail-card__note">최근 관련 뉴스가 없습니다.</p>
             ) : (
-              <StockFlowHistoryTable
-                stockName={activeQuote?.name ?? "종목"}
-                rows={stockFlowRows}
-              />
+              <div className="flow-sheet__table-wrap">
+                <table className="flow-sheet__table">
+                  <thead>
+                    <tr>
+                      <th scope="col">시간</th>
+                      <th scope="col">출처</th>
+                      <th scope="col" className={newsStyles.thTitle}>
+                        헤드라인
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {news.map((n, i) => (
+                      <tr key={n.id} className={i === 0 ? newsStyles.latest : undefined}>
+                        <th scope="row">
+                          <time dateTime={n.publishedAt || undefined}>{n.publishedLabel}</time>
+                        </th>
+                        <td className={newsStyles.tdSource}>
+                          <span title={n.publisher}>{n.publisher}</span>
+                        </td>
+                        <td className={newsStyles.tdTitle}>
+                          {n.link ? (
+                            <a
+                              href={n.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={newsStyles.link}
+                            >
+                              {n.title}
+                            </a>
+                          ) : (
+                            <span className={newsStyles.link}>{n.title}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
-        </div>
-      </div>
-
-      <div className={`flow-sheet ${newsStyles.wrap}`} aria-live="polite">
-        <div className="flow-sheet__head">
-          <h4 className="flow-sheet__title">{activeQuote?.name ?? "종목"} · 관련 뉴스</h4>
-          <span className="flow-sheet__unit">최신순 · 참고용</span>
-        </div>
-
-        {newsLoading ? (
-          <p className="retail-card__note">뉴스를 불러오는 중…</p>
-        ) : newsError ? (
-          <p className="retail-card__note">관련 뉴스를 불러오지 못했습니다.</p>
-        ) : news.length === 0 ? (
-          <p className="retail-card__note">최근 관련 뉴스가 없습니다.</p>
-        ) : (
-          <div className="flow-sheet__table-wrap">
-            <table className="flow-sheet__table">
-              <thead>
-                <tr>
-                  <th scope="col">시간</th>
-                  <th scope="col">출처</th>
-                  <th scope="col" className={newsStyles.thTitle}>
-                    헤드라인
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {news.map((n, i) => (
-                  <tr key={n.id} className={i === 0 ? newsStyles.latest : undefined}>
-                    <th scope="row">
-                      <time dateTime={n.publishedAt || undefined}>{n.publishedLabel}</time>
-                    </th>
-                    <td className={newsStyles.tdSource}>
-                      <span title={n.publisher}>{n.publisher}</span>
-                    </td>
-                    <td className={newsStyles.tdTitle}>
-                      {n.link ? (
-                        <a
-                          href={n.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={newsStyles.link}
-                        >
-                          {n.title}
-                        </a>
-                      ) : (
-                        <span className={newsStyles.link}>{n.title}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        </>
+      )}
     </article>
   );
 }
@@ -307,7 +349,8 @@ export function RetailScanPanel({
       <div className={`retail-scan__grid ${showKs200 ? "" : "retail-scan__grid--single"}`}>
         {showKs200 ? (
           <article className="retail-card">
-            <h3 className="retail-card__title">코스피200 야간선물</h3>
+            <h3 className="retail-card__title">코스피200</h3>
+            <p className="retail-card__tip">대형주 200개 지수. 야간선물 호가가 아닌 참고 시세.</p>
             {scan.ks200 ? (
               <>
                 <p
@@ -326,13 +369,15 @@ export function RetailScanPanel({
 
         <article className="retail-card">
           <h3 className="retail-card__title">기대·경계 신호</h3>
+          <p className="retail-card__tip">방향 예측이 아니라, 오늘 시장 온도·흔들림을 보는 참고.</p>
           <ul className="retail-signals">
             {signals.map((s) => (
               <li key={s.id}>
                 <div className="retail-signals__row">
-                  <strong>{s.name}</strong>
+                  <strong title={SIGNAL_TIPS[s.id]}>{s.name}</strong>
                   <span className={changeToneClass(s.direction)}>{s.value}</span>
                 </div>
+                {SIGNAL_TIPS[s.id] ? <p className="retail-signals__tip">{SIGNAL_TIPS[s.id]}</p> : null}
                 <p>{s.hint}</p>
               </li>
             ))}

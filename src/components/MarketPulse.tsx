@@ -198,6 +198,7 @@ function ScopedPulse({
 }) {
   const [activeId, setActiveId] = useState(chartSeries[0]?.id ?? quotes[0]?.id ?? "");
   const [rightTab, setRightTab] = useState<"chart" | "flow">("chart");
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const activeQuote = quotes.find((q) => q.id === activeId) ?? quotes[0];
   const resolvedId = activeQuote?.id ?? activeId;
@@ -209,49 +210,59 @@ function ScopedPulse({
   const flowTitle = flowMarket === "kosdaq" ? "코스닥" : "코스피";
 
   return (
-    <div className="pulse__scoped">
+    <div className="pulse__scoped pulse__scoped--compact">
       <QuotePanel
         label={label}
         quotes={quotes}
-        selectedId={resolvedId}
-        onSelect={setActiveId}
+        selectedId={detailOpen ? resolvedId : undefined}
+        onSelect={detailOpen ? setActiveId : undefined}
       />
-      <div className="pulse__chart">
-        {showFlow ? (
-          <div className="mega-split__tabs pulse__side-tabs" role="tablist" aria-label="지수 보조 보기">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={rightTab === "chart"}
-              className={`mega-split__tab ${rightTab === "chart" ? "is-on" : ""}`}
-              onClick={() => setRightTab("chart")}
-            >
-              차트
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={rightTab === "flow"}
-              className={`mega-split__tab ${rightTab === "flow" ? "is-on" : ""}`}
-              onClick={() => setRightTab("flow")}
-            >
-              수급 1주
-            </button>
-          </div>
-        ) : null}
+      <button
+        type="button"
+        className="pulse__detail-toggle"
+        aria-expanded={detailOpen}
+        onClick={() => setDetailOpen((v) => !v)}
+      >
+        {detailOpen ? "차트·수급 접기" : "차트·수급 펼치기"}
+      </button>
+      {detailOpen ? (
+        <div className="pulse__chart">
+          {showFlow ? (
+            <div className="mega-split__tabs pulse__side-tabs" role="tablist" aria-label="지수 보조 보기">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={rightTab === "chart"}
+                className={`mega-split__tab ${rightTab === "chart" ? "is-on" : ""}`}
+                onClick={() => setRightTab("chart")}
+              >
+                차트
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={rightTab === "flow"}
+                className={`mega-split__tab ${rightTab === "flow" ? "is-on" : ""}`}
+                onClick={() => setRightTab("flow")}
+              >
+                수급 1주
+              </button>
+            </div>
+          ) : null}
 
-        {rightTab === "flow" && showFlow ? (
-          <IndexFlowTable marketName={flowTitle} rows={flowRows} />
-        ) : (
-          <IndexMiniChart
-            seriesList={chartSeries}
-            activeId={resolvedId}
-            onActiveChange={setActiveId}
-            hideSelector
-            quoteChangePercent={activeQuote?.changePercent}
-          />
-        )}
-      </div>
+          {rightTab === "flow" && showFlow ? (
+            <IndexFlowTable marketName={flowTitle} rows={flowRows} />
+          ) : (
+            <IndexMiniChart
+              seriesList={chartSeries}
+              activeId={resolvedId}
+              onActiveChange={setActiveId}
+              hideSelector
+              quoteChangePercent={activeQuote?.changePercent}
+            />
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -287,7 +298,9 @@ export function MarketPulse({
           <h2 id="pulse-title" className="block-head__title">
             시장 온도
           </h2>
-          <p className="block-head__sub">{asOfLabel}</p>
+          <p className="block-head__sub">
+            {asOfLabel} · 실시간 호가·매매 판단용 아님
+          </p>
         </div>
         <div className="block-head__meta">
           <span className={`mood-badge mood-badge--${mood}`}>{moodLabel}</span>
