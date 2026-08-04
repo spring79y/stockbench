@@ -1,0 +1,95 @@
+.headline {
+  margin: 0;
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.35;
+  color: var(--ink, #0f172a);
+}
+
+.bullets {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.bullets li {
+  position: relative;
+  padding-left: 0.95rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--ink, #0f172a);
+}
+
+.bullets li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55rem;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: var(--brand, #1d4f91);
+}
+
+.evidence {
+  margin-top: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line, #e2e8f0);
+}
+
+.evidenceLabel {
+  margin: 0 0 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted, #64748b);
+}
+
+.chips {
+  display: grid;
+  gap: 0;
+}
+
+.chipsRest {
+  margin-top: 0.35rem;
+  opacity: 0.85;
+}
+
+.chip {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, auto) auto auto;
+  align-items: baseline;
+  gap: 0.45rem 0.65rem;
+  border: none;
+  border-bottom: 1px solid var(--line, #e2e8f0);
+  border-radius: 0;
+  padding: 0.45rem 0.1rem;
+  background: transparent;
+}
+
+.chipMuted {
+  opacity: 0.72;
+}
+
+.chipName {
+  font-size: 0.78rem;
+  color: var(--muted, #64748b);
+  font-weight: 600;
+}
+
+.chipValue {
+  font-family: var(--font-display), sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink, #0f172a);
+}
+
+.chipChange {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,70 @@
+.wrap {
+  margin-top: 0.85rem;
+}
+
+.wrap :global(.flow-sheet__table) th,
+.wrap :global(.flow-sheet__table) td {
+  text-align: left;
+}
+
+.wrap :global(.flow-sheet__table) thead th:nth-child(1),
+.wrap :global(.flow-sheet__table) tbody th {
+  width: 5.8rem;
+  white-space: nowrap;
+  color: var(--muted, #64748b);
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+.wrap :global(.flow-sheet__table) thead th:nth-child(2),
+.tdSource {
+  width: 6.8rem;
+  max-width: 7.2rem;
+}
+
+.tdSource span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+  font-size: 0.78rem;
+}
+
+.thTitle,
+.tdTitle {
+  text-align: left !important;
+}
+
+.link {
+  display: block;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--ink, #0f172a);
+  text-decoration: none;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+a.link:hover {
+  color: var(--brand, #1d4f91);
+  text-decoration: underline;
+}
+
+.latest th {
+  color: var(--brand, #1d4f91);
+  font-weight: 700;
+}
+
+.latest {
+  background: var(--brand-tint, #f4f7fb);
+}
+
+@media (max-width: 640px) {
+  .wrap :global(.flow-sheet__table) thead th:nth-child(2),
+  .tdSource {
+    display: none;
+  }
+}

@@ -1,0 +1,14 @@
+---
+description: 제품 방향·기능 제안 시 Discuss 에이전트로 컨셉 정합성을 먼저 검토한다.
+alwaysApply: true
+---
+
+# 증시 브리핑 — Discuss 게이트
+
+기능·방향·UI·자동화·콘텐츠 아이디어를 확장하거나 구현하기 **전에**, `discuss` 서브에이전트(`.cursor/agents/discuss.md`)로 컨셉 정합성을 검토한다.
+
+- 컨셉 요약: `docs/concept.md`
+- Discuss가 **수락**한 뒤에만 구현으로 진행
+- Discuss가 **의견 재제시**면 대안을 사용자와 맞춘 뒤 진행
+
+단, 이미 수락된 범위의 버그 수정·카피 미세 조정·스타일 수정은 Discuss 없이 진행해도 된다.

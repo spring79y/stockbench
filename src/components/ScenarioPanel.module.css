@@ -1,0 +1,55 @@
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: var(--radius-panel, 10px);
+  padding: 0.85rem 0.9rem;
+  background: var(--brand-tint, #f4f7fb);
+  box-shadow: inset 3px 0 0 var(--brand, #1d4f91);
+}
+
+.cardRisk {
+  border-color: color-mix(in srgb, var(--warn, #b45309) 28%, var(--line, #e2e8f0));
+  background: color-mix(in srgb, var(--warn, #b45309) 6%, white);
+  box-shadow: inset 3px 0 0 var(--warn, #b45309);
+}
+
+.label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted, #64748b);
+}
+
+.title {
+  margin: 0.25rem 0 0;
+  font-size: 0.98rem;
+  letter-spacing: -0.02em;
+  color: var(--ink, #0f172a);
+}
+
+.summary,
+.implication {
+  margin: 0.45rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--ink, #0f172a);
+}
+
+.implication span {
+  display: inline-block;
+  margin-right: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--brand, #1d4f91);
+}

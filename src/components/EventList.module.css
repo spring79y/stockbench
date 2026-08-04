@@ -1,0 +1,87 @@
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 0.55rem;
+  border: none;
+  border-bottom: 1px solid var(--line, #e2e8f0);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: inset 3px 0 0 var(--brand, #1d4f91);
+  transition: background 0.15s ease;
+  text-decoration: none;
+  color: inherit;
+}
+
+.row:hover {
+  background: var(--brand-tint, #f4f7fb);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  font-size: 0.75rem;
+  color: var(--muted, #64748b);
+}
+
+.level {
+  font-weight: 700;
+}
+
+.levelHigh {
+  color: var(--rise, #e11d28);
+}
+
+.levelMedium {
+  color: var(--warn, #b45309);
+}
+
+.levelLow {
+  color: var(--muted, #64748b);
+}
+
+.body strong {
+  display: block;
+  font-size: 0.92rem;
+  color: var(--ink, #0f172a);
+}
+
+.body p {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--muted, #64748b);
+}
+
+.chevron {
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--muted, #64748b);
+  opacity: 0.7;
+}
+
+.row:hover .chevron {
+  color: var(--brand, #1d4f91);
+  opacity: 1;
+}
+
+.list li:last-child .row {
+  border-bottom: 0;
+}
