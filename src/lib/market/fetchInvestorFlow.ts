@@ -229,12 +229,14 @@ export async function fetchInvestorFlow(
     const [kospiHistory, kosdaqHistory, byStock] = await Promise.all([
       fetchMarketHistory("01"),
       fetchMarketHistory("02"),
-      stockItems.length > 0 ? fetchStockInvestorFlows(stockItems) : Promise.resolve({}),
+      stockItems.length > 0
+        ? fetchStockInvestorFlows(stockItems)
+        : Promise.resolve({} as Record<string, InvestorFlowDay[]>),
     ]);
 
     const kospi = kospiHistory[0] ?? null;
     const kosdaq = kosdaqHistory[0] ?? null;
-    const hasStock = Object.values(byStock).some((days) => days.length > 0);
+    const hasStock = Object.values(byStock).some((days: InvestorFlowDay[]) => days.length > 0);
 
     if (!kospi && !kosdaq && !hasStock) {
       return emptyFlow("수급 데이터를 불러오지 못했습니다. 연동 재시도 전입니다.");
