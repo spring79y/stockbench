@@ -9,11 +9,15 @@ function hrefFor(scope: MarketScope): string {
 }
 
 function phaseDotClass(hint: string): string | null {
-  if (hint === "데이마켓" || hint === "정규장") return "scope-tabs__dot--regular";
+  if (hint === "데이마켓" || hint === "정규장" || hint === "주간거래") {
+    return "scope-tabs__dot--regular";
+  }
   if (hint === "프리장" || hint === "애프터마켓" || hint === "애프터장") {
     return "scope-tabs__dot--session";
   }
-  if (hint === "장마감" || hint === "주말") return "scope-tabs__dot--closed";
+  if (hint === "장마감" || hint === "주말" || hint === "휴장") {
+    return "scope-tabs__dot--closed";
+  }
   return null;
 }
 

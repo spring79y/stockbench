@@ -58,6 +58,20 @@ function zoneClock(
   };
 }
 
+/** America/New_York 이 서머타임(EDT, UTC−4)인지 */
+export function isUsDaylightSaving(now = new Date()): boolean {
+  const name =
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      timeZoneName: "longOffset",
+    })
+      .formatToParts(now)
+      .find((p) => p.type === "timeZoneName")?.value ?? "";
+  // GMT-04:00 / UTC-04:00 → DST, GMT-05:00 → 동절
+  const normalized = name.replace("−", "-");
+  return /[-−]0?4(?::00)?\b/.test(normalized);
+}
+
 /** 서울 시간 기준 대략 슬롯 (주말·공휴일 단순화) */
 export function resolveSession(now = new Date()): {
   kind: SessionKind;
@@ -71,7 +85,7 @@ export function resolveSession(now = new Date()): {
     return {
       kind: "idle",
       isFullBriefingSlot: false,
-      label: "주말",
+      label: "휴장",
       note: "풀 브리핑은 장전·장후 슬롯에만 갱신됩니다. 아래는 직전 발행분 + 실시간 시세입니다.",
     };
   }
@@ -89,7 +103,7 @@ export function resolveSession(now = new Date()): {
     return {
       kind: "kr-session",
       isFullBriefingSlot: false,
-      label: "한국 데이마켓",
+      label: "한국 정규장",
       note: "장중에는 풀 브리핑을 새로 쓰지 않습니다. 시세는 실시간, 문구는 직전 장전/장후 발행분입니다.",
     };
   }
@@ -98,10 +112,13 @@ export function resolveSession(now = new Date()): {
       kind: "kr-post",
       isFullBriefingSlot: true,
       label: "한국 장후",
-      note: "국내 마감·애프터 정리 · 밤 미장 앞 점검",
+      note: "국내 마감·시간외 정리 · 밤 미장 앞 점검",
     };
   }
-  if (mins < 22 * 60 + 30) {
+
+  const dst = isUsDaylightSaving(now);
+  const usPreEnd = dst ? 22 * 60 + 30 : 23 * 60 + 30;
+  if (mins < usPreEnd) {
     return {
       kind: "us-pre",
       isFullBriefingSlot: true,
@@ -110,12 +127,13 @@ export function resolveSession(now = new Date()): {
     };
   }
 
-  // 미국 정규(서머 22:30~, 동절 23:30~) — 대략 야간~익일 새벽
-  if (hour >= 22 || hour < 5) {
+  // 미국 정규(서머 22:30~, 동절 23:30~) — 야간~익일 새벽
+  const usRegEnd = dst ? 5 : 6;
+  if (hour >= 22 || hour < usRegEnd) {
     return {
       kind: "us-session",
       isFullBriefingSlot: false,
-      label: "미국 데이마켓",
+      label: "미국 정규장",
       note: "미 장중에는 풀 브리핑을 새로 쓰지 않습니다. 시세는 실시간, 문구는 직전 발행분입니다.",
     };
   }
@@ -135,25 +153,65 @@ export const SLOT_LABEL: Record<PipelineSlot, string> = {
   "us-post": "미국 장후",
 };
 
-/** 탭용 짧은 장 상태 라벨 */
-export type MarketPhaseLabel = "데이마켓" | "프리장" | "애프터마켓" | "장마감" | "주말";
+/**
+ * 탭·시세 행용 장 상태 라벨
+ * - 정규장: KRX 09:00~15:30 / 미 본장
+ * - 프리장: 개장 전
+ * - 애프터마켓: 장후 시간외(+국내 NXT)
+ * - 주간거래: 국내 증권사 미장 주간 세션
+ * - 장마감 / 휴장
+ */
+export type MarketPhaseLabel =
+  | "정규장"
+  | "프리장"
+  | "애프터마켓"
+  | "주간거래"
+  | "장마감"
+  | "휴장";
 
 function phaseFromQuoteStatus(status: string | undefined): MarketPhaseLabel | null {
   if (!status || status === "참고") return null;
-  if (status === "장중") return "데이마켓";
+  if (status === "장중") return "정규장";
   if (status === "프리" || status === "장전") return "프리장";
   if (status === "애프터" || status === "마감후") return "애프터마켓";
+  if (status === "주간") return "주간거래";
   if (status === "마감") return "장마감";
+  if (status === "휴장" || status === "주말") return "휴장";
   return null;
 }
 
+export function statusLabelForPhase(phase: MarketPhaseLabel, region: "KR" | "US"): string {
+  switch (phase) {
+    case "정규장":
+      return "장중";
+    case "프리장":
+      return region === "US" ? "프리" : "장전";
+    case "애프터마켓":
+      return region === "US" ? "애프터" : "마감후";
+    case "주간거래":
+      return "주간";
+    case "휴장":
+      return "휴장";
+    case "장마감":
+    default:
+      return "마감";
+  }
+}
+
 /**
- * 시계 기준 장 상태.
- * - 한국: Asia/Seoul — 프리 08:00~09:00, 데이 09:00~15:30, 애프터 15:30~18:00
- * - 미국: America/New_York (서머/동절 자동)
- *   - 데이마켓: 09:30~16:00 ET (현금 정규장)
- *   - 프리장: 04:00~09:30, 그리고 월~목 20:00~익일 04:00(심야·PREPRE), 일 18:00~
- *   - 애프터마켓: 16:00~20:00
+ * 시계 기준 장 상태 (Yahoo marketState보다 우선).
+ *
+ * 한국 (Asia/Seoul, 평일)
+ * - 프리장 08:00~09:00 (NXT 시작·동시호가·장전 시간외)
+ * - 정규장 09:00~15:30
+ * - 애프터마켓 15:30~20:00 (장후 시간외·단일가·NXT)
+ * - 그 외 장마감 / 주말·휴일 휴장
+ *
+ * 미국 (한국 시각, 서머타임 자동)
+ * - 주간거래 10:00~18:00 (서머 09:00~17:00)
+ * - 프리장 18:00~23:30 (서머 17:00~22:30)
+ * - 정규장 23:30~06:00 (서머 22:30~05:00)
+ * - 애프터마켓 06:00~07:00 (서머 05:00~07:00)
  */
 export function resolveMarketPhaseByClock(
   region: "KR" | "US",
@@ -161,32 +219,45 @@ export function resolveMarketPhaseByClock(
 ): MarketPhaseLabel {
   if (region === "KR") {
     const { weekend, mins } = zoneClock("Asia/Seoul", now);
-    if (weekend) return "주말";
+    if (weekend) return "휴장";
     if (mins >= 8 * 60 && mins < 9 * 60) return "프리장";
-    if (mins >= 9 * 60 && mins < 15 * 60 + 30) return "데이마켓";
-    // 시간외 단일가·종가 구간
-    if (mins >= 15 * 60 + 30 && mins < 18 * 60) return "애프터마켓";
+    if (mins >= 9 * 60 && mins < 15 * 60 + 30) return "정규장";
+    // 장후 시간외 종가·단일가 + NXT(~20:00)
+    if (mins >= 15 * 60 + 30 && mins < 20 * 60) return "애프터마켓";
     return "장마감";
   }
 
-  const { weekend, weekday, mins } = zoneClock("America/New_York", now);
+  const { weekend, mins } = zoneClock("Asia/Seoul", now);
+  if (weekend) return "휴장";
 
-  // 일요일 저녁 Globex/프리 개장 이후
-  if (weekday === "Sun" && mins >= 18 * 60) return "프리장";
-  if (weekend) return "주말";
+  const dst = isUsDaylightSaving(now);
+  const dayStart = dst ? 9 * 60 : 10 * 60;
+  const dayEnd = dst ? 17 * 60 : 18 * 60;
+  const preStart = dst ? 17 * 60 : 18 * 60;
+  const preEnd = dst ? 22 * 60 + 30 : 23 * 60 + 30;
+  const regEnd = dst ? 5 * 60 : 6 * 60; // 익일
+  const afterStart = dst ? 5 * 60 : 6 * 60;
+  const afterEnd = 7 * 60;
 
-  // 현금 정규장 = 데이마켓
-  if (mins >= 9 * 60 + 30 && mins < 16 * 60) return "데이마켓";
-  // 공식 프리마켓
-  if (mins >= 4 * 60 && mins < 9 * 60 + 30) return "프리장";
+  // 정규장 (본장, 야간 跨越 넘김)
+  if (mins >= preEnd || mins < regEnd) return "정규장";
+  // 프리마켓
+  if (mins >= preStart && mins < preEnd) return "프리장";
   // 애프터마켓
-  if (mins >= 16 * 60 && mins < 20 * 60) return "애프터마켓";
-  // 월~목 심야(20:00~04:00): PREPRE·선물 야간 — 완전 마감 아님
-  if (weekday !== "Fri" && (mins >= 20 * 60 || mins < 4 * 60)) return "프리장";
-  // 금요일 새벽(목→금 심야)도 프리
-  if (weekday === "Fri" && mins < 4 * 60) return "프리장";
+  if (mins >= afterStart && mins < afterEnd) return "애프터마켓";
+  // 국내 증권사 주간 거래
+  if (mins >= dayStart && mins < dayEnd) return "주간거래";
 
   return "장마감";
+}
+
+function isActiveSessionPhase(phase: MarketPhaseLabel): boolean {
+  return (
+    phase === "정규장" ||
+    phase === "프리장" ||
+    phase === "애프터마켓" ||
+    phase === "주간거래"
+  );
 }
 
 export function resolveMarketPhase(
@@ -195,19 +266,31 @@ export function resolveMarketPhase(
   now = new Date(),
 ): MarketPhaseLabel {
   const byClock = resolveMarketPhaseByClock(region, now);
+  if (byClock === "휴장") return "휴장";
+
   const hit = quotes.find((q) => q.region === region);
   const byQuote = phaseFromQuoteStatus(hit?.status);
 
-  if (byClock === "주말" || byQuote === "주말") return "주말";
-
-  // Yahoo가 세션을 열어 두면(장중/프리/애프터) 시계의 장마감보다 우선
-  if (byQuote === "데이마켓" || byQuote === "프리장" || byQuote === "애프터마켓") {
-    // 단, 시계가 데이마켓인데 시세만 프리로 남은 잔상은 시계 따름
-    if (byClock === "데이마켓" && byQuote === "프리장") return "데이마켓";
-    return byQuote;
+  // 평일인데 시계상 장중·시간외인데 Yahoo가 마감 → 휴일 휴장으로 간주
+  if (byQuote === "장마감" && isActiveSessionPhase(byClock)) {
+    return "휴장";
   }
 
+  // Yahoo POST 잔상 등으로 밤에 애프터가 남는 문제 방지 — 시계 우선
   return byClock;
+}
+
+/** 시세 행 status 를 시계 기준 세션으로 맞춤 */
+export function applySessionStatusToQuotes(
+  quotes: IndexQuote[],
+  now = new Date(),
+): IndexQuote[] {
+  const kr = resolveMarketPhase("KR", quotes, now);
+  const us = resolveMarketPhase("US", quotes, now);
+  return quotes.map((q) => ({
+    ...q,
+    status: statusLabelForPhase(q.region === "KR" ? kr : us, q.region),
+  }));
 }
 
 export function buildScopeTabHints(quotes: IndexQuote[], now = new Date()) {

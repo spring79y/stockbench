@@ -14,7 +14,7 @@ import type { LiveMarketBundle } from "@/lib/market/fetchLiveMarket";
 import type { MarketScope } from "@/lib/market/scope";
 import { formatBriefingUpdatedAt } from "@/lib/events/catalog";
 import { parseMarketScope } from "@/lib/market/scope";
-import { buildScopeTabHints, temperatureForScope } from "@/lib/market/session";
+import { applySessionStatusToQuotes, buildScopeTabHints, temperatureForScope } from "@/lib/market/session";
 import type { BoardEditorial } from "@/lib/pipeline/loadPublished";
 import type { DailyBriefing, MarketEvent } from "@/lib/types";
 
@@ -46,7 +46,11 @@ export function HomeBoard({
   }, []);
 
   const view = board.views[activeScope] ?? board.views.all;
-  const temperature = temperatureForScope(market.indexes, activeScope);
+  const indexes = useMemo(
+    () => applySessionStatusToQuotes(market.indexes, now),
+    [market.indexes, now],
+  );
+  const temperature = temperatureForScope(indexes, activeScope);
   const tabHints = useMemo(() => buildScopeTabHints(market.indexes, now), [market.indexes, now]);
   const updatedLabel =
     activeScope === "kr"
@@ -75,7 +79,7 @@ export function HomeBoard({
 
       <div key={activeScope} className="scope-panel">
         <MarketPulse
-          quotes={market.indexes}
+          quotes={indexes}
           charts={market.charts}
           scope={activeScope}
           temperature={temperature}
