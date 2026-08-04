@@ -10,7 +10,16 @@ import type { MarketScope } from "@/lib/market/scope";
 import type { EvidencePack } from "@/lib/pipeline/evidencePack";
 
 export type { MarketScope };
-export type PipelineSlot = "kr-pre" | "kr-post" | "us-pre" | "us-post";
+export type PipelineSlot =
+  | "kr-pre"
+  | "kr-post"
+  | "kr-mid"
+  | "us-pre"
+  | "us-post"
+  | "us-mid";
+
+/** full = Briefing+Decision, refresh = Briefing만(시나리오·점검 유지) */
+export type PipelineMode = "full" | "refresh";
 
 export type CollectorSnapshot = {
   collectedAt: string;
@@ -64,6 +73,8 @@ export type EditorialView = {
   publishedAt?: string;
   /** 이 탭을 갱신한 슬롯 */
   slot?: PipelineSlot;
+  /** full | refresh — refresh면 시나리오·점검은 직전 풀 발행 유지 */
+  mode?: PipelineMode;
 };
 
 export type PublishedBundle = {
@@ -71,6 +82,8 @@ export type PublishedBundle = {
   slot: PipelineSlot;
   publishedAt: string;
   source: "pipeline";
+  /** 이번 발행이 full인지 장중 refresh인지 */
+  mode?: PipelineMode;
   market: {
     temperature: string;
     mood: DailyBriefing["mood"];

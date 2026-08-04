@@ -1,4 +1,4 @@
-import type { PipelineSlot } from "@/lib/pipeline/types";
+import type { PipelineSlot, PipelineMode } from "@/lib/pipeline/types";
 import type { MarketScope } from "@/lib/market/scope";
 
 /** 서울 기준 슬롯 목표 시각 (분 단위, 하루 1회 발사) */
@@ -8,14 +8,29 @@ export const SLOT_SCHEDULE: Record<
 > = {
   /** 미국 장후와 동일 — 오버나잇 반영 후 국내 장전 브리핑 */
   "kr-pre": { hour: 5, minute: 20, label: "한국 장전" },
+  "kr-mid": { hour: 11, minute: 30, label: "한국 장중 리프레시" },
   "kr-post": { hour: 15, minute: 40, label: "한국 장후" },
   "us-pre": { hour: 21, minute: 50, label: "미국 장전" },
+  "us-mid": { hour: 2, minute: 0, label: "미국 장중 리프레시" },
   "us-post": { hour: 5, minute: 20, label: "미국 장후" },
 };
 
+export const ALL_PIPELINE_SLOTS: PipelineSlot[] = [
+  "us-post",
+  "kr-pre",
+  "kr-mid",
+  "kr-post",
+  "us-pre",
+  "us-mid",
+];
+
+export function modeForSlot(slot: PipelineSlot): PipelineMode {
+  return slot === "kr-mid" || slot === "us-mid" ? "refresh" : "full";
+}
+
 /** 슬롯이 갱신하는 탭 — 한국 슬롯은 통합+한국, 미국 슬롯은 통합+미국 */
 export function scopesForSlot(slot: PipelineSlot): MarketScope[] {
-  if (slot === "kr-pre" || slot === "kr-post") return ["all", "kr"];
+  if (slot.startsWith("kr-")) return ["all", "kr"];
   return ["all", "us"];
 }
 
@@ -64,6 +79,7 @@ export function slotTargetMins(slot: PipelineSlot): number {
  * - 주말 스킵
  * - 목표 시각 이후이면서 아직 발사 안 된 슬롯
  * - us-post / kr-pre 는 둘 다 05:20 (같은 시각에 연속 실행)
+ * - us-mid(02:00)는 새벽, 하루 중 가장 이름
  */
 export function dueSlots(
   now = new Date(),
@@ -72,7 +88,14 @@ export function dueSlots(
   const { weekend, mins } = seoulDateParts(now);
   if (weekend) return [];
 
-  const order: PipelineSlot[] = ["us-post", "kr-pre", "kr-post", "us-pre"];
+  const order: PipelineSlot[] = [
+    "us-mid",
+    "us-post",
+    "kr-pre",
+    "kr-mid",
+    "kr-post",
+    "us-pre",
+  ];
   return order.filter((slot) => {
     if (fired[slot]) return false;
     return mins >= slotTargetMins(slot);

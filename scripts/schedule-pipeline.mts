@@ -3,8 +3,8 @@
  * 실행: npm run pipeline:schedule
  *
  * 서울 시각 기준 (주말 스킵):
- * - us-post · kr-pre 05:20 (미국 장후 = 한국 장전 동시)
- * - kr-post 15:40 · us-pre 21:50
+ * - us-mid 02:00 (refresh) · us-post · kr-pre 05:20
+ * - kr-mid 11:30 (refresh) · kr-post 15:40 · us-pre 21:50
  */
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";

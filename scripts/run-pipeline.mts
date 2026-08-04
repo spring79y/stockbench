@@ -3,9 +3,9 @@
  * 실행: npm run pipeline -- kr-post
  *
  * 슬롯별로 갱신하는 탭이 다름:
- * - kr-pre/kr-post → all + kr
- * - us-pre/us-post → all + us
- * 나머지 탭은 직전 latest.json 유지 (탭별 publishedAt 분리)
+ * - kr-* → all + kr
+ * - us-* → all + us
+ * mid 슬롯(kr-mid/us-mid)은 refresh: Briefing만, 시나리오·점검 유지
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -14,14 +14,15 @@ import {
   collectSnapshot,
   defaultPipelineEvents,
 } from "../src/lib/pipeline/collectSnapshot";
-import { runGuard } from "../src/lib/pipeline/guard";
+import { runBriefingOnlyGuard, runGuard } from "../src/lib/pipeline/guard";
 import { resolveLlmConfig } from "../src/lib/pipeline/llm";
 import { runBriefingAgent } from "../src/lib/pipeline/runBriefingAgent";
 import { runDecisionAgent } from "../src/lib/pipeline/runDecisionAgent";
-import { scopesForSlot } from "../src/lib/pipeline/schedule";
+import { ALL_PIPELINE_SLOTS, modeForSlot, scopesForSlot } from "../src/lib/pipeline/schedule";
 import type {
   EditorialView,
   MarketScope,
+  PipelineMode,
   PipelineSlot,
   PublishedBundle,
 } from "../src/lib/pipeline/types";
@@ -40,7 +41,7 @@ function loadPreviousBundle(): PublishedBundle | null {
   return null;
 }
 
-async function generateView(
+async function generateFullView(
   snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
   scope: MarketScope,
   publishedAt: string,
@@ -53,7 +54,7 @@ async function generateView(
     console.log(
       `[pipeline] Briefing scope=${scope}${attempt > 1 ? ` retry=${attempt}` : ""}`,
     );
-    const briefingResult = await runBriefingAgent(snapshot, scope, repairHints);
+    const briefingResult = await runBriefingAgent(snapshot, scope, repairHints, "full");
     console.log(
       `  briefing source=${briefingResult.source}${briefingResult.error ? ` (${briefingResult.error})` : ""}`,
     );
@@ -90,6 +91,7 @@ async function generateView(
           checkItems: decisionResult.data.checkItems,
           publishedAt,
           slot,
+          mode: "full",
         },
         findings,
       };
@@ -102,16 +104,93 @@ async function generateView(
   throw new Error(`failed to generate view for ${scope}`);
 }
 
+async function generateRefreshView(
+  snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
+  scope: MarketScope,
+  publishedAt: string,
+  slot: PipelineSlot,
+  previous: EditorialView | undefined,
+): Promise<{ view: EditorialView; findings: PublishedBundle["guard"]["findings"] }> {
+  if (!previous?.scenarios?.length || !previous.checkItems?.length) {
+    console.log(`[pipeline] refresh fallback → full (no prior view for ${scope})`);
+    return generateFullView(snapshot, scope, publishedAt, slot);
+  }
+
+  let repairHints: string[] | undefined;
+  const findings: PublishedBundle["guard"]["findings"] = [];
+  const frozenDecision = {
+    scenarios: previous.scenarios,
+    checkItems: previous.checkItems,
+  };
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    console.log(
+      `[pipeline] Refresh Briefing scope=${scope}${attempt > 1 ? ` retry=${attempt}` : ""}`,
+    );
+    const briefingResult = await runBriefingAgent(snapshot, scope, repairHints, "refresh");
+    console.log(
+      `  briefing source=${briefingResult.source}${briefingResult.error ? ` (${briefingResult.error})` : ""}`,
+    );
+
+    const guard = runBriefingOnlyGuard({
+      snapshot,
+      briefing: briefingResult.data,
+      frozenDecision,
+    });
+
+    if (guard.ok || attempt === 2) {
+      if (!guard.ok) {
+        console.log(`[pipeline] refresh guard blocked — keep previous briefing for ${scope}`);
+        findings.push(
+          ...guard.findings.map((f) => ({
+            ...f,
+            severity: "warn" as const,
+            message: `[${scope}] refresh skipped: ${f.message}`,
+          })),
+        );
+        return {
+          view: { ...previous },
+          findings,
+        };
+      }
+      findings.push(
+        ...guard.findings.map((f) => ({ ...f, message: `[${scope}] ${f.message}` })),
+      );
+      return {
+        view: {
+          briefing: {
+            headline: briefingResult.data.headline,
+            bullets: briefingResult.data.bullets,
+            evidenceIds: briefingResult.data.evidenceIds,
+          },
+          scenarios: previous.scenarios,
+          checkItems: previous.checkItems,
+          publishedAt,
+          slot,
+          mode: "refresh",
+        },
+        findings,
+      };
+    }
+
+    repairHints = guard.findings.map((f) => f.message);
+    console.log(`  guard blocked → retry once: ${repairHints.join("; ")}`);
+  }
+
+  throw new Error(`failed to refresh view for ${scope}`);
+}
+
 async function main() {
   const slot = (process.argv[2] as PipelineSlot) || "kr-post";
-  if (!["kr-pre", "kr-post", "us-pre", "us-post"].includes(slot)) {
-    console.error(`Unknown slot: ${slot}`);
+  if (!ALL_PIPELINE_SLOTS.includes(slot)) {
+    console.error(`Unknown slot: ${slot}. Expected one of ${ALL_PIPELINE_SLOTS.join(", ")}`);
     process.exit(1);
   }
 
+  const mode: PipelineMode = modeForSlot(slot);
   const llm = resolveLlmConfig();
   console.log(
-    `[pipeline] llm=${llm.provider}${llm.provider === "none" ? " (seed fallback)" : ` model=${llm.model}`}`,
+    `[pipeline] mode=${mode} llm=${llm.provider}${llm.provider === "none" ? " (seed fallback)" : ` model=${llm.model}`}`,
   );
 
   console.log(`[pipeline] 1) Collector(+EvidencePack+Risk) slot=${slot}`);
@@ -133,17 +212,14 @@ async function main() {
   const findings = [...(previous?.guard.findings ?? []).filter((f) => f.severity !== "block")];
 
   for (const scope of targetScopes) {
-    const { view, findings: scopeFindings } = await generateView(
-      snapshot,
-      scope,
-      publishedAt,
-      slot,
-    );
+    const { view, findings: scopeFindings } =
+      mode === "refresh"
+        ? await generateRefreshView(snapshot, scope, publishedAt, slot, views[scope])
+        : await generateFullView(snapshot, scope, publishedAt, slot);
     views[scope] = view;
     findings.push(...scopeFindings);
   }
 
-  // 이전 탭에 publishedAt이 없으면 번들 시각으로 보정
   (["all", "kr", "us"] as MarketScope[]).forEach((scope) => {
     const v = views[scope];
     if (!v) return;
@@ -152,16 +228,16 @@ async function main() {
         ...v,
         publishedAt: previous?.publishedAt ?? publishedAt,
         slot: previous?.slot ?? slot,
+        mode: previous?.mode ?? mode,
       };
     }
   });
 
   if (!views.all || !views.kr || !views.us) {
-    console.error("[pipeline] missing views — run once with a full seed first");
-    // 첫 발행이면 누락 스코프도 생성
+    console.error("[pipeline] missing views — seeding missing scopes with full generation");
     for (const scope of ["all", "kr", "us"] as MarketScope[]) {
       if (!views[scope]) {
-        const { view, findings: scopeFindings } = await generateView(
+        const { view, findings: scopeFindings } = await generateFullView(
           snapshot,
           scope,
           publishedAt,
@@ -188,6 +264,7 @@ async function main() {
     slot,
     publishedAt,
     source: "pipeline",
+    mode,
     market: {
       temperature: snapshot.temperature,
       mood: snapshot.mood,
@@ -195,14 +272,14 @@ async function main() {
       asOfLabel: snapshot.asOfLabel,
     },
     views: views as PublishedBundle["views"],
-    events: snapshot.events ?? defaultPipelineEvents(),
+    events: snapshot.events ?? previous?.events ?? defaultPipelineEvents(),
     guard,
   };
 
   mkdirSync(dirname(latestPath), { recursive: true });
   writeFileSync(latestPath, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
   console.log(`[pipeline] published → ${latestPath}`);
-  console.log(`updated scopes: ${targetScopes.join(", ")}`);
+  console.log(`updated scopes: ${targetScopes.join(", ")} · mode=${mode}`);
   console.log(`all@${bundle.views.all.publishedAt}: ${bundle.views.all.briefing.headline}`);
   console.log(`kr@${bundle.views.kr.publishedAt}: ${bundle.views.kr.briefing.headline}`);
   console.log(`us@${bundle.views.us.publishedAt}: ${bundle.views.us.briefing.headline}`);

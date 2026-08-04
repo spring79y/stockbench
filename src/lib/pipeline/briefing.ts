@@ -36,18 +36,59 @@ export const BRIEFING_SYSTEM_PROMPT = `당신은 증시 브리핑의 Briefing Ag
   "evidenceIds": ["usdkkrw","us10y","wti","vix"]
 }`;
 
+/** 장중 리프레시 — 헤드라인·불릿만. 시나리오/점검 대체 금지 */
+export const REFRESH_BRIEFING_SYSTEM_PROMPT = `당신은 증시 브리핑의 Briefing Agent다. 지금은 **장중 리프레시**다.
+독자는 일반 개미다. 풀 시나리오·점검은 이미 나와 있고, 건드리지 않는다.
+
+길이 한도(반드시):
+- headline: 한글 기준 36자 이내, 한 문장
+- bullets: 정확히 3개, **각 50자 이내**, 한 문장
+- 군더더기·리포트체 금지
+
+절대 하지 말 것:
+- 매수/매도/비중/타이밍 권유
+- 종가·당일 방향 단정·예측 ("오늘 오른다/내린다")
+- 시나리오 A/B·점검을 새로 쓰거나 대체·암시
+- "지금이 기회/위험하니 대응하라"류 행동 촉구
+- 등락률 복창으로 끝나는 문장
+- 공포·긴급 알림 톤
+
+반드시 할 것:
+- headline: 장중 **지금 온도** 한 줄 (사실+짧은 해석)
+- bullets:
+  1) 장중 핵심 변화 한 줄
+  2) 왜(근거 하나) — 복창 금지
+  3) 장전·장후 시나리오를 볼 때 참고할 관찰 포인트만 짧게
+- evidenceIds: 실제로 쓴 매크로 id만
+- 탭 scope 존중
+
+출력은 JSON만:
+{
+  "headline": "...",
+  "bullets": ["...","...","..."],
+  "evidenceIds": ["usdkkrw","us10y","wti","vix"]
+}`;
+
 export function buildBriefingUserPrompt(
   snapshot: CollectorSnapshot,
   scope: MarketScope,
   repairHints?: string[],
+  mode: "full" | "refresh" = "full",
 ): string {
   const repair =
     repairHints && repairHints.length > 0
       ? ["", "## Guard 수정 요청(반드시 반영)", ...repairHints.map((h) => `- ${h}`)]
       : [];
 
+  const modeLine =
+    mode === "refresh"
+      ? "모드: 장중 리프레시 (headline·bullets·evidenceIds만. 시나리오·점검 금지)"
+      : "모드: 풀 브리핑";
+
   if (snapshot.evidence) {
-    return [renderEvidencePackForPrompt(snapshot.evidence, scope), ...repair].join("\n");
+    return [modeLine, renderEvidencePackForPrompt(snapshot.evidence, scope), ...repair].join(
+      "\n",
+    );
   }
 
   const extra = snapshot.retailScan
@@ -62,6 +103,7 @@ export function buildBriefingUserPrompt(
     : [];
 
   return [
+    modeLine,
     `탭 초점(scope): ${scope}`,
     `슬롯: ${snapshot.slot}`,
     `온도: ${snapshot.temperature}`,

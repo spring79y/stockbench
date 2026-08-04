@@ -1,20 +1,23 @@
-# 한·미 장전·장후 슬롯에 맞춰 브리핑을 생성하고 latest.json 을 커밋합니다.
+# 한·미 장전·장후 풀 브리핑 + 장중 헤드라인 리프레시
 # Vercel은 push 후 자동 재배포됩니다.
 #
 # GitHub → Settings → Secrets and variables → Actions 에 등록:
 #   ANTHROPIC_API_KEY
-#   ANTHROPIC_MODEL (선택, 기본 claude-sonnet-4-5)
 name: Publish briefing
 
 on:
   schedule:
     # UTC cron · 평일(KST) 기준
     # 05:20 KST = 20:20 UTC (전날) → Sun–Thu UTC = Mon–Fri KST 새벽
-    - cron: "20 20 * * 0-4" # us-post + kr-pre
+    - cron: "20 20 * * 0-4" # us-post + kr-pre (full)
+    # 11:30 KST = 02:30 UTC
+    - cron: "30 2 * * 1-5" # kr-mid (refresh)
     # 15:40 KST = 06:40 UTC
-    - cron: "40 6 * * 1-5" # kr-post
+    - cron: "40 6 * * 1-5" # kr-post (full)
     # 21:50 KST = 12:50 UTC
-    - cron: "50 12 * * 1-5" # us-pre
+    - cron: "50 12 * * 1-5" # us-pre (full)
+    # 02:00 KST = 17:00 UTC (전날) → Sun–Thu UTC
+    - cron: "0 17 * * 0-4" # us-mid (refresh)
   workflow_dispatch:
     inputs:
       slot:
@@ -24,8 +27,10 @@ on:
         options:
           - us-post
           - kr-pre
+          - kr-mid
           - kr-post
           - us-pre
+          - us-mid
           - morning # us-post then kr-pre
 
 permissions:
@@ -64,16 +69,19 @@ jobs:
             fi
             exit 0
           fi
-          # schedule: GitHub does not pass which cron fired; infer from UTC hour
           HOUR=$(date -u +%H)
           MIN=$(date -u +%M)
           echo "UTC ${HOUR}:${MIN}"
           if [ "$HOUR" = "20" ]; then
             echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT"
+          elif [ "$HOUR" = "02" ]; then
+            echo "list=kr-mid" >> "$GITHUB_OUTPUT"
           elif [ "$HOUR" = "06" ]; then
             echo "list=kr-post" >> "$GITHUB_OUTPUT"
           elif [ "$HOUR" = "12" ]; then
             echo "list=us-pre" >> "$GITHUB_OUTPUT"
+          elif [ "$HOUR" = "17" ]; then
+            echo "list=us-mid" >> "$GITHUB_OUTPUT"
           else
             echo "Unknown schedule hour=$HOUR — defaulting to kr-post"
             echo "list=kr-post" >> "$GITHUB_OUTPUT"

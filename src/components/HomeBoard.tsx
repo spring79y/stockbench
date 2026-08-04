@@ -58,6 +58,7 @@ export function HomeBoard({
       : activeScope === "us"
         ? formatBriefingUpdatedAt(board.views.us.publishedAt ?? board.publishedAt)
         : formatBriefingUpdatedAt(board.views.all.publishedAt ?? board.publishedAt);
+  const viewMode = view.mode ?? (view.slot === "kr-mid" || view.slot === "us-mid" ? "refresh" : "full");
   const events = useMemo(
     () => filterEvents(board.events, activeScope),
     [board.events, activeScope],
@@ -94,6 +95,7 @@ export function HomeBoard({
           macros={market.macros}
           updatedLabel={updatedLabel}
           fromPipeline={board.fromPipeline}
+          refreshLabel={viewMode === "refresh"}
         />
         <ScenarioPanel scenarios={view.scenarios} />
         <CheckList key={`check-${activeScope}`} items={view.checkItems} />

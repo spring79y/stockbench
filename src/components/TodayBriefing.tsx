@@ -7,11 +7,14 @@ export function TodayBriefing({
   macros,
   updatedLabel,
   fromPipeline,
+  refreshLabel,
 }: {
   briefing: DailyBriefing;
   macros: MacroChip[];
   updatedLabel?: string;
   fromPipeline?: boolean;
+  /** 장중 리프레시일 때 짧은 라벨 */
+  refreshLabel?: boolean;
 }) {
   const evidence = macros.filter((m) => briefing.evidenceIds.includes(m.id));
 
@@ -25,7 +28,8 @@ export function TodayBriefing({
           </h2>
           {updatedLabel ? (
             <p className="block-head__sub">
-              가장 최근 업데이트 · {updatedLabel}
+              {refreshLabel ? "장중 리프레시 · " : "가장 최근 업데이트 · "}
+              {updatedLabel}
               {fromPipeline === false ? " · 목 데이터" : ""}
             </p>
           ) : null}

@@ -148,8 +148,10 @@ export function resolveSession(now = new Date()): {
 
 export const SLOT_LABEL: Record<PipelineSlot, string> = {
   "kr-pre": "한국 장전",
+  "kr-mid": "한국 장중 리프레시",
   "kr-post": "한국 장후",
   "us-pre": "미국 장전",
+  "us-mid": "미국 장중 리프레시",
   "us-post": "미국 장후",
 };
 

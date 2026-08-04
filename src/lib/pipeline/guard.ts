@@ -218,5 +218,41 @@ export function runGuard(input: {
   };
 }
 
+/** 장중 리프레시용 — 브리핑만 검사. 동결된 시나리오·점검 경고는 무시 */
+export function runBriefingOnlyGuard(input: {
+  snapshot: CollectorSnapshot;
+  briefing: BriefingDraft;
+  frozenDecision: DecisionDraft;
+}): GuardReport {
+  const ignored = new Set([
+    "scenario-count",
+    "scenario-summary-long",
+    "scenario-implication-long",
+    "checklist-count",
+    "check-why-long",
+    "empty-checklist",
+  ]);
+  const report = runGuard({
+    snapshot: input.snapshot,
+    briefing: input.briefing,
+    decision: input.frozenDecision,
+  });
+  const findings = report.findings.filter((f) => {
+    if (ignored.has(f.code)) return false;
+    // 동결 시나리오/점검 문장에서 난 추천 톤은 리프레시를 막지 않음
+    const fromFrozen = input.frozenDecision.scenarios.some(
+      (s) =>
+        f.message.includes(s.title.slice(0, 12)) ||
+        f.message.includes(s.summary.slice(0, 12)) ||
+        f.message.includes(s.implication.slice(0, 12)),
+    );
+    return !fromFrozen;
+  });
+  return {
+    ok: findings.every((f) => f.severity !== "block"),
+    findings,
+  };
+}
+
 export const GUARD_SYSTEM_PROMPT = `당신은 증시 브리핑의 Guard Agent다.
 숫자 복창, 공허한 점검, 추천/예측 톤, 사실 불일치를 차단한다.`;

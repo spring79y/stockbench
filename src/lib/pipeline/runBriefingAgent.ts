@@ -1,11 +1,17 @@
 import {
   BRIEFING_SYSTEM_PROMPT,
+  REFRESH_BRIEFING_SYSTEM_PROMPT,
   buildBriefingUserPrompt,
   isBriefingDraft,
 } from "@/lib/pipeline/briefing";
 import { completeJson } from "@/lib/pipeline/llm";
 import { seedBriefing } from "@/lib/pipeline/seed";
-import type { BriefingDraft, CollectorSnapshot, MarketScope } from "@/lib/pipeline/types";
+import type {
+  BriefingDraft,
+  CollectorSnapshot,
+  MarketScope,
+  PipelineMode,
+} from "@/lib/pipeline/types";
 
 export type AgentRunResult<T> = {
   data: T;
@@ -17,11 +23,14 @@ export async function runBriefingAgent(
   snapshot: CollectorSnapshot,
   scope: MarketScope,
   repairHints?: string[],
+  mode: PipelineMode = "full",
 ): Promise<AgentRunResult<BriefingDraft>> {
   try {
+    const system =
+      mode === "refresh" ? REFRESH_BRIEFING_SYSTEM_PROMPT : BRIEFING_SYSTEM_PROMPT;
     const json = await completeJson(
-      BRIEFING_SYSTEM_PROMPT,
-      buildBriefingUserPrompt(snapshot, scope, repairHints),
+      system,
+      buildBriefingUserPrompt(snapshot, scope, repairHints, mode),
     );
     if (!isBriefingDraft(json)) {
       throw new Error("Briefing JSON shape invalid");

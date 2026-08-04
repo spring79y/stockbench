@@ -75,15 +75,19 @@ export type EvidencePack = {
 
 const SLOT_LABEL: Record<PipelineSlot, string> = {
   "kr-pre": "한국 장전",
+  "kr-mid": "한국 장중 리프레시",
   "kr-post": "한국 장후",
   "us-pre": "미국 장전",
+  "us-mid": "미국 장중 리프레시",
   "us-post": "미국 장후",
 };
 
 const SLOT_FOCUS: Record<PipelineSlot, string> = {
   "kr-pre": "미국 오버나잇·국내 개장 앞 포인트",
+  "kr-mid": "국내 장중 온도만 짧게 — 시나리오·점검은 건드리지 않음",
   "kr-post": "오늘 국내 정리 + 밤 미장 앞 점검",
   "us-pre": "국내 마감 맥락 + 오늘 미장 포인트",
+  "us-mid": "미 장중 온도만 짧게 — 시나리오·점검은 건드리지 않음",
   "us-post": "미장 정리 + 다음 국내 장전 연결",
 };
 
