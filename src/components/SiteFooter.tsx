@@ -1,10 +1,4 @@
-export function SiteFooter({
-  live = false,
-  pipeline = false,
-}: {
-  live?: boolean;
-  pipeline?: boolean;
-}) {
+export function SiteFooter({ live = false }: { live?: boolean }) {
   return (
     <footer className="site-footer">
       <div className="site-footer__brand-row">
@@ -17,7 +11,6 @@ export function SiteFooter({
         {live
           ? " 시세는 Yahoo 참고(지연 가능)."
           : " 시세 일부는 임시 데이터일 수 있습니다."}
-        {pipeline ? " 브리핑은 자동 발행분." : " 브리핑은 샘플일 수 있습니다."}
       </p>
     </footer>
   );

@@ -49,7 +49,7 @@ export default async function EventPage({ params, searchParams }: PageProps) {
         charts={charts}
         backHref={from}
       />
-      <SiteFooter live={market.source === "live"} pipeline={board.fromPipeline} />
+      <SiteFooter live={market.source === "live"} />
     </>
   );
 }

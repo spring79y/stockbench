@@ -24,7 +24,7 @@ export default async function HomePage({
       <Suspense fallback={<main className="board">불러오는 중…</main>}>
         <HomeBoard market={market} board={board} initialScope={initialScope} />
       </Suspense>
-      <SiteFooter live={market.source === "live"} pipeline={board.fromPipeline} />
+      <SiteFooter live={market.source === "live"} />
     </>
   );
 }
