@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { formatBriefingUpdatedAt } from "@/lib/events/catalog";
 import { loadOpsSnapshot } from "@/lib/pipeline/loadOpsSnapshot";
+import {
+  PIPELINE_MANUAL_ROWS,
+  pipelineScheduleRows,
+} from "@/lib/pipeline/schedule";
 
 export const metadata: Metadata = {
   title: "Ops — StockBench",
@@ -20,6 +24,7 @@ function fmtAge(minutes: number | null): string {
 export default async function OpsPage() {
   const ops = await loadOpsSnapshot();
   const last = ops.lastRun;
+  const schedule = pipelineScheduleRows();
 
   return (
     <main className="ops">
@@ -28,6 +33,56 @@ export default async function OpsPage() {
         <h1 className="ops__title">Ops</h1>
         <p className="ops__lede">파이프라인·발행 상태만. 방문 수는 Vercel Analytics.</p>
       </header>
+
+      <section className="ops__section" aria-labelledby="ops-schedule">
+        <h2 id="ops-schedule" className="ops__h2">
+          Publish briefing schedule
+        </h2>
+        <p className="ops__muted">평일(KST) · GitHub Actions cron · workflow_dispatch</p>
+        <div className="ops__table-wrap">
+          <table className="ops__table">
+            <thead>
+              <tr>
+                <th scope="col">KST</th>
+                <th scope="col">슬롯</th>
+                <th scope="col">모드</th>
+                <th scope="col">스크립트</th>
+                <th scope="col">갱신 탭</th>
+              </tr>
+            </thead>
+            <tbody>
+              {schedule.map((row) => (
+                <tr key={`${row.kst}-${row.slot}`}>
+                  <td>{row.kst}</td>
+                  <td>
+                    <code>{row.slot}</code>
+                    <span className="ops__meta"> · {row.label}</span>
+                  </td>
+                  <td>{row.mode}</td>
+                  <td>
+                    <code className="ops__script">{row.script}</code>
+                  </td>
+                  <td>{row.tabs}</td>
+                </tr>
+              ))}
+              {PIPELINE_MANUAL_ROWS.map((row) => (
+                <tr key={row.slot}>
+                  <td>{row.kst}</td>
+                  <td>
+                    <code>{row.slot}</code>
+                    <span className="ops__meta"> · {row.label}</span>
+                  </td>
+                  <td>{row.mode}</td>
+                  <td>
+                    <code className="ops__script">{row.script}</code>
+                  </td>
+                  <td>{row.tabs}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className="ops__section" aria-labelledby="ops-publish">
         <h2 id="ops-publish" className="ops__h2">

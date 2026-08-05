@@ -34,6 +34,87 @@ export function scopesForSlot(slot: PipelineSlot): MarketScope[] {
   return ["all", "us"];
 }
 
+function pad2(n: number): string {
+  return n.toString().padStart(2, "0");
+}
+
+function formatScopeTabs(slot: PipelineSlot): string {
+  return scopesForSlot(slot)
+    .map((s) => (s === "all" ? "증시개요" : s === "kr" ? "한국" : "미국"))
+    .join(" + ");
+}
+
+/** Ops·문서용 — cron 평일 스케줄 (KST 시각순) */
+export type PipelineScheduleRow = {
+  kst: string;
+  slot: string;
+  label: string;
+  mode: PipelineMode;
+  script: string;
+  tabs: string;
+};
+
+export function pipelineScheduleRows(): PipelineScheduleRow[] {
+  const order: PipelineSlot[] = [
+    "us-mid",
+    "us-post",
+    "kr-pre",
+    "kr-mid",
+    "kr-post",
+    "us-pre",
+  ];
+
+  const rows: PipelineScheduleRow[] = [];
+  for (const slot of order) {
+    if (slot === "us-post") {
+      // 05:20에 us-post + kr-pre 연속
+      const us = SLOT_SCHEDULE["us-post"];
+      const kr = SLOT_SCHEDULE["kr-pre"];
+      rows.push({
+        kst: `${pad2(us.hour)}:${pad2(us.minute)}`,
+        slot: "us-post → kr-pre",
+        label: `${us.label} → ${kr.label}`,
+        mode: "full",
+        script: "npm run pipeline -- us-post && npm run pipeline -- kr-pre",
+        tabs: `${formatScopeTabs("us-post")} → ${formatScopeTabs("kr-pre")}`,
+      });
+      continue;
+    }
+    if (slot === "kr-pre") continue; // bundled with us-post
+    const s = SLOT_SCHEDULE[slot];
+    rows.push({
+      kst: `${pad2(s.hour)}:${pad2(s.minute)}`,
+      slot,
+      label: s.label,
+      mode: modeForSlot(slot),
+      script: `npm run pipeline -- ${slot}`,
+      tabs: formatScopeTabs(slot),
+    });
+  }
+  return rows;
+}
+
+export const PIPELINE_MANUAL_ROWS: PipelineScheduleRow[] = [
+  {
+    kst: "수동",
+    slot: "morning",
+    label: "us-post → kr-pre",
+    mode: "full",
+    script: "npm run pipeline -- us-post && npm run pipeline -- kr-pre",
+    tabs: "증시개요 + 미국 → 증시개요 + 한국",
+  },
+  {
+    kst: "수동",
+    slot: "all",
+    label: "전 슬롯 순차",
+    mode: "full",
+    script:
+      "npm run pipeline -- us-mid && … && npm run pipeline -- us-pre",
+    tabs: "us-mid → us-post → kr-pre → kr-mid → kr-post → us-pre",
+  },
+];
+
+
 export function seoulDateParts(now = new Date()): {
   ymd: string;
   weekday: string;

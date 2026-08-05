@@ -1557,7 +1557,7 @@ a {
 
 /* —— Ops (owner-only) —— */
 .ops {
-  max-width: 40rem;
+  max-width: 56rem;
   margin: 0 auto;
   padding: 2rem 1rem 3rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -1676,4 +1676,42 @@ a {
 .ops__error {
   color: var(--rise);
 }
+
+.ops__table-wrap {
+  margin-top: 0.65rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ops__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.ops__table th,
+.ops__table td {
+  padding: 0.45rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.ops__table th {
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ops__table code {
+  font-size: 0.75rem;
+}
+
+.ops__script {
+  display: inline-block;
+  max-width: 18rem;
+  white-space: normal;
+  word-break: break-word;
+}
+
 
