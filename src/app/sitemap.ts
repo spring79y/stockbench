@@ -8,29 +8,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const home: MetadataRoute.Sitemap = [
     {
-      url: SITE,
+      url: `${SITE}/`,
       lastModified: now,
       changeFrequency: "hourly",
       priority: 1,
-    },
-    {
-      url: `${SITE}/?view=kr`,
-      lastModified: now,
-      changeFrequency: "hourly",
-      priority: 0.9,
-    },
-    {
-      url: `${SITE}/?view=us`,
-      lastModified: now,
-      changeFrequency: "hourly",
-      priority: 0.9,
     },
   ];
 
   const events: MetadataRoute.Sitemap = listKnownEvents().map((event) => ({
     url: `${SITE}/events/${event.id}`,
     lastModified: now,
-    changeFrequency: "weekly",
+    changeFrequency: "weekly" as const,
     priority: 0.6,
   }));
 

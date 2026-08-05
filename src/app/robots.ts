@@ -10,6 +10,5 @@ export default function robots(): MetadataRoute.Robots {
       disallow: ["/ops", "/api/"],
     },
     sitemap: `${SITE}/sitemap.xml`,
-    host: "www.stock-bench.com",
   };
 }
