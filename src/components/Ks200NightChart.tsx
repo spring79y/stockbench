@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { Ks200NightChartPoint } from "@/lib/market/fetchKs200NightFutures";
-import { changeToneClass, directionFromChange, formatIndexValue } from "@/lib/format";
+import { changeToneClass, directionFromChange } from "@/lib/format";
 import styles from "./Ks200NightChart.module.css";
 
 const WIDTH = 320;
@@ -71,12 +71,8 @@ export function Ks200NightChart({
         <path className={`${styles.line} ${tone}`} d={path.line} />
       </svg>
       <div className={styles.meta}>
-        <span>
-          {formatAxisTime(first.t)} · {formatIndexValue(path.min)}
-        </span>
-        <span>
-          {formatAxisTime(last.t)} · {formatIndexValue(path.max)}
-        </span>
+        <span>{formatAxisTime(first.t)}</span>
+        <span>{formatAxisTime(last.t)}</span>
       </div>
     </div>
   );
