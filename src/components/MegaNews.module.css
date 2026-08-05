@@ -6,6 +6,12 @@
   margin-top: 0;
 }
 
+.underChart {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--line, #e2e8f0);
+}
+
 .wrap :global(.flow-sheet__table) th,
 .wrap :global(.flow-sheet__table) td {
   text-align: left;
