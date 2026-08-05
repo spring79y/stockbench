@@ -719,6 +719,15 @@ a {
   margin-bottom: 0.35rem;
 }
 
+/* 시가총액 상위 섹션 제목 — 가독성 우선 (일반 retail-card__title보다 크게) */
+.mega-split__head .retail-card__title {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
 .retail-card__value {
   margin: 0.45rem 0 0;
   font-family: var(--font-display), sans-serif;
