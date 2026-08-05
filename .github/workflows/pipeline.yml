@@ -8,8 +8,8 @@ name: Publish briefing
 on:
   schedule:
     # UTC cron · 평일(KST) 기준
-    # 05:20 KST = 20:20 UTC (전날) → Sun–Thu UTC = Mon–Fri KST 새벽
-    - cron: "20 20 * * 0-4" # us-post + kr-pre (full)
+    # 07:00 KST = 22:00 UTC (전날) → Sun–Thu UTC = Mon–Fri KST 아침
+    - cron: "0 22 * * 0-4" # us-post + kr-pre (full)
     # 11:30 KST = 02:30 UTC
     - cron: "30 2 * * 1-5" # kr-mid (refresh)
     # 15:40 KST = 06:40 UTC
@@ -77,11 +77,13 @@ jobs:
           CRON="${{ github.event.schedule }}"
           echo "schedule cron=[$CRON]"
           case "$CRON" in
-            "20 20 * * 0-4") echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT" ;;
+            "0 22 * * 0-4") echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT" ;;
             "30 2 * * 1-5") echo "list=kr-mid" >> "$GITHUB_OUTPUT" ;;
             "40 6 * * 1-5") echo "list=kr-post" >> "$GITHUB_OUTPUT" ;;
             "50 12 * * 1-5") echo "list=us-pre" >> "$GITHUB_OUTPUT" ;;
             "0 17 * * 0-4") echo "list=us-mid" >> "$GITHUB_OUTPUT" ;;
+            # legacy morning cron (removed after 07:00 cutover)
+            "20 20 * * 0-4") echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT" ;;
             *)
               echo "::error::Unknown schedule cron=[$CRON] — refusing default slot"
               exit 1
@@ -138,4 +140,6 @@ jobs:
             exit 0
           fi
           git commit -m "chore: publish briefing ($(date -u +%Y-%m-%dT%H:%MZ))"
-          git push
+          # 실행 중 main에 다른 푸시가 있으면 non-fast-forward 방지
+          git pull --rebase origin "${GITHUB_REF_NAME:-main}"
+          git push origin "HEAD:${GITHUB_REF_NAME:-main}"
