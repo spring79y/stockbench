@@ -94,19 +94,14 @@ function IndexInfluencePanel({
   items,
   loading,
   error,
-  underChart,
 }: {
   stockName: string;
   items: StockNewsItem[];
   loading?: boolean;
   error?: boolean;
-  /** 차트 탭 아래 배치 시 구분선·여백 */
-  underChart?: boolean;
 }) {
   return (
-    <div
-      className={`flow-sheet ${newsStyles.wrap} ${underChart ? newsStyles.underChart : newsStyles.inPanel}`}
-    >
+    <div className={`flow-sheet ${newsStyles.wrap} ${newsStyles.inPanel}`}>
       <div className="flow-sheet__head">
         <h4 className="flow-sheet__title">{stockName} · 지수 영향</h4>
       </div>
@@ -249,9 +244,9 @@ function MegaCapSplit({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showFlow, open, rightTab]);
 
-  // 지수 영향: 펼침 + 선택 종목이면 lazy fetch (차트 아래·탭 공용) · 종목별 캐시
+  // 지수 영향: 탭 선택 + 선택 종목일 때만 lazy fetch · 종목별 캐시
   useEffect(() => {
-    if (!open || !activeQuote || !activeId) return;
+    if (!open || rightTab !== "influence" || !activeQuote || !activeId) return;
     if (activeId in newsById) return;
 
     let cancelled = false;
@@ -301,13 +296,10 @@ function MegaCapSplit({
     };
     // newsById checked for cache; omit from deps to avoid re-run after set
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, activeId, activeQuote?.name, activeQuote?.symbol, activeQuote?.region]);
+  }, [open, rightTab, activeId, activeQuote?.name, activeQuote?.symbol, activeQuote?.region]);
 
   const showFlowPanel = showFlow && rightTab === "flow";
   const showInfluencePanel = rightTab === "influence";
-  const showChartPanel = !showFlowPanel && !showInfluencePanel;
-  const influenceLoading = newsLoading && !influenceCached;
-  const influenceError = Boolean(activeId && newsErrorById[activeId]);
 
   return (
     <article className="retail-card retail-card--wide mega-split">
@@ -394,7 +386,7 @@ function MegaCapSplit({
                   className={`mega-split__tab ${rightTab === "flow" ? "is-on" : ""}`}
                   onClick={() => setRightTab("flow")}
                 >
-                  수급 1주
+                  수급동향
                 </button>
               ) : null}
               <button
@@ -413,8 +405,8 @@ function MegaCapSplit({
                 <IndexInfluencePanel
                   stockName={activeQuote?.name ?? "종목"}
                   items={influenceItems}
-                  loading={influenceLoading}
-                  error={influenceError}
+                  loading={newsLoading && !influenceCached}
+                  error={Boolean(activeId && newsErrorById[activeId])}
                 />
               ) : showFlowPanel ? (
                 <StockFlowHistoryTable
@@ -422,24 +414,15 @@ function MegaCapSplit({
                   rows={stockFlowRows}
                   loading={flowLoading}
                 />
-              ) : showChartPanel ? (
-                <>
-                  <IndexMiniChart
-                    seriesList={seriesList}
-                    activeId={activeId}
-                    onActiveChange={setSelectedId}
-                    hideSelector
-                    quoteChangePercent={activeQuote?.changePercent}
-                  />
-                  <IndexInfluencePanel
-                    stockName={activeQuote?.name ?? "종목"}
-                    items={influenceItems}
-                    loading={influenceLoading}
-                    error={influenceError}
-                    underChart
-                  />
-                </>
-              ) : null}
+              ) : (
+                <IndexMiniChart
+                  seriesList={seriesList}
+                  activeId={activeId}
+                  onActiveChange={setSelectedId}
+                  hideSelector
+                  quoteChangePercent={activeQuote?.changePercent}
+                />
+              )}
             </div>
           </div>
         </div>
