@@ -8,6 +8,12 @@ const NIGHT_FUTURES_URL =
 
 const CACHE_TTL_MS = 30_000;
 
+export type Ks200NightChartPoint = {
+  /** unix ms */
+  t: number;
+  v: number;
+};
+
 export type Ks200NightFuturesQuote = {
   symbol: string;
   price: number;
@@ -22,6 +28,9 @@ export type Ks200NightFuturesQuote = {
   fetchedAt: string;
   source: "yagan.picjjang.com";
   note: string;
+  /** 야간 세션 가격 시계열 (공개 API points) */
+  points: Ks200NightChartPoint[];
+  sessionDate: string | null;
 };
 
 type NightFuturesRaw = {
@@ -34,6 +43,8 @@ type NightFuturesRaw = {
   changePct?: number;
   high?: number;
   low?: number;
+  points?: Array<{ t?: number; v?: number }>;
+  sessionDate?: string;
 };
 
 let cache: { at: number; quote: Ks200NightFuturesQuote } | null = null;
@@ -45,6 +56,18 @@ function num(v: unknown): number | null {
     return Number.isFinite(n) ? n : null;
   }
   return null;
+}
+
+function parsePoints(raw: NightFuturesRaw["points"]): Ks200NightChartPoint[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Ks200NightChartPoint[] = [];
+  for (const p of raw) {
+    const t = num(p?.t);
+    const v = num(p?.v);
+    if (t == null || v == null) continue;
+    out.push({ t, v });
+  }
+  return out.sort((a, b) => a.t - b.t);
 }
 
 async function fetchFresh(): Promise<Ks200NightFuturesQuote> {
@@ -82,6 +105,8 @@ async function fetchFresh(): Promise<Ks200NightFuturesQuote> {
     fetchedAt: new Date().toISOString(),
     source: "yagan.picjjang.com",
     note: "야간 온도 참고 · 주문·매매 판단용 아님 · 예측 아님",
+    points: parsePoints(raw.points),
+    sessionDate: typeof raw.sessionDate === "string" ? raw.sessionDate : null,
   };
 }
 

@@ -9,6 +9,7 @@ import type { MarketScope } from "@/lib/market/scope";
 import type { FlowLeg, MegaCapQuote, RetailScanBundle } from "@/lib/market/retailScan";
 import type { Ks200NightFuturesQuote } from "@/lib/market/fetchKs200NightFutures";
 import type { StockNewsItem } from "@/lib/market/fetchStockNews";
+import { Ks200NightChart } from "@/components/Ks200NightChart";
 import newsStyles from "./MegaNews.module.css";
 
 const NIGHT_POLL_MS = 60_000;
@@ -527,6 +528,7 @@ function Ks200NightFuturesCard({ active }: { active: boolean }) {
             {quote.updated ? `갱신 ${quote.updated}` : quote.note}
             {loading ? " · 확인 중" : ""}
           </p>
+          <Ks200NightChart points={quote.points ?? []} changePercent={quote.changePercent} />
         </>
       ) : error ? (
         <p className="retail-card__note">{error}</p>
