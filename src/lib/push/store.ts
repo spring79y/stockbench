@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import { Redis } from "@upstash/redis";
-import type { PushMarket, PushSubscriptionRecord } from "@/lib/push/types";
+import type { PipelineSlot } from "@/lib/pipeline/types";
+import {
+  defaultSlotsForMarket,
+  type PushMarket,
+  type PushSubscriptionRecord,
+} from "@/lib/push/types";
 
 const INDEX_KEY = "push:subs:index";
 
@@ -53,6 +58,8 @@ export async function upsertPushSubscription(input: {
   endpoint: string;
   keys: { p256dh: string; auth: string };
   market: PushMarket;
+  /** 지정 시 해당 시장 슬롯 목록을 교체. 없으면 기존 유지, 신규면 전체 ON */
+  slots?: PipelineSlot[];
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const redis = getRedis();
   if (!redis) return { ok: false, error: "push store not configured" };
@@ -63,10 +70,20 @@ export async function upsertPushSubscription(input: {
   const markets = new Set<PushMarket>(existing?.markets ?? []);
   markets.add(input.market);
 
+  const slots: NonNullable<PushSubscriptionRecord["slots"]> = {
+    ...(existing?.slots ?? {}),
+  };
+  if (input.slots) {
+    slots[input.market] = input.slots;
+  } else if (!slots[input.market]) {
+    slots[input.market] = defaultSlotsForMarket(input.market);
+  }
+
   const record: PushSubscriptionRecord = {
     endpoint: input.endpoint,
     keys: input.keys,
     markets: [...markets],
+    slots,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };

@@ -2,9 +2,14 @@
 
 import { useEffect, useState } from "react";
 import type { MarketScope } from "@/lib/market/scope";
+import type { PipelineSlot } from "@/lib/pipeline/types";
+import {
+  PUSH_SLOTS_BY_MARKET,
+  PUSH_SLOT_SHORT_LABEL,
+  defaultSlotsForMarket,
+  type PushMarket,
+} from "@/lib/push/types";
 import styles from "./PushOptIn.module.css";
-
-type PushMarket = "kr" | "us";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -25,7 +30,6 @@ function isAndroid(): boolean {
 
 function isAppleTouchDevice(): boolean {
   if (typeof navigator === "undefined") return false;
-  // Android를 iPadOS 판별로 오인하지 않음
   if (isAndroid()) return false;
   if (/iPad|iPhone|iPod/.test(navigator.userAgent)) return true;
   return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
@@ -41,6 +45,31 @@ function unsupportedPushHint(): string {
   return "이 브라우저는 웹 푸시를 지원하지 않습니다. Chrome에서 열어 주세요.";
 }
 
+function slotsStorageKey(market: PushMarket): string {
+  return `sb-push-slots:${market}`;
+}
+
+function loadLocalSlots(market: PushMarket): PipelineSlot[] {
+  try {
+    const raw = localStorage.getItem(slotsStorageKey(market));
+    if (!raw) return defaultSlotsForMarket(market);
+    const parsed = JSON.parse(raw) as string[];
+    const allowed = new Set(PUSH_SLOTS_BY_MARKET[market]);
+    const slots = parsed.filter((s): s is PipelineSlot => allowed.has(s as PipelineSlot));
+    return slots.length > 0 ? slots : defaultSlotsForMarket(market);
+  } catch {
+    return defaultSlotsForMarket(market);
+  }
+}
+
+function saveLocalSlots(market: PushMarket, slots: PipelineSlot[]) {
+  try {
+    localStorage.setItem(slotsStorageKey(market), JSON.stringify(slots));
+  } catch {
+    // ignore
+  }
+}
+
 async function ensureServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!canUseWebPush()) return null;
   return navigator.serviceWorker.register("/sw.js");
@@ -52,10 +81,12 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [slots, setSlots] = useState<PipelineSlot[]>([]);
 
   useEffect(() => {
     if (!market) return;
     let cancelled = false;
+    setSlots(loadLocalSlots(market));
 
     (async () => {
       try {
@@ -78,8 +109,22 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
         const reg = await ensureServiceWorker();
         const sub = await reg?.pushManager.getSubscription();
         if (cancelled) return;
-        setSubscribed(Boolean(sub));
-        if (sub) {
+        if (!sub) {
+          setSubscribed(false);
+          return;
+        }
+        let flag: string | null = null;
+        try {
+          flag = localStorage.getItem(`sb-push:${market}`);
+        } catch {
+          flag = null;
+        }
+        if (flag === "0") {
+          setSubscribed(false);
+          return;
+        }
+        setSubscribed(true);
+        if (flag == null) {
           try {
             localStorage.setItem(`sb-push:${market}`, "1");
           } catch {
@@ -87,7 +132,7 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
           }
         }
       } catch {
-        // 구독 시도는 버튼에서 다시 진행
+        // 구독 시도는 버튼에서
       }
     })();
 
@@ -99,6 +144,41 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
   if (!market || !enabled) return null;
 
   const label = market === "kr" ? "한국" : "미국";
+  const slotOptions = PUSH_SLOTS_BY_MARKET[market];
+
+  const postSubscription = async (nextSlots: PipelineSlot[]) => {
+    const vapidRes = await fetch("/api/push/vapid", { cache: "no-store" });
+    const vapid = (await vapidRes.json()) as { publicKey?: string };
+    if (!vapid.publicKey) throw new Error("no vapid");
+
+    const reg = await ensureServiceWorker();
+    if (!reg) throw new Error("no sw");
+
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapid.publicKey) as BufferSource,
+      });
+    }
+
+    const json = sub.toJSON();
+    if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+      throw new Error("bad subscription");
+    }
+
+    const res = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        endpoint: json.endpoint,
+        keys: json.keys,
+        market,
+        slots: nextSlots,
+      }),
+    });
+    if (!res.ok) throw new Error("subscribe failed");
+  };
 
   const subscribe = async () => {
     setBusy(true);
@@ -119,47 +199,17 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
         return;
       }
 
-      const vapidRes = await fetch("/api/push/vapid", { cache: "no-store" });
-      const vapid = (await vapidRes.json()) as { publicKey?: string };
-      if (!vapid.publicKey) throw new Error("no vapid");
-
-      const reg = await ensureServiceWorker();
-      if (!reg) {
-        setMessage(unsupportedPushHint());
-        return;
-      }
-
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapid.publicKey) as BufferSource,
-        });
-      }
-
-      const json = sub.toJSON();
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-        throw new Error("bad subscription");
-      }
-
-      const res = await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          endpoint: json.endpoint,
-          keys: json.keys,
-          market,
-        }),
-      });
-      if (!res.ok) throw new Error("subscribe failed");
-
+      const nextSlots = slots.length > 0 ? slots : defaultSlotsForMarket(market);
+      await postSubscription(nextSlots);
+      saveLocalSlots(market, nextSlots);
+      setSlots(nextSlots);
       try {
         localStorage.setItem(`sb-push:${market}`, "1");
       } catch {
         // ignore
       }
       setSubscribed(true);
-      setMessage(`${label} 슬롯 발행 시 알림을 보냅니다.`);
+      setMessage(`${label} 선택한 슬롯 발행 시 알림 (밤 12시–오전 7시 미발송)`);
     } catch {
       setMessage(
         isAndroid()
@@ -189,14 +239,9 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: sub.endpoint, market }),
         });
-        try {
-          await sub.unsubscribe();
-        } catch {
-          // ignore
-        }
       }
       try {
-        localStorage.removeItem(`sb-push:${market}`);
+        localStorage.setItem(`sb-push:${market}`, "0");
       } catch {
         // ignore
       }
@@ -209,11 +254,52 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
     }
   };
 
+  const toggleSlot = async (slot: PipelineSlot) => {
+    const next = slots.includes(slot)
+      ? slots.filter((s) => s !== slot)
+      : [...slots, slot];
+    if (next.length === 0) {
+      setMessage("슬롯을 하나 이상 남겨 두세요. 모두 끄려면 「알림 끄기」를 누르세요.");
+      return;
+    }
+    setSlots(next);
+    saveLocalSlots(market, next);
+    if (!subscribed) return;
+
+    setBusy(true);
+    setMessage(null);
+    try {
+      await postSubscription(next);
+      setMessage("알림 슬롯을 저장했습니다.");
+    } catch {
+      setMessage("슬롯 저장에 실패했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className={styles.wrap}>
       <p className={styles.copy}>
-        {label} 장전·장중·장후 브리핑이 나오면 알림 (시세·속보 아님 · 밤 12시–오전 7시 미발송)
+        {label} 브리핑 슬롯 알림 (시세·속보 아님 · 밤 12시–오전 7시 미발송)
       </p>
+      <div className={styles.slotRow} role="group" aria-label={`${label} 알림 슬롯`}>
+        {slotOptions.map((slot) => {
+          const on = slots.includes(slot);
+          return (
+            <button
+              key={slot}
+              type="button"
+              className={`${styles.slotChip} ${on ? styles.slotChipOn : ""}`}
+              disabled={busy}
+              aria-pressed={on}
+              onClick={() => void toggleSlot(slot)}
+            >
+              {PUSH_SLOT_SHORT_LABEL[slot] ?? slot}
+            </button>
+          );
+        })}
+      </div>
       <button
         type="button"
         className={styles.btn}

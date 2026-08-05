@@ -2,9 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CheckList } from "@/components/CheckList";
-import { BriefingSlotBar } from "@/components/BriefingSlotBar";
 import { EventList } from "@/components/EventList";
 import { MarketPulse } from "@/components/MarketPulse";
 import { OverviewDualBrief } from "@/components/OverviewDualBrief";
@@ -52,6 +51,7 @@ export function HomeBoard({
   board: BoardEditorial;
   initialScope?: MarketScope;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const viewParam = searchParams.get("view");
   const activeScope = viewParam != null ? parseMarketScope(viewParam) : initialScope;
@@ -73,6 +73,29 @@ export function HomeBoard({
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
+
+  // 마지막 탭 기억 (한·미·개요). URL에 view 없을 때 한·미만 복원.
+  useEffect(() => {
+    try {
+      if (activeScope === "kr" || activeScope === "us" || activeScope === "all") {
+        localStorage.setItem("sb-view", activeScope);
+      }
+    } catch {
+      // ignore
+    }
+  }, [activeScope]);
+
+  useEffect(() => {
+    if (viewParam != null) return;
+    try {
+      const saved = localStorage.getItem("sb-view");
+      if (saved === "kr" || saved === "us") {
+        router.replace(`/?view=${saved}`);
+      }
+    } catch {
+      // ignore
+    }
+  }, [viewParam, router]);
 
   const view = board.views[activeScope] ?? board.views.all;
   const indexes = useMemo(
@@ -131,18 +154,16 @@ export function HomeBoard({
         ) : (
           <>
             <RetailScanPanel scan={market.retailScan} charts={market.charts} scope={activeScope} />
-            <BriefingSlotBar
-              scope={activeScope}
-              slot={view.slot}
-              mode={viewMode}
-              changeLines={view.changeLines}
-            />
             <TodayBriefing
               briefing={briefing}
               macros={market.macros}
               updatedLabel={updatedLabel}
               fromPipeline={board.fromPipeline}
               refreshLabel={viewMode === "refresh"}
+              scope={activeScope}
+              slot={view.slot}
+              mode={viewMode}
+              changeLines={view.changeLines}
             />
             <ScenarioPanel scenarios={view.scenarios} />
             <CheckList

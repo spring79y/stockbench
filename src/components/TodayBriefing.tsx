@@ -1,6 +1,16 @@
+"use client";
+
 import type { DailyBriefing, MacroChip } from "@/lib/types";
+import type { MarketScope } from "@/lib/market/scope";
+import type { PipelineMode, PipelineSlot } from "@/lib/pipeline/types";
+import { nextSlotForScope, SLOT_SCHEDULE } from "@/lib/pipeline/schedule";
 import { changeToneClass } from "@/lib/format";
+import { PushOptIn } from "@/components/PushOptIn";
 import styles from "./TodayBriefing.module.css";
+
+const SLOT_LABEL: Partial<Record<PipelineSlot, string>> = Object.fromEntries(
+  (Object.keys(SLOT_SCHEDULE) as PipelineSlot[]).map((id) => [id, SLOT_SCHEDULE[id].label]),
+);
 
 export function TodayBriefing({
   briefing,
@@ -8,6 +18,10 @@ export function TodayBriefing({
   updatedLabel,
   fromPipeline,
   refreshLabel,
+  scope,
+  slot,
+  mode,
+  changeLines,
 }: {
   briefing: DailyBriefing;
   macros: MacroChip[];
@@ -15,31 +29,74 @@ export function TodayBriefing({
   fromPipeline?: boolean;
   /** 장중 리프레시일 때 짧은 라벨 */
   refreshLabel?: boolean;
+  scope?: MarketScope;
+  slot?: PipelineSlot | null;
+  mode?: PipelineMode | null;
+  changeLines?: string[];
 }) {
   const evidenceIdSet = new Set(briefing.evidenceIds);
-  // 근거 지정 지표를 앞에, 나머지는 뒤에 — 모두 동일 대비로 표시
   const chips = [
     ...macros.filter((m) => evidenceIdSet.has(m.id)),
     ...macros.filter((m) => !evidenceIdSet.has(m.id)),
   ];
 
+  const marketScope = scope === "kr" || scope === "us" ? scope : null;
+  const next = marketScope ? nextSlotForScope(marketScope) : null;
+  const slotLabel = slot ? (SLOT_LABEL[slot] ?? slot) : null;
+  const isRefresh = mode === "refresh" || Boolean(refreshLabel);
+  const lines = (changeLines ?? []).slice(0, 3);
+
   return (
     <section id="briefing" className="board-block briefing" aria-labelledby="briefing-title">
       <div className="block-head">
         <span className="step-no">1</span>
-        <div>
+        <div className={styles.headBody}>
           <h2 id="briefing-title" className="block-head__title">
             오늘의 브리핑
           </h2>
-          {updatedLabel ? (
-            <p className="block-head__sub">
-              {refreshLabel ? "장중 리프레시 · " : "가장 최근 업데이트 · "}
-              {updatedLabel}
-              {fromPipeline === false ? " · 목 데이터" : ""}
+          <p className="block-head__sub">
+            {slotLabel ? (
+              <>
+                이번 브리핑 · <strong className={styles.slotStrong}>{slotLabel}</strong>
+              </>
+            ) : updatedLabel ? (
+              <>
+                {isRefresh ? "장중 리프레시" : "가장 최근 업데이트"}
+              </>
+            ) : (
+              "슬롯 정보 없음"
+            )}
+            {updatedLabel ? (
+              <>
+                {" · "}
+                {updatedLabel}
+              </>
+            ) : null}
+            {fromPipeline === false ? " · 목 데이터" : null}
+            {isRefresh ? <span className={styles.tag}>헤드라인만 갱신</span> : null}
+          </p>
+          {next ? (
+            <p className={styles.nextLine}>
+              다음 발행 · {next.label}{" "}
+              <time dateTime={next.whenLabel}>{next.whenLabel}</time>
+              {next.mode === "refresh" ? (
+                <span className={styles.tagMuted}>헤드라인만</span>
+              ) : null}
             </p>
           ) : null}
         </div>
       </div>
+
+      {lines.length > 0 ? (
+        <div className={styles.delta}>
+          <p className={styles.deltaLabel}>직전 발행 대비</p>
+          <ul className={styles.deltaList}>
+            {lines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <h3 className={styles.headline}>{briefing.headline}</h3>
       <ul className={styles.bullets}>
@@ -64,6 +121,8 @@ export function TodayBriefing({
           </div>
         </div>
       ) : null}
+
+      {marketScope ? <PushOptIn scope={marketScope} /> : null}
     </section>
   );
 }

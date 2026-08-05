@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { upsertPushSubscription, removePushMarket, pushStoreConfigured } from "@/lib/push/store";
 import { vapidConfigured } from "@/lib/push/send";
-import type { PushMarket } from "@/lib/push/types";
+import { PUSH_SLOTS_BY_MARKET, type PushMarket } from "@/lib/push/types";
+import type { PipelineSlot } from "@/lib/pipeline/types";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export async function POST(req: Request) {
     endpoint?: string;
     keys?: { p256dh?: string; auth?: string };
     market?: string;
+    slots?: string[];
   };
 
   const market = parseMarket(body.market);
@@ -25,10 +27,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid body" }, { status: 400 });
   }
 
+  const allowed = new Set(PUSH_SLOTS_BY_MARKET[market]);
+  let slots: PipelineSlot[] | undefined;
+  if (Array.isArray(body.slots)) {
+    slots = body.slots.filter((s): s is PipelineSlot => allowed.has(s as PipelineSlot));
+  }
+
   const result = await upsertPushSubscription({
     endpoint: body.endpoint,
     keys: { p256dh: body.keys.p256dh, auth: body.keys.auth },
     market,
+    slots,
   });
 
   if (!result.ok) {

@@ -4,6 +4,7 @@ import { SLOT_SCHEDULE } from "@/lib/pipeline/schedule";
 import {
   landingPathForMarket,
   marketsForSlot,
+  recordWantsSlot,
   type PushMarket,
   type PushSubscriptionRecord,
 } from "@/lib/push/types";
@@ -87,7 +88,9 @@ export async function sendSlotPushToSubscribers(input: {
       continue;
     }
 
-    const targets = input.subscriptions.filter((s) => s.markets.includes(market));
+    const targets = input.subscriptions.filter(
+      (s) => s.markets.includes(market) && recordWantsSlot(s, market, input.slot),
+    );
     for (const sub of targets) {
       try {
         await webpush.sendNotification(
