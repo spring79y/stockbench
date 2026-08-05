@@ -207,33 +207,6 @@
       }
     },
     {
-      "id": "earnings-bridge-sndk-kr",
-      "dateLabel": "08.06 (목)",
-      "region": "GLOBAL",
-      "title": "메모리 섹터 · 샌디스크 실적",
-      "level": "high",
-      "oneLiner": "삼성전자·SK하이닉스 등 연관 시총 맥락 점검 — 종목 추천 아님",
-      "kind": "earnings",
-      "symbol": "SNDK",
-      "bridgeId": "sndk",
-      "dateISO": "2026-08-05T20:00:00.000Z",
-      "sector": "memory",
-      "bridgeOf": "earnings-bridge-sndk",
-      "relatedMegaCapIds": [
-        "samsung",
-        "skhynix"
-      ],
-      "consensus": {
-        "epsAvg": 34.515,
-        "epsLow": 32.01,
-        "epsHigh": 38.55,
-        "epsLabel": "약 $34.52",
-        "revenueAvg": 8394753330,
-        "revenueLabel": "약 $8.4B",
-        "isEstimate": false
-      }
-    },
-    {
       "id": "earnings-naver",
       "dateLabel": "08.07 (금)",
       "region": "KR",

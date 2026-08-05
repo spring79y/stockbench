@@ -13,8 +13,8 @@ const yahooFinance = new YahooFinance({
 
 const getCachedUpcomingEvents = unstable_cache(
   async (): Promise<MarketEvent[]> => buildUpcomingEvents(yahooFinance),
-  ["upcoming-events-v1"],
-  { revalidate: 3600 },
+  ["upcoming-events-v2"],
+  { revalidate: 120 },
 );
 
 async function fetchLiveUpcomingEventsUncached(): Promise<MarketEvent[]> {

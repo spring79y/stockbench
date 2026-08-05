@@ -26,6 +26,7 @@ export async function buildUpcomingEvents(
   ];
 
   return merged
+    .filter((e) => !e.bridgeOf)
     .sort((a, b) => {
       const ta = a.dateISO ? new Date(a.dateISO).getTime() : Number.MAX_SAFE_INTEGER;
       const tb = b.dateISO ? new Date(b.dateISO).getTime() : Number.MAX_SAFE_INTEGER;
