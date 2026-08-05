@@ -35,6 +35,15 @@ export interface EarningsConsensus {
   isEstimate?: boolean;
 }
 
+export interface EarningsActual {
+  epsActual?: number;
+  epsEstimate?: number;
+  surprisePct?: number;
+  /** 컨센서스 대비 결과 요약(숫자 없이) */
+  beatLabel?: "서프라이즈" | "미스";
+  reportedDateISO?: string;
+}
+
 export interface MarketEvent {
   id: string;
   dateLabel: string;
@@ -51,6 +60,7 @@ export interface MarketEvent {
   bridgeOf?: string;
   relatedMegaCapIds?: string[];
   consensus?: EarningsConsensus;
+  actual?: EarningsActual;
 }
 
 export interface DailyBriefing {

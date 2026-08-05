@@ -33,6 +33,13 @@ export type EarningsFetchEntry = {
   dateISO: string;
   isEstimate: boolean;
   consensus?: EarningsConsensus;
+  actual?: {
+    epsActual?: number;
+    epsEstimate?: number;
+    surprisePct?: number;
+    beatLabel?: "서프라이즈" | "미스";
+    reportedDateISO?: string;
+  };
   sector?: EarningsBridgeSymbol["sector"];
 };
 
@@ -96,12 +103,51 @@ async function fetchOne(
 ): Promise<EarningsFetchEntry | null> {
   try {
     const result = (await yf.quoteSummary(input.symbol, {
-      modules: ["calendarEvents"],
-    })) as { calendarEvents?: { earnings?: CalendarEarnings } };
+      modules: ["calendarEvents", "earnings"],
+    })) as {
+      calendarEvents?: { earnings?: CalendarEarnings };
+      earnings?: {
+        earningsChart?: { quarterly?: Array<any> };
+      };
+    };
     const earnings = result.calendarEvents?.earnings;
     const next = earnings?.earningsDate?.[0];
     if (!next) return null;
     const dateISO = new Date(next).toISOString();
+
+    const now = Date.now();
+    const entryTime = new Date(dateISO).getTime();
+
+    // 발표 전에는 실제값이 없을 가능성이 높으므로, 이미 지난 이벤트에 대해서만 매칭 시도
+    let actual: EarningsFetchEntry["actual"] | undefined = undefined;
+    if (entryTime <= now) {
+      const quarterlies = result.earnings?.earningsChart?.quarterly ?? [];
+      const reportedWindowMs = 3 * 24 * 60 * 60 * 1000;
+      const hit =
+        quarterlies.find((q: any) => {
+          const rd = q?.reportedDate;
+          if (!rd) return false;
+          const rt = new Date(rd).getTime();
+          if (!Number.isFinite(rt)) return false;
+          return Math.abs(rt - entryTime) <= reportedWindowMs;
+        }) ?? quarterlies[0];
+
+      if (hit?.actual != null && hit?.estimate != null && hit?.reportedDate) {
+        const epsActual = Number(hit.actual);
+        const epsEstimate = Number(hit.estimate);
+        if (Number.isFinite(epsActual) && Number.isFinite(epsEstimate)) {
+          const surprisePct = hit?.surprisePct != null ? Number(hit.surprisePct) : undefined;
+          actual = {
+            epsActual,
+            epsEstimate,
+            surprisePct: Number.isFinite(surprisePct as number) ? (surprisePct as number) : undefined,
+            beatLabel: epsActual > epsEstimate ? "서프라이즈" : "미스",
+            reportedDateISO: new Date(hit.reportedDate).toISOString(),
+          };
+        }
+      }
+    }
+
     return {
       symbol: input.symbol,
       megaCapId: input.megaCapId,
@@ -111,6 +157,7 @@ async function fetchOne(
       dateISO,
       isEstimate: earnings?.isEarningsDateEstimate ?? true,
       consensus: earnings ? toConsensus(earnings, input.region) : undefined,
+      actual,
       sector: input.sector,
     };
   } catch {
@@ -174,15 +221,22 @@ function entryToEvent(entry: EarningsFetchEntry): MarketEvent {
   const id = entry.megaCapId
     ? `earnings-${entry.megaCapId}`
     : `earnings-bridge-${entry.bridgeId ?? entry.symbol.toLowerCase()}`;
+
+  const postLine = entry.actual?.beatLabel
+    ? `발표 결과: 컨센서스 대비 ${entry.actual.beatLabel} — 점검용 (매매 신호 아님)`
+    : null;
+
   return {
     id,
     dateLabel: formatEventDateLabel(entry.dateISO),
     region: entry.region,
     title: `${entry.name} 실적 발표`,
     level: levelForDate(entry.dateISO),
-    oneLiner: entry.isEstimate
-      ? "시장 컨센서스 대비 실적·가이던스 — 매매 신호 아님"
-      : "확정 일정 — 실적·가이던스가 섹터·지수 온도에 미칠 수 있음",
+    oneLiner:
+      postLine ??
+      (entry.isEstimate
+        ? "시장 컨센서스 대비 실적·가이던스 — 점검용 (매매 신호 아님)"
+        : "확정 일정 — 실적·가이던스가 섹터·지수 온도에 미칠 수 있음"),
     kind: "earnings",
     symbol: entry.symbol,
     megaCapId: entry.megaCapId,
@@ -190,6 +244,7 @@ function entryToEvent(entry: EarningsFetchEntry): MarketEvent {
     dateISO: entry.dateISO,
     sector: entry.sector,
     consensus: entry.consensus,
+    actual: entry.actual,
   };
 }
 
@@ -217,6 +272,7 @@ function bridgeCompanionEvent(
     bridgeOf: `earnings-bridge-${bridge.id}`,
     relatedMegaCapIds: [...bridge.relatedMegaCapIds],
     consensus: primary.consensus,
+    actual: primary.actual,
   };
 }
 

@@ -306,7 +306,14 @@ export function runGuard(input: {
     if (e.kind !== "earnings" || !e.dateISO) return false;
     const t = new Date(e.dateISO).getTime();
     const hours = (t - now) / (60 * 60 * 1000);
-    if (hours < 0 || hours > 48) return false;
+
+    // pre: 발표 예정(0~48시간)
+    const isPre = hours >= 0 && hours <= 48;
+    // post: 발표 완료(최근 24시간, 실제 값이 잡힌 경우에만)
+    const isPost = hours < 0 && hours >= -24 && Boolean(e.actual?.beatLabel);
+
+    if (!isPre && !isPost) return false;
+
     if (scope === "us") return e.region === "US" || e.region === "GLOBAL";
     if (scope === "kr") return e.region === "KR" || e.region === "GLOBAL";
     return true;
@@ -318,11 +325,27 @@ export function runGuard(input: {
       ev.symbol ?? "",
       "실적",
     ].filter((t) => t.length >= 2);
-    if (!tokens.some((t) => prose.includes(t))) {
+
+    const dateISO = ev.dateISO;
+    const isPost =
+      Boolean(ev.actual?.beatLabel) &&
+      typeof dateISO === "string" &&
+      new Date(dateISO).getTime() <= now;
+    const beatWord = ev.actual?.beatLabel;
+
+    const hasCore = tokens.some((t) => prose.includes(t));
+    const hasBeat =
+      !isPost ||
+      !beatWord ||
+      prose.includes(beatWord);
+
+    if (!hasCore || !hasBeat) {
       findings.push({
         severity: "block",
         code: "missed-earnings",
-        message: `48시간 내 실적 일정 미언급: ${ev.title} — bullets에 점검 맥락 1개 포함`,
+        message: isPost
+          ? `최근 24시간 내 실적 결과(서프라이즈/미스) 미언급: ${ev.title} — bullets에 점검 맥락 1개 포함`
+          : `48시간 내 실적 일정 미언급: ${ev.title} — bullets에 점검 맥락 1개 포함`,
       });
     }
   }

@@ -62,9 +62,35 @@ function consensusLines(event: MarketEvent): string[] {
     lines.push(`EPS 컨센서스: ${c.epsLabel}${range}`);
   }
   if (c.revenueLabel) lines.push(`매출 컨센서스: ${c.revenueLabel}`);
-  if (c.isEstimate) lines.push("일정·숫자는 추정치일 수 있습니다.");
+  // 실제 발표가 잡혀 있으면 “추정치” 안내는 혼선을 줄이기 위해 생략
+  if (c.isEstimate && !event.actual) lines.push("일정·숫자는 추정치일 수 있습니다.");
   lines.push("예상 대비 서프라이즈 여부는 ‘점검’용이며, 매수·매도 신호가 아닙니다.");
   return lines;
+}
+
+function actualLines(event: MarketEvent): string[] {
+  const epsActual = event.actual?.epsActual;
+  const epsEstimate = event.actual?.epsEstimate;
+  if (epsActual == null || epsEstimate == null) return [];
+  const a = event.actual!;
+  const region = event.region === "KR" ? "KR" : "US";
+
+  const formatEps = (v: number) => {
+    if (region === "KR") return `${Math.round(v).toLocaleString()}원`;
+    return `$${v.toFixed(2)}`;
+  };
+
+  const beat =
+    a.beatLabel ?? (epsActual > epsEstimate ? "서프라이즈" : "미스");
+  const surprise =
+    a.surprisePct != null && Number.isFinite(a.surprisePct)
+      ? ` (서프라이즈 ${a.surprisePct.toFixed(1)}%)`
+      : "";
+
+  return [
+    `발표 결과(EPS): 실제 ${formatEps(epsActual)} · 예상 ${formatEps(epsEstimate)}`,
+    `예상 대비: ${beat}${surprise} — 점검용 (매매 신호 아님)`,
+  ];
 }
 
 export function buildEarningsDetail(event: MarketEvent): EventDetailContent {
@@ -88,6 +114,7 @@ export function buildEarningsDetail(event: MarketEvent): EventDetailContent {
         ? "국내 메모리·반도체·성장주 분위기와 연결해 볼 수 있는 체크포인트입니다. 종목 추천이 아니라, 오늘 브리핑·시나리오에서 ‘무엇을 관찰할지’ 잡는 용도입니다."
         : "미국 빅테크·반도체 섹터와 글로벌 리스크 온도를 함께 봅니다. 국내 장은 브릿지 맥락으로만 짧게 연결하세요.",
     watchPoints: [
+      ...actualLines(event),
       ...consensusLines(event),
       "발표 직후 해당 섹터 ETF·지수 반응 (아래 차트)",
       bridgeNote ?? "시총 상위 종목 온도와 함께 볼 것",
