@@ -18,14 +18,17 @@
 
 .btn {
   appearance: none;
+  flex: 0 0 auto;
+  min-height: 2.5rem;
   border: 1px solid color-mix(in srgb, var(--brand, #1d4f91) 35%, var(--line, #e2e8f0));
   background: color-mix(in srgb, var(--brand, #1d4f91) 8%, #fff);
   color: var(--brand, #1d4f91);
   border-radius: 8px;
-  padding: 0.45rem 0.85rem;
-  font-size: 0.78rem;
+  padding: 0.5rem 0.95rem;
+  font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn:disabled {
@@ -37,5 +40,17 @@
   margin: 0;
   flex: 1 1 100%;
   font-size: 0.72rem;
+  line-height: 1.45;
   color: var(--brand, #1d4f91);
+}
+
+@media (max-width: 520px) {
+  .wrap {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn {
+    width: 100%;
+  }
 }

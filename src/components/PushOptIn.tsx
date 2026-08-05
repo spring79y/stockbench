@@ -15,8 +15,25 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return out;
 }
 
+function canUseWebPush(): boolean {
+  return "serviceWorker" in navigator && "PushManager" in window;
+}
+
+function isAppleTouchDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) return true;
+  return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+}
+
+function unsupportedPushHint(): string {
+  if (isAppleTouchDevice()) {
+    return "iPhone·iPad는 Safari 공유 → 홈 화면에 추가한 뒤, 그 아이콘으로 열어 알림을 켤 수 있습니다.";
+  }
+  return "이 브라우저는 웹 푸시를 지원하지 않습니다. Chrome에서 열어 주세요.";
+}
+
 async function ensureServiceWorker(): Promise<ServiceWorkerRegistration | null> {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
+  if (!canUseWebPush()) return null;
   return navigator.serviceWorker.register("/sw.js");
 }
 
@@ -47,8 +64,7 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
         return;
       }
 
-      // SW 실패해도 옵트인 UI는 유지 (구독 버튼에서 안내)
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      if (!canUseWebPush()) {
         if (!cancelled) setUnsupported(true);
         return;
       }
@@ -83,8 +99,8 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
     setBusy(true);
     setMessage(null);
     try {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-        setMessage("이 브라우저는 웹 푸시를 지원하지 않습니다. Chrome에서 열어 주세요.");
+      if (!canUseWebPush()) {
+        setMessage(unsupportedPushHint());
         return;
       }
 
@@ -99,7 +115,10 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
       if (!vapid.publicKey) throw new Error("no vapid");
 
       const reg = await ensureServiceWorker();
-      if (!reg) throw new Error("no sw");
+      if (!reg) {
+        setMessage(unsupportedPushHint());
+        return;
+      }
 
       let sub = await reg.pushManager.getSubscription();
       if (!sub) {
@@ -130,7 +149,11 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
       setUnsupported(false);
       setMessage(`${label} 슬롯 발행 시 알림을 보냅니다.`);
     } catch {
-      setMessage("구독에 실패했습니다. Chrome에서 다시 시도해 주세요.");
+      setMessage(
+        isAppleTouchDevice()
+          ? unsupportedPushHint()
+          : "구독에 실패했습니다. Chrome에서 다시 시도해 주세요.",
+      );
     } finally {
       setBusy(false);
     }
@@ -140,6 +163,10 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
     setBusy(true);
     setMessage(null);
     try {
+      if (!canUseWebPush()) {
+        setMessage(unsupportedPushHint());
+        return;
+      }
       const reg = await ensureServiceWorker();
       const sub = await reg?.pushManager.getSubscription();
       if (sub) {
@@ -163,25 +190,28 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
     }
   };
 
+  const onClick = () => {
+    if (unsupported && !subscribed) {
+      setMessage(unsupportedPushHint());
+      return;
+    }
+    void (subscribed ? unsubscribe() : subscribe());
+  };
+
   return (
     <div className={styles.wrap}>
       <p className={styles.copy}>
         {label} 장전·장중·장후 브리핑이 나오면 알림 (시세·속보 알림 아님)
       </p>
-      {unsupported ? (
-        <p className={styles.msg}>웹 푸시는 Chrome 등에서 사용할 수 있습니다.</p>
-      ) : (
-        <button
-          type="button"
-          className={styles.btn}
-          disabled={busy}
-          onClick={() => void (subscribed ? unsubscribe() : subscribe())}
-        >
-          {busy ? "처리 중…" : subscribed ? "알림 끄기" : "알림 받기"}
-        </button>
-      )}
+      <button
+        type="button"
+        className={styles.btn}
+        disabled={busy}
+        onClick={onClick}
+      >
+        {busy ? "처리 중…" : subscribed ? "알림 끄기" : "알림 받기"}
+      </button>
       {message ? <p className={styles.msg}>{message}</p> : null}
     </div>
   );
 }
-
