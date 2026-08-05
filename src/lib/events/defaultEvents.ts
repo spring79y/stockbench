@@ -5,6 +5,7 @@ export function defaultPipelineEvents(): MarketEvent[] {
     {
       id: "nfp",
       dateLabel: "08.07 (금)",
+      dateISO: "2026-08-07T12:30:00-04:00",
       region: "US",
       title: "미국 고용보고서 (NFP)",
       level: "high",
@@ -14,6 +15,7 @@ export function defaultPipelineEvents(): MarketEvent[] {
     {
       id: "cpi",
       dateLabel: "08.12 (수)",
+      dateISO: "2026-08-12T08:30:00-04:00",
       region: "US",
       title: "미국 소비자물가 (CPI)",
       level: "high",
@@ -23,6 +25,7 @@ export function defaultPipelineEvents(): MarketEvent[] {
     {
       id: "krx-option",
       dateLabel: "08.13 (목)",
+      dateISO: "2026-08-13T15:30:00+09:00",
       region: "KR",
       title: "국내 옵션 만기",
       level: "medium",
@@ -32,6 +35,7 @@ export function defaultPipelineEvents(): MarketEvent[] {
     {
       id: "fomc-minutes",
       dateLabel: "08.20 (목)",
+      dateISO: "2026-08-20T14:00:00-04:00",
       region: "US",
       title: "FOMC 의사록",
       level: "medium",

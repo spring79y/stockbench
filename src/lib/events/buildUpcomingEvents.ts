@@ -6,7 +6,23 @@ import {
 } from "@/lib/market/fetchEarningsCalendar";
 import type { MarketEvent } from "@/lib/types";
 
-/** 매크로 일정 + 시총·브릿지 실적 일정 병합 */
+/** 정렬용 시각 — dateISO 우선, 없으면 dateLabel(MM.DD) 파싱 */
+function eventSortTime(event: MarketEvent): number {
+  if (event.dateISO) {
+    const t = new Date(event.dateISO).getTime();
+    if (Number.isFinite(t)) return t;
+  }
+  const m = event.dateLabel.match(/^(\d{2})\.(\d{2})/);
+  if (!m) return Number.MAX_SAFE_INTEGER;
+  const year = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+  }).format(new Date());
+  const t = new Date(`${year}-${m[1]}-${m[2]}T12:00:00+09:00`).getTime();
+  return Number.isFinite(t) ? t : Number.MAX_SAFE_INTEGER;
+}
+
+/** 매크로 일정 + 시총·브릿지 실적 일정 병합 · 무조건 날짜순 */
 export async function buildUpcomingEvents(
   yf: InstanceType<typeof YahooFinance>,
 ): Promise<MarketEvent[]> {
@@ -28,12 +44,10 @@ export async function buildUpcomingEvents(
   return merged
     .filter((e) => !e.bridgeOf)
     .sort((a, b) => {
-      const ta = a.dateISO ? new Date(a.dateISO).getTime() : Number.MAX_SAFE_INTEGER;
-      const tb = b.dateISO ? new Date(b.dateISO).getTime() : Number.MAX_SAFE_INTEGER;
+      const ta = eventSortTime(a);
+      const tb = eventSortTime(b);
       if (ta !== tb) return ta - tb;
-      if (a.kind === "earnings" && b.kind !== "earnings") return -1;
-      if (b.kind === "earnings" && a.kind !== "earnings") return 1;
-      return 0;
+      return a.title.localeCompare(b.title, "ko");
     })
     .slice(0, 8);
 }
