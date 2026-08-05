@@ -8,26 +8,30 @@ const FOOTER_LINKS = [
 export function SiteFooter({ live = false }: { live?: boolean }) {
   return (
     <footer className="site-footer">
-      <div className="site-footer__brand-row">
-        <span className="brand__mark" aria-hidden />
-        <p className="site-footer__brand">Stock-Bench.com</p>
+      <div className="site-footer__top">
+        <div className="site-footer__brand-row">
+          <span className="brand__mark" aria-hidden />
+          <p className="site-footer__brand">Stock-Bench.com</p>
+        </div>
+
+        <nav className="site-footer__nav" aria-label="법적 안내">
+          {FOOTER_LINKS.map((link) => (
+            <a key={link.href} href={link.href} className="site-footer__nav-link">
+              {link.label}
+            </a>
+          ))}
+        </nav>
       </div>
 
-      <nav className="site-footer__nav" aria-label="법적 안내">
-        {FOOTER_LINKS.map((link) => (
-          <a key={link.href} href={link.href} className="site-footer__nav-link">
-            {link.label}
+      <div className="site-footer__meta-row">
+        <p className="site-footer__meta">
+          문의{" "}
+          <a href="mailto:spring79y@gmail.com" className="site-footer__mail">
+            spring79y@gmail.com
           </a>
-        ))}
-      </nav>
-
-      <p className="site-footer__meta">
-        문의{" "}
-        <a href="mailto:spring79y@gmail.com" className="site-footer__mail">
-          spring79y@gmail.com
-        </a>
-      </p>
-      <p className="site-footer__meta">© HEECHEOL.KIM</p>
+        </p>
+        <p className="site-footer__meta">© HEECHEOL.KIM</p>
+      </div>
 
       <details className="site-footer__details">
         <summary className="site-footer__summary">면책</summary>
