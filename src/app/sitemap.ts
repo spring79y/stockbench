@@ -15,6 +15,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
+  const legal: MetadataRoute.Sitemap = [
+    "/about",
+    "/terms",
+    "/privacy",
+    "/disclaimer",
+  ].map((path) => ({
+    url: `${SITE}${path}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.3,
+  }));
+
   const events: MetadataRoute.Sitemap = listKnownEvents().map((event) => ({
     url: `${SITE}/events/${event.id}`,
     lastModified: now,
@@ -22,5 +34,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
-  return [...home, ...events];
+  return [...home, ...legal, ...events];
 }
