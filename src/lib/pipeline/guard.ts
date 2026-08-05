@@ -46,6 +46,56 @@ const EMPTY_BRIEFING_PATTERNS = [
 
 const KR_LEAK_RE = /코스피|코스닥|KS200|코스피200|국내\s*(증시|시장|수급)|외국인\s*순매/;
 const US_LEAK_RE = /나스닥|S&P|다우|미\s*증시|미\s*장|뉴욕\s*증시/;
+const PRE_SESSION_FORECAST_PATTERNS = [
+  /(?:출발|개장|장\s*시작)\s*(?:예고|예상|전망)/,
+  /(?:상승|하락|강세|약세)\s*(?:출발|개장)/,
+  /(?:출발|개장)\s*(?:상승|하락|강세|약세)/,
+];
+const PRIOR_SESSION_ANCHOR_RE =
+  /전일|전\s*거래일|직전\s*(?:장|거래일)?\s*마감|어제\s*마감|마감\s*기준|전\s*세션/;
+const PRIOR_SESSION_NUMERIC_RE =
+  /(?:(?:코스피|코스닥|나스닥|S&P|다우)[^.!?]{0,24}[+-]?\d+(?:\.\d+)?%|외국인[^.!?]{0,28}\d+(?:\.\d+)?\s*(?:조|억)[^.!?]{0,12}순매(?:수|도)|시총[^.!?]{0,30}(?:평균|상위)[^.!?]{0,20}\d+(?:\.\d+)?%)/;
+const FORWARD_REFERENCE_RE = /야간선물|오버나잇|프리마켓|애프터마켓/;
+const CONDITIONAL_REFERENCE_RE = /참고|조건|경우|시사|브릿지/;
+
+function pushPreSessionTemporalFindings(
+  findings: GuardFinding[],
+  slot: CollectorSnapshot["slot"],
+  forecastTexts: string[],
+  priorDataTexts: string[],
+) {
+  if (slot !== "kr-pre" && slot !== "us-pre") return;
+
+  for (const text of forecastTexts) {
+    if (PRE_SESSION_FORECAST_PATTERNS.some((pattern) => pattern.test(text))) {
+      findings.push({
+        severity: "block",
+        code: "pre-session-forecast",
+        message:
+          `장전 브리핑에 개장 방향 예측 표현 금지: "${text.slice(0, 56)}". ` +
+          "전일 수치는 전일 마감 사실로만 표기.",
+      });
+    }
+  }
+
+  for (const text of priorDataTexts) {
+    const isConditionalForwardReference =
+      FORWARD_REFERENCE_RE.test(text) && CONDITIONAL_REFERENCE_RE.test(text);
+    if (
+      PRIOR_SESSION_NUMERIC_RE.test(text) &&
+      !PRIOR_SESSION_ANCHOR_RE.test(text) &&
+      !isConditionalForwardReference
+    ) {
+      findings.push({
+        severity: "block",
+        code: "prior-session-without-anchor",
+        message:
+          `장전 브리핑의 지수·수급·시총 숫자에 전일 시점 표시 없음: "${text.slice(0, 56)}". ` +
+          "'전일/전 거래일/직전 마감/마감 기준'을 같은 문장에 명시.",
+      });
+    }
+  }
+}
 
 /** 등락 숫자 복창성 문장 */
 function looksLikeNumberRestatement(text: string): boolean {
@@ -74,6 +124,12 @@ export function runGuard(input: {
     ...input.decision.scenarios.flatMap((s) => [s.title, s.summary, s.implication]),
     ...input.decision.checkItems.flatMap((c) => [c.text, c.why]),
   ];
+  pushPreSessionTemporalFindings(
+    findings,
+    input.snapshot.slot,
+    texts,
+    briefingTexts,
+  );
 
   for (const text of texts) {
     for (const pattern of RECOMMENDATION_PATTERNS) {

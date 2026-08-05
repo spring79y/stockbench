@@ -418,6 +418,14 @@ export function renderEvidencePackForPrompt(
       : scope === "kr"
         ? "SCOPE 규칙: 헤드라인·불릿 과반 = 국내 지수·수급·시총·KS200·환율. 나스닥/S&P/다우는 헤드라인 금지·본문 최대 1불릿 브릿지."
         : "SCOPE 규칙: 한·미를 균형 있게. 한쪽만 장황하게 쓰지 말 것.";
+  const preSessionRule =
+    pack.session.slot === "kr-pre" || pack.session.slot === "us-pre"
+      ? [
+          "장전 시점 규칙: 아래 정규장 지수·수급·시총 등락은 전 거래일 마감 데이터이며 오늘 개장 예측이 아님.",
+          "사용 시 같은 문장에 '전일/전 거래일/직전 마감/마감 기준'을 반드시 명시.",
+          "'출발 예고/예상/전망', '개장 예상', '강세/약세 출발' 표현 금지.",
+        ]
+      : [];
 
   return [
     "## 세션",
@@ -427,6 +435,7 @@ export function renderEvidencePackForPrompt(
     `슬롯 초점: ${pack.session.focusHint}`,
     `수집: ${pack.session.collectedAt}`,
     `시세 기준: ${pack.session.asOfLabel}`,
+    ...preSessionRule,
     "",
     ...tempBlock,
     "",

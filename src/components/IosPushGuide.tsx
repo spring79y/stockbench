@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 import styles from "./IosPushGuide.module.css";
 
 const STEPS = [
@@ -11,6 +12,9 @@ const STEPS = [
 ];
 
 export function IosPushGuide({ onClose }: { onClose: () => void }) {
+  const [active, setActive] = useState(0);
+  const step = STEPS[active];
+
   return (
     <section className={styles.panel} aria-label="iPhone 알림 켜는 방법">
       <div className={styles.head}>
@@ -19,25 +23,53 @@ export function IosPushGuide({ onClose }: { onClose: () => void }) {
           닫기
         </button>
       </div>
-      <ol className={styles.steps}>
-        {STEPS.map((step, index) => (
-          <li key={step.src} className={styles.step}>
-            <p className={styles.caption}>
-              <span className={styles.no}>{index + 1}</span>
-              {step.caption}
-            </p>
-            <Image
-              className={styles.shot}
-              src={step.src}
-              alt={step.caption}
-              width={471}
-              height={1024}
-              sizes="150px"
-              loading="lazy"
+      <div className={styles.stage}>
+        <p className={styles.caption} aria-live="polite">
+          <span className={styles.no}>{active + 1}</span>
+          {step.caption}
+        </p>
+        <Image
+          key={step.src}
+          className={styles.shot}
+          src={step.src}
+          alt={`${active + 1}단계: ${step.caption}`}
+          width={471}
+          height={1024}
+          sizes="(max-width: 520px) calc(100vw - 72px), 360px"
+        />
+      </div>
+      <div className={styles.controls}>
+        <button
+          type="button"
+          className={styles.nav}
+          disabled={active === 0}
+          onClick={() => setActive((current) => Math.max(0, current - 1))}
+        >
+          이전
+        </button>
+        <div className={styles.dots} aria-label={`${active + 1} / ${STEPS.length} 단계`}>
+          {STEPS.map((item, index) => (
+            <button
+              key={item.src}
+              type="button"
+              className={`${styles.dot} ${index === active ? styles.dotOn : ""}`}
+              aria-label={`${index + 1}단계 보기`}
+              aria-current={index === active ? "step" : undefined}
+              onClick={() => setActive(index)}
             />
-          </li>
-        ))}
-      </ol>
+          ))}
+        </div>
+        <button
+          type="button"
+          className={styles.nav}
+          disabled={active === STEPS.length - 1}
+          onClick={() =>
+            setActive((current) => Math.min(STEPS.length - 1, current + 1))
+          }
+        >
+          다음
+        </button>
+      </div>
     </section>
   );
 }

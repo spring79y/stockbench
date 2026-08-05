@@ -24,6 +24,8 @@ export const DECISION_SYSTEM_PROMPT = `당신은 증시 브리핑의 Decision Ag
 - 매수/매도/비중 조절 권유
 - "확인한다/점검한다/살펴본다"로만 끝나는 공허한 문장
 - 주가 방향 단정·예측 · 특정 종목 추천
+- 장전 슬롯에서 전 거래일 마감·수급·시총 수치를 오늘 개장 예측처럼 쓰기
+- 장전 슬롯에서 "출발 예고/예상/전망", "강세/약세 출발" 표현
 - 예/아니오 질문형 ("~인가?", "~했는가?")
 - implication에 (1)(2)(3)… 기준 나열
 - why에 "도움이 됩니다" 같은 빈말
@@ -69,7 +71,18 @@ export function buildDecisionUserPrompt(
         ...snapshot.macros.map((m) => `- ${m.name} ${m.value} ${m.changeLabel}`),
       ].join("\n");
 
+  const temporalHard =
+    snapshot.slot === "kr-pre" || snapshot.slot === "us-pre"
+      ? [
+          "## 장전 시점 하드 규칙",
+          "- 전일 마감·수급·시총 수치는 과거 사실일 뿐 오늘 개장 예측이 아니다.",
+          "- 해당 숫자를 쓰면 같은 문장에 '전일/전 거래일/직전 마감/마감 기준'을 명시한다.",
+          "- 출발 예고/예상/전망, 개장 예상, 강세/약세 출발 표현은 금지한다.",
+        ].join("\n")
+      : "";
+
   return [
+    temporalHard,
     "## 오늘 브리핑 (이미 확정된 해석 — 모순 금지)",
     `헤드라인: ${briefing.headline}`,
     "불릿:",

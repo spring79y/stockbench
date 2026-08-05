@@ -15,6 +15,8 @@ export const BRIEFING_SYSTEM_PROMPT = `당신은 증시 브리핑의 Briefing Ag
 - 등락률/지수를 다시 나열하며 끝나는 문장 ("코스피 +1.2%"만 반복)
 - 매수/매도/비중 조절/사라/팔라 등 투자 권유
 - "반드시/확실/예측된다" · "미리 알 수 있다/향후 주가 예측"
+- 장전 슬롯(kr-pre/us-pre)에서 전 거래일 마감·수급·시총 등락을 오늘 개장 예측으로 바꾸기
+- 장전 슬롯에서 "출발 예고/출발 예상/출발 전망/강세 출발/약세 출발" 표현
 - 직전 발행 헤드라인 거의 그대로 반복
 - "시장이 주목한다/변동성 유의/혼조세"처럼 **누가·무엇이·왜**가 빠진 공허한 문장
 - scope=us인데 코스피/코스닥/국내 수급/KS200을 헤드라인이나 불릿 과반으로 쓰기
@@ -100,10 +102,22 @@ export function buildBriefingUserPrompt(
         ? "하드 규칙: 한국 탭 — 미 지수를 주인공으로 쓰지 말 것. 국내 지수·수급·시총 중심."
         : "하드 규칙: 통합 — 한·미 균형.";
 
+  const temporalHard =
+    snapshot.slot === "kr-pre" || snapshot.slot === "us-pre"
+      ? [
+          "시점 하드 규칙(위반 시 발행 차단):",
+          "- 전 거래일 지수 등락·수급·시총 평균은 과거 사실이다. 반드시 '전일/전 거래일/직전 마감/마감 기준'을 같은 문장에 붙일 것.",
+          "- 전 거래일 숫자를 오늘 개장 방향·수급 예측으로 연결하지 말 것.",
+          "- '출발 예고/출발 예상/출발 전망/개장 예상/강세 출발/약세 출발' 금지.",
+          "- 야간선물·오버나잇은 출처를 밝힌 조건부 참고 맥락만 허용하며 예측·전망으로 쓰지 말 것.",
+        ].join("\n")
+      : "";
+
   if (snapshot.evidence) {
     return [
       modeLine,
       scopeHard,
+      temporalHard,
       renderEvidencePackForPrompt(snapshot.evidence, scope),
       ...repair,
     ].join("\n");
@@ -139,6 +153,7 @@ export function buildBriefingUserPrompt(
   return [
     modeLine,
     scopeHard,
+    temporalHard,
     `탭 초점(scope): ${scope}`,
     `슬롯: ${snapshot.slot}`,
     `온도: ${snapshot.temperature}`,

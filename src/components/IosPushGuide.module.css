@@ -1,7 +1,12 @@
 .panel {
   flex: 1 1 100%;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
   margin-top: 0.35rem;
   padding: 0.65rem 0.7rem 0.75rem;
+  box-sizing: border-box;
   border: 1px solid var(--line, #e2e8f0);
   border-radius: 10px;
   background: var(--seg-track, #f8fafc);
@@ -35,29 +40,19 @@
   cursor: pointer;
 }
 
-.steps {
-  display: flex;
-  gap: 0.6rem;
-  margin: 0.6rem 0 0;
-  padding: 0 0 0.25rem;
-  list-style: none;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-}
-
-.step {
-  flex: 0 0 auto;
-  width: 8.5rem;
-  scroll-snap-align: start;
+.stage {
+  width: min(100%, 22rem);
+  min-width: 0;
+  margin: 0.65rem auto 0;
 }
 
 .caption {
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  margin: 0 0 0.35rem;
-  font-size: 0.72rem;
+  margin: 0 0 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 700;
   line-height: 1.35;
   color: var(--ink, #0f172a);
 }
@@ -79,8 +74,60 @@
 .shot {
   display: block;
   width: 100%;
+  max-width: 100%;
   height: auto;
+  aspect-ratio: 471 / 1024;
+  object-fit: contain;
   border: 1px solid var(--line, #e2e8f0);
   border-radius: 8px;
   background: #fff;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 3.4rem 1fr 3.4rem;
+  align-items: center;
+  gap: 0.5rem;
+  width: min(100%, 22rem);
+  margin: 0.6rem auto 0;
+}
+
+.nav {
+  appearance: none;
+  min-height: 2rem;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink, #0f172a);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nav:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+}
+
+.dot {
+  appearance: none;
+  width: 0.45rem;
+  height: 0.45rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--line, #cbd5e1);
+  cursor: pointer;
+}
+
+.dotOn {
+  width: 1rem;
+  background: var(--brand, #1d4f91);
 }
