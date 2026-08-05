@@ -32,6 +32,7 @@ on:
           - us-pre
           - us-mid
           - morning # us-post then kr-pre
+          - all # 전 슬롯 순차 (us-mid → … → us-pre)
 
 permissions:
   contents: write
@@ -43,13 +44,13 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
@@ -64,6 +65,9 @@ jobs:
             INPUT="${{ inputs.slot }}"
             if [ "$INPUT" = "morning" ]; then
               echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT"
+            elif [ "$INPUT" = "all" ]; then
+              # KST 하루 사이클 순 · 마지막이 최종 published 상태
+              echo "list=us-mid us-post kr-pre kr-mid kr-post us-pre" >> "$GITHUB_OUTPUT"
             else
               echo "list=$INPUT" >> "$GITHUB_OUTPUT"
             fi
