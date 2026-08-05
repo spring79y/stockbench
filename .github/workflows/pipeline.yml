@@ -69,23 +69,20 @@ jobs:
             fi
             exit 0
           fi
-          HOUR=$(date -u +%H)
-          MIN=$(date -u +%M)
-          echo "UTC ${HOUR}:${MIN}"
-          if [ "$HOUR" = "20" ]; then
-            echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT"
-          elif [ "$HOUR" = "02" ]; then
-            echo "list=kr-mid" >> "$GITHUB_OUTPUT"
-          elif [ "$HOUR" = "06" ]; then
-            echo "list=kr-post" >> "$GITHUB_OUTPUT"
-          elif [ "$HOUR" = "12" ]; then
-            echo "list=us-pre" >> "$GITHUB_OUTPUT"
-          elif [ "$HOUR" = "17" ]; then
-            echo "list=us-mid" >> "$GITHUB_OUTPUT"
-          else
-            echo "Unknown schedule hour=$HOUR — defaulting to kr-post"
-            echo "list=kr-post" >> "$GITHUB_OUTPUT"
-          fi
+          # cron 문자열로 슬롯 결정 (지연 실행 시 UTC hour 오판 방지)
+          CRON="${{ github.event.schedule }}"
+          echo "schedule cron=[$CRON]"
+          case "$CRON" in
+            "20 20 * * 0-4") echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT" ;;
+            "30 2 * * 1-5") echo "list=kr-mid" >> "$GITHUB_OUTPUT" ;;
+            "40 6 * * 1-5") echo "list=kr-post" >> "$GITHUB_OUTPUT" ;;
+            "50 12 * * 1-5") echo "list=us-pre" >> "$GITHUB_OUTPUT" ;;
+            "0 17 * * 0-4") echo "list=us-mid" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "::error::Unknown schedule cron=[$CRON] — refusing default slot"
+              exit 1
+              ;;
+          esac
 
       - name: Run pipeline
         env:
@@ -96,11 +93,18 @@ jobs:
             echo "::error::ANTHROPIC_API_KEY secret is missing. Add it in repo Settings → Secrets → Actions."
             exit 1
           fi
+          FAILED=0
           for slot in ${{ steps.slots.outputs.list }}; do
             echo "::group::pipeline $slot"
-            npm run pipeline -- "$slot"
+            if ! npm run pipeline -- "$slot"; then
+              echo "::error::pipeline $slot failed"
+              FAILED=1
+            fi
             echo "::endgroup::"
           done
+          if [ "$FAILED" -ne 0 ]; then
+            exit 1
+          fi
 
       - name: Commit published bundle
         run: |
