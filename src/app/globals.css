@@ -1287,3 +1287,125 @@ a {
   height: 0.5rem;
 }
 
+/* —— Ops (owner-only) —— */
+.ops {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.ops__header {
+  margin-bottom: 1.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.ops__eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ops__title {
+  margin: 0;
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.ops__lede {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.85rem;
+}
+
+.ops__section {
+  margin-bottom: 1.5rem;
+}
+
+.ops__h2 {
+  margin: 0 0 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ops__dl {
+  margin: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.ops__dl > div {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.5rem;
+}
+
+.ops__dl dt {
+  margin: 0;
+  color: var(--muted);
+}
+
+.ops__dl dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.ops__meta {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.ops__badge {
+  display: inline-block;
+  margin: 0 0 0.65rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.ops__badge--ok {
+  background: color-mix(in srgb, var(--ok) 12%, white);
+  color: var(--ok);
+}
+
+.ops__badge--bad {
+  background: color-mix(in srgb, var(--rise) 12%, white);
+  color: var(--rise);
+}
+
+.ops__list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--ink);
+}
+
+.ops__list li + li {
+  margin-top: 0.35rem;
+}
+
+.ops__code {
+  color: var(--muted);
+}
+
+.ops__muted {
+  margin: 0;
+  color: var(--muted);
+}
+
+.ops__error {
+  color: var(--rise);
+}
+

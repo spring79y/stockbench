@@ -16,6 +16,7 @@ import {
 } from "../src/lib/pipeline/collectSnapshot";
 import { runBriefingOnlyGuard, runGuard } from "../src/lib/pipeline/guard";
 import { resolveLlmConfig } from "../src/lib/pipeline/llm";
+import { writePipelineStatus } from "../src/lib/pipeline/pipelineStatus";
 import { runBriefingAgent } from "../src/lib/pipeline/runBriefingAgent";
 import { runDecisionAgent } from "../src/lib/pipeline/runDecisionAgent";
 import { ALL_PIPELINE_SLOTS, modeForSlot, scopesForSlot } from "../src/lib/pipeline/schedule";
@@ -29,6 +30,34 @@ import type {
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const latestPath = join(root, "src/data/published/latest.json");
+
+function summarizeGuard(guard: PublishedBundle["guard"]): string {
+  if (!guard.ok) {
+    const codes = guard.findings
+      .filter((f) => f.severity === "block")
+      .map((f) => f.code)
+      .slice(0, 3);
+    return `blocked: ${codes.join(", ") || "unknown"}`;
+  }
+  const warns = guard.findings.filter((f) => f.severity === "warn").length;
+  return warns ? `ok · ${warns} warn` : "ok";
+}
+
+function recordStatus(
+  partial: Omit<Parameters<typeof writePipelineStatus>[1], "updatedAt"> & {
+    updatedAt?: string;
+  },
+): void {
+  writePipelineStatus(root, {
+    updatedAt: partial.updatedAt ?? new Date().toISOString(),
+    slot: partial.slot,
+    ok: partial.ok,
+    mode: partial.mode,
+    error: partial.error,
+    guardOk: partial.guardOk,
+    guardSummary: partial.guardSummary,
+  });
+}
 
 function loadPreviousBundle(): PublishedBundle | null {
   try {
@@ -190,101 +219,128 @@ async function main() {
   }
 
   const mode: PipelineMode = modeForSlot(slot);
-  const llm = resolveLlmConfig();
-  console.log(
-    `[pipeline] mode=${mode} llm=${llm.provider}${llm.provider === "none" ? " (seed fallback)" : ` model=${llm.model}`}`,
-  );
-
-  console.log(`[pipeline] 1) Collector(+EvidencePack+Risk) slot=${slot}`);
-  const snapshot = await collectSnapshot(slot, { cwd: root });
-  if (snapshot.evidence) {
+  try {
+    const llm = resolveLlmConfig();
     console.log(
-      `  evidence: decoupling=${snapshot.evidence.temperature.decouplingPct}% · risk elevated=${snapshot.evidence.risk.elevated} · headlines=${snapshot.evidence.risk.headlines.length}`,
+      `[pipeline] mode=${mode} llm=${llm.provider}${llm.provider === "none" ? " (seed fallback)" : ` model=${llm.model}`}`,
     );
-  }
 
-  const previous = loadPreviousBundle();
-  const targetScopes = scopesForSlot(slot);
-  const publishedAt = new Date().toISOString();
-  const views = {
-    all: previous?.views.all,
-    kr: previous?.views.kr,
-    us: previous?.views.us,
-  } as PublishedBundle["views"];
-  const findings = [...(previous?.guard.findings ?? []).filter((f) => f.severity !== "block")];
-
-  for (const scope of targetScopes) {
-    const { view, findings: scopeFindings } =
-      mode === "refresh"
-        ? await generateRefreshView(snapshot, scope, publishedAt, slot, views[scope])
-        : await generateFullView(snapshot, scope, publishedAt, slot);
-    views[scope] = view;
-    findings.push(...scopeFindings);
-  }
-
-  (["all", "kr", "us"] as MarketScope[]).forEach((scope) => {
-    const v = views[scope];
-    if (!v) return;
-    if (!v.publishedAt) {
-      views[scope] = {
-        ...v,
-        publishedAt: previous?.publishedAt ?? publishedAt,
-        slot: previous?.slot ?? slot,
-        mode: previous?.mode ?? mode,
-      };
+    console.log(`[pipeline] 1) Collector(+EvidencePack+Risk) slot=${slot}`);
+    const snapshot = await collectSnapshot(slot, { cwd: root });
+    if (snapshot.evidence) {
+      console.log(
+        `  evidence: decoupling=${snapshot.evidence.temperature.decouplingPct}% · risk elevated=${snapshot.evidence.risk.elevated} · headlines=${snapshot.evidence.risk.headlines.length}`,
+      );
     }
-  });
 
-  if (!views.all || !views.kr || !views.us) {
-    console.error("[pipeline] missing views — seeding missing scopes with full generation");
-    for (const scope of ["all", "kr", "us"] as MarketScope[]) {
-      if (!views[scope]) {
-        const { view, findings: scopeFindings } = await generateFullView(
-          snapshot,
-          scope,
-          publishedAt,
-          slot,
-        );
-        views[scope] = view;
-        findings.push(...scopeFindings);
+    const previous = loadPreviousBundle();
+    const targetScopes = scopesForSlot(slot);
+    const publishedAt = new Date().toISOString();
+    const views = {
+      all: previous?.views.all,
+      kr: previous?.views.kr,
+      us: previous?.views.us,
+    } as PublishedBundle["views"];
+    const findings = [...(previous?.guard.findings ?? []).filter((f) => f.severity !== "block")];
+
+    for (const scope of targetScopes) {
+      const { view, findings: scopeFindings } =
+        mode === "refresh"
+          ? await generateRefreshView(snapshot, scope, publishedAt, slot, views[scope])
+          : await generateFullView(snapshot, scope, publishedAt, slot);
+      views[scope] = view;
+      findings.push(...scopeFindings);
+    }
+
+    (["all", "kr", "us"] as MarketScope[]).forEach((scope) => {
+      const v = views[scope];
+      if (!v) return;
+      if (!v.publishedAt) {
+        views[scope] = {
+          ...v,
+          publishedAt: previous?.publishedAt ?? publishedAt,
+          slot: previous?.slot ?? slot,
+          mode: previous?.mode ?? mode,
+        };
+      }
+    });
+
+    if (!views.all || !views.kr || !views.us) {
+      console.error("[pipeline] missing views — seeding missing scopes with full generation");
+      for (const scope of ["all", "kr", "us"] as MarketScope[]) {
+        if (!views[scope]) {
+          const { view, findings: scopeFindings } = await generateFullView(
+            snapshot,
+            scope,
+            publishedAt,
+            slot,
+          );
+          views[scope] = view;
+          findings.push(...scopeFindings);
+        }
       }
     }
+
+    const guard = {
+      ok: findings.every((f) => f.severity !== "block"),
+      findings,
+    };
+    console.log("[pipeline] Guard", JSON.stringify(guard, null, 2));
+    if (!guard.ok) {
+      console.error("[pipeline] blocked by guard");
+      recordStatus({
+        slot,
+        ok: false,
+        mode,
+        guardOk: false,
+        guardSummary: summarizeGuard(guard),
+        error: summarizeGuard(guard),
+      });
+      process.exit(1);
+    }
+
+    const bundle: PublishedBundle = {
+      version: 2,
+      slot,
+      publishedAt,
+      source: "pipeline",
+      mode,
+      market: {
+        temperature: snapshot.temperature,
+        mood: snapshot.mood,
+        moodLabel: snapshot.moodLabel,
+        asOfLabel: snapshot.asOfLabel,
+      },
+      views: views as PublishedBundle["views"],
+      events: snapshot.events ?? previous?.events ?? defaultPipelineEvents(),
+      guard,
+    };
+
+    mkdirSync(dirname(latestPath), { recursive: true });
+    writeFileSync(latestPath, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
+    recordStatus({
+      updatedAt: publishedAt,
+      slot,
+      ok: true,
+      mode,
+      guardOk: true,
+      guardSummary: summarizeGuard(guard),
+    });
+    console.log(`[pipeline] published → ${latestPath}`);
+    console.log(`updated scopes: ${targetScopes.join(", ")} · mode=${mode}`);
+    console.log(`all@${bundle.views.all.publishedAt}: ${bundle.views.all.briefing.headline}`);
+    console.log(`kr@${bundle.views.kr.publishedAt}: ${bundle.views.kr.briefing.headline}`);
+    console.log(`us@${bundle.views.us.publishedAt}: ${bundle.views.us.briefing.headline}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    recordStatus({
+      slot,
+      ok: false,
+      mode,
+      error: message.slice(0, 240),
+    });
+    throw error;
   }
-
-  const guard = {
-    ok: findings.every((f) => f.severity !== "block"),
-    findings,
-  };
-  console.log("[pipeline] Guard", JSON.stringify(guard, null, 2));
-  if (!guard.ok) {
-    console.error("[pipeline] blocked by guard");
-    process.exit(1);
-  }
-
-  const bundle: PublishedBundle = {
-    version: 2,
-    slot,
-    publishedAt,
-    source: "pipeline",
-    mode,
-    market: {
-      temperature: snapshot.temperature,
-      mood: snapshot.mood,
-      moodLabel: snapshot.moodLabel,
-      asOfLabel: snapshot.asOfLabel,
-    },
-    views: views as PublishedBundle["views"],
-    events: snapshot.events ?? previous?.events ?? defaultPipelineEvents(),
-    guard,
-  };
-
-  mkdirSync(dirname(latestPath), { recursive: true });
-  writeFileSync(latestPath, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
-  console.log(`[pipeline] published → ${latestPath}`);
-  console.log(`updated scopes: ${targetScopes.join(", ")} · mode=${mode}`);
-  console.log(`all@${bundle.views.all.publishedAt}: ${bundle.views.all.briefing.headline}`);
-  console.log(`kr@${bundle.views.kr.publishedAt}: ${bundle.views.kr.briefing.headline}`);
-  console.log(`us@${bundle.views.us.publishedAt}: ${bundle.views.us.briefing.headline}`);
 }
 
 main().catch((error) => {
