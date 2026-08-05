@@ -9,6 +9,7 @@ import {
   defaultSlotsForMarket,
   type PushMarket,
 } from "@/lib/push/types";
+import { IosPushGuide } from "@/components/IosPushGuide";
 import styles from "./PushOptIn.module.css";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -35,12 +36,23 @@ function isAppleTouchDevice(): boolean {
   return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
 }
 
+function isStandalone(): boolean {
+  if (typeof window === "undefined") return false;
+  const iosStandalone = (navigator as Navigator & { standalone?: boolean }).standalone;
+  return window.matchMedia?.("(display-mode: standalone)").matches || iosStandalone === true;
+}
+
+/** 홈 화면 추가 안내가 실제로 도움이 되는 상황 */
+function needsIosInstallGuide(): boolean {
+  return isAppleTouchDevice() && !isStandalone();
+}
+
 function unsupportedPushHint(): string {
   if (isAndroid()) {
     return "알림을 켤 수 없습니다. Chrome 사이트 설정에서 이 사이트의 알림을 허용해 주세요.";
   }
   if (isAppleTouchDevice()) {
-    return "iPhone·iPad는 Safari 공유 → 홈 화면에 추가한 뒤, 그 아이콘으로 열어 알림을 켤 수 있습니다.";
+    return "iPhone·iPad는 홈 화면에 추가한 뒤, 그 아이콘으로 열어 알림을 켤 수 있습니다.";
   }
   return "이 브라우저는 웹 푸시를 지원하지 않습니다. Chrome에서 열어 주세요.";
 }
@@ -82,13 +94,14 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [slots, setSlots] = useState<PipelineSlot[]>([]);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     if (!market) return;
     let cancelled = false;
-    setSlots(loadLocalSlots(market));
 
     (async () => {
+      setSlots(loadLocalSlots(market));
       try {
         const res = await fetch("/api/push/vapid", { cache: "no-store" });
         const data = (await res.json()) as { enabled?: boolean; publicKey?: string | null };
@@ -185,6 +198,10 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
     setMessage(null);
     try {
       if (!canUseWebPush()) {
+        if (needsIosInstallGuide()) {
+          setShowGuide(true);
+          return;
+        }
         setMessage(unsupportedPushHint());
         return;
       }
@@ -208,15 +225,18 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
       } catch {
         // ignore
       }
+      setShowGuide(false);
       setSubscribed(true);
       setMessage(`${label} 선택한 슬롯 발행 시 알림 (밤 12시–오전 7시 미발송)`);
     } catch {
+      if (needsIosInstallGuide()) {
+        setShowGuide(true);
+        return;
+      }
       setMessage(
         isAndroid()
           ? "구독에 실패했습니다. Chrome에서 사이트를 새로고침한 뒤 다시 시도해 주세요."
-          : isAppleTouchDevice()
-            ? unsupportedPushHint()
-            : "구독에 실패했습니다. Chrome에서 다시 시도해 주세요.",
+          : "구독에 실패했습니다. Chrome에서 다시 시도해 주세요.",
       );
     } finally {
       setBusy(false);
@@ -309,6 +329,7 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
         {busy ? "처리 중…" : subscribed ? "알림 끄기" : "알림 받기"}
       </button>
       {message ? <p className={styles.msg}>{message}</p> : null}
+      {showGuide ? <IosPushGuide onClose={() => setShowGuide(false)} /> : null}
     </div>
   );
 }
