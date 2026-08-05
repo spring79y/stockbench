@@ -3,7 +3,7 @@ export function SiteFooter({ live = false }: { live?: boolean }) {
     <footer className="site-footer">
       <div className="site-footer__brand-row">
         <span className="brand__mark" aria-hidden />
-        <p className="site-footer__brand">StockBench</p>
+        <p className="site-footer__brand">Stock-Bench.com</p>
       </div>
       <p className="site-footer__disclaimer">
         데이터로 검증하는 주식 연구소 · 참고용 브리핑입니다. 투자 권유·매매 추천이 아니며, 판단과
