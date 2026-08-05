@@ -15,7 +15,12 @@ import type { LiveMarketBundle } from "@/lib/market/fetchLiveMarket";
 import type { MarketScope } from "@/lib/market/scope";
 import { formatBriefingUpdatedAt } from "@/lib/events/catalog";
 import { parseMarketScope } from "@/lib/market/scope";
-import { applySessionStatusToQuotes, buildScopeTabHints, temperatureForScope } from "@/lib/market/session";
+import {
+  applySessionStatusToQuotes,
+  buildScopeTabHints,
+  moodForScope,
+  temperatureForScope,
+} from "@/lib/market/session";
 import type { BoardEditorial } from "@/lib/pipeline/loadPublished";
 import type { DailyBriefing, MarketEvent } from "@/lib/types";
 
@@ -74,6 +79,7 @@ export function HomeBoard({
     [market.indexes, now],
   );
   const temperature = temperatureForScope(indexes, activeScope);
+  const { mood, moodLabel } = moodForScope(indexes, activeScope);
   const tabHints = useMemo(() => buildScopeTabHints(market.indexes, now), [market.indexes, now]);
   const updatedLabel =
     activeScope === "kr"
@@ -89,8 +95,8 @@ export function HomeBoard({
 
   const briefing: DailyBriefing = {
     asOfLabel: market.asOfLabel,
-    mood: market.mood,
-    moodLabel: market.moodLabel,
+    mood,
+    moodLabel,
     temperature,
     headline: view.briefing.headline,
     bullets: view.briefing.bullets,
@@ -107,8 +113,8 @@ export function HomeBoard({
           charts={market.charts}
           scope={activeScope}
           temperature={temperature}
-          moodLabel={market.moodLabel}
-          mood={market.mood}
+          moodLabel={moodLabel}
+          mood={mood}
           asOfLabel={market.asOfLabel}
           flow={isOverview ? undefined : market.retailScan.flow}
         />

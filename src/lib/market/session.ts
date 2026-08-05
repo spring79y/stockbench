@@ -1,11 +1,17 @@
-import type { IndexQuote } from "@/lib/types";
-import { toneWord } from "@/lib/market/map";
+import type { IndexQuote, MarketMood } from "@/lib/types";
+import { buildMood, toneWord } from "@/lib/market/map";
 import type { MarketScope } from "@/lib/market/scope";
 import type { PipelineSlot } from "@/lib/pipeline/types";
 
 function avgChange(list: IndexQuote[]): number {
   if (list.length === 0) return 0;
   return list.reduce((sum, q) => sum + q.changePercent, 0) / list.length;
+}
+
+function quotesForScope(quotes: IndexQuote[], scope: MarketScope): IndexQuote[] {
+  if (scope === "kr") return quotes.filter((q) => q.region === "KR");
+  if (scope === "us") return quotes.filter((q) => q.region === "US");
+  return quotes;
 }
 
 export function temperatureForScope(quotes: IndexQuote[], scope: MarketScope): string {
@@ -15,6 +21,14 @@ export function temperatureForScope(quotes: IndexQuote[], scope: MarketScope): s
   if (scope === "kr") return `국내 ${toneWord(avgChange(kr))}`;
   if (scope === "us") return `미국 ${toneWord(avgChange(us))}`;
   return `국내 ${toneWord(avgChange(kr))} · 미국 ${toneWord(avgChange(us))}`;
+}
+
+/** Mood badge for the active tab — same index set as temperatureForScope. */
+export function moodForScope(
+  quotes: IndexQuote[],
+  scope: MarketScope,
+): { mood: MarketMood; moodLabel: string } {
+  return buildMood(quotesForScope(quotes, scope));
 }
 
 export function summarizeOtherMarket(quotes: IndexQuote[], other: "KR" | "US"): string {
