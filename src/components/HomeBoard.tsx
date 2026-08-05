@@ -88,10 +88,11 @@ export function HomeBoard({
         ? formatBriefingUpdatedAt(board.views.us.publishedAt ?? board.publishedAt)
         : formatBriefingUpdatedAt(board.views.all.publishedAt ?? board.publishedAt);
   const viewMode = view.mode ?? (view.slot === "kr-mid" || view.slot === "us-mid" ? "refresh" : "full");
-  const events = useMemo(
-    () => filterEvents(board.events, activeScope),
-    [board.events, activeScope],
-  );
+  const events = useMemo(() => {
+    const filtered = filterEvents(board.events, activeScope);
+    // 개요는 한눈용으로 상위 3개만
+    return activeScope === "all" ? filtered.slice(0, 3) : filtered;
+  }, [board.events, activeScope]);
 
   const briefing: DailyBriefing = {
     asOfLabel: market.asOfLabel,

@@ -224,6 +224,11 @@ function entryToEvent(entry: EarningsFetchEntry): MarketEvent {
     ? `발표 결과: 컨센서스 대비 ${entry.actual.beatLabel} — 점검용 (매매 신호 아님)`
     : null;
 
+  const related =
+    entry.bridgeId != null
+      ? EARNINGS_BRIDGE_SYMBOLS.find((b) => b.id === entry.bridgeId)?.relatedMegaCapIds
+      : undefined;
+
   return {
     id,
     dateLabel: formatEventDateLabel(entry.dateISO),
@@ -241,36 +246,9 @@ function entryToEvent(entry: EarningsFetchEntry): MarketEvent {
     bridgeId: entry.bridgeId,
     dateISO: entry.dateISO,
     sector: entry.sector,
+    relatedMegaCapIds: related ? [...related] : undefined,
     consensus: entry.consensus,
     actual: entry.actual,
-  };
-}
-
-function bridgeCompanionEvent(
-  bridge: EarningsBridgeSymbol,
-  primary: EarningsFetchEntry,
-): MarketEvent {
-  const krNames = bridge.relatedMegaCapIds
-    .map((id) => MEGA_CAP_CANDIDATES_KR.find((c) => c.id === id)?.name)
-    .filter(Boolean)
-    .slice(0, 2);
-  const label = krNames.length > 0 ? krNames.join("·") : "국내 메모리";
-  return {
-    id: `earnings-bridge-${bridge.id}-kr`,
-    dateLabel: formatEventDateLabel(primary.dateISO),
-    region: "GLOBAL",
-    title: `메모리 섹터 · ${bridge.name} 실적`,
-    level: levelForDate(primary.dateISO),
-    oneLiner: `${label} 등 연관 시총 맥락 점검 — 종목 추천 아님`,
-    kind: "earnings",
-    symbol: primary.symbol,
-    bridgeId: bridge.id,
-    dateISO: primary.dateISO,
-    sector: bridge.sector,
-    bridgeOf: `earnings-bridge-${bridge.id}`,
-    relatedMegaCapIds: [...bridge.relatedMegaCapIds],
-    consensus: primary.consensus,
-    actual: primary.actual,
   };
 }
 
@@ -283,17 +261,6 @@ export function earningsEntriesToEvents(entries: EarningsFetchEntry[]): MarketEv
     if (!seen.has(event.id)) {
       events.push(event);
       seen.add(event.id);
-    }
-
-    if (entry.bridgeId) {
-      const bridge = EARNINGS_BRIDGE_SYMBOLS.find((b) => b.id === entry.bridgeId);
-      if (bridge) {
-        const companion = bridgeCompanionEvent(bridge, entry);
-        if (!seen.has(companion.id)) {
-          events.push(companion);
-          seen.add(companion.id);
-        }
-      }
     }
   }
 

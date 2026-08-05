@@ -23,31 +23,54 @@ function resolveName(event: MarketEvent): string {
   return event.title.replace(/ 실적 발표$/, "");
 }
 
-function chartDefsFor(event: MarketEvent) {
-  const sector =
-    event.sector ?? (event.megaCapId ? sectorForMegaCapId(event.megaCapId) : null) ?? "ai";
-  const defs = SECTOR_CHART_SYMBOLS[sector] ?? SECTOR_CHART_SYMBOLS.ai;
-  if (event.region === "US" && !defs.some((d) => d.symbol === "^IXIC")) {
-    return [
-      { id: "nasdaq", name: "나스닥", symbol: "^IXIC", source: "yahoo" as const, points: 60, periodLabel: "최근 일봉(%)" },
-      ...defs.map((d) => ({
-        id: d.id,
-        name: d.name,
-        symbol: d.symbol,
-        source: "yahoo" as const,
-        points: 60,
-        periodLabel: "최근 일봉(%)",
-      })),
-    ].slice(0, 2);
+function indexChartFor(event: MarketEvent): { id: string; name: string; symbol: string } {
+  if (event.bridgeId) {
+    const sector =
+      event.sector ?? (event.megaCapId ? sectorForMegaCapId(event.megaCapId) : null) ?? "memory";
+    const defs = SECTOR_CHART_SYMBOLS[sector] ?? SECTOR_CHART_SYMBOLS.memory;
+    return defs[0];
   }
-  return defs.slice(0, 2).map((d) => ({
-    id: d.id,
-    name: d.name,
-    symbol: d.symbol,
+  if (event.region === "KR") {
+    return { id: "kospi", name: "코스피", symbol: "^KS11" };
+  }
+
+  const techIds = new Set(["nvda", "msft", "aapl", "amzn", "googl", "meta", "tsla"]);
+  const sector = event.megaCapId ? sectorForMegaCapId(event.megaCapId) : event.sector;
+  if (
+    (event.megaCapId && techIds.has(event.megaCapId)) ||
+    sector === "ai" ||
+    sector === "memory"
+  ) {
+    return { id: "nasdaq", name: "나스닥", symbol: "^IXIC" };
+  }
+  return { id: "sp500", name: "S&P 500", symbol: "^GSPC" };
+}
+
+function chartDefsFor(event: MarketEvent) {
+  const name = resolveName(event);
+  const index = indexChartFor(event);
+  const indexDef = {
+    id: index.id,
+    name: index.name,
+    symbol: index.symbol,
     source: "yahoo" as const,
     points: 60,
     periodLabel: "최근 일봉(%)",
-  }));
+  };
+
+  if (!event.symbol) return [indexDef];
+
+  return [
+    {
+      id: `stock-${event.id}`,
+      name,
+      symbol: event.symbol,
+      source: "yahoo" as const,
+      points: 60,
+      periodLabel: "최근 일봉(%)",
+    },
+    indexDef,
+  ];
 }
 
 function consensusLines(event: MarketEvent): string[] {
@@ -116,12 +139,12 @@ export function buildEarningsDetail(event: MarketEvent): EventDetailContent {
     watchPoints: [
       ...actualLines(event),
       ...consensusLines(event),
-      "발표 직후 해당 섹터 ETF·지수 반응 (아래 차트)",
+      "발표 직후 해당 종목·소속 지수 반응 (아래 차트)",
       bridgeNote ?? "시총 상위 종목 온도와 함께 볼 것",
       "가이던스(향후 전망) 문구 변화 여부",
     ],
     chartDefs: chartDefsFor(event),
-    chartNote: "개별 주가 차트가 아니라, 실적이 흔들 수 있는 섹터·지수 온도입니다.",
+    chartNote: "발표 기업 주가와 소속 지수 온도입니다. 매매 신호가 아닙니다.",
     news: [
       {
         id: "earnings-1",
