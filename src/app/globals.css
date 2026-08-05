@@ -1351,6 +1351,37 @@ a {
   color: var(--brand);
 }
 
+button.site-footer__bookmark {
+  appearance: none;
+  margin: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.site-footer__bookmark-hint {
+  flex-basis: 100%;
+  margin: 0.15rem 0 0;
+  padding: 0 0.55rem;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--muted);
+  animation: footer-hint-in 0.18s ease-out;
+}
+
+@keyframes footer-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.15rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .site-footer__meta-row {
   display: flex;
   flex-wrap: wrap;
@@ -1436,6 +1467,10 @@ a {
 
   .site-footer__nav-link {
     padding: 0.4rem 0.65rem 0.4rem 0;
+  }
+
+  .site-footer__bookmark-hint {
+    padding-left: 0;
   }
 
   .site-footer__meta-row {

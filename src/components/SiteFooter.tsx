@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BookmarkCta } from "@/components/BookmarkCta";
 
 const FOOTER_LINKS = [
   { href: "/about", label: "소개" },
@@ -16,12 +17,13 @@ export function SiteFooter({ live = false }: { live?: boolean }) {
           <span className="site-footer__brand">Stock-Bench.com</span>
         </Link>
 
-        <nav className="site-footer__nav" aria-label="법적 안내">
+        <nav className="site-footer__nav" aria-label="사이트 안내">
           {FOOTER_LINKS.map((link) => (
             <a key={link.href} href={link.href} className="site-footer__nav-link">
               {link.label}
             </a>
           ))}
+          <BookmarkCta />
         </nav>
       </div>
 
