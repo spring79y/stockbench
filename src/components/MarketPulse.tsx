@@ -194,16 +194,28 @@ function ScopedPulse({
   chartSeries,
   showFlow,
   flow,
+  detailOpen: detailOpenControlled,
+  onDetailOpenChange,
 }: {
   label: string;
   quotes: IndexQuote[];
   chartSeries: IndexChartSeries[];
   showFlow?: boolean;
   flow?: RetailScanBundle["flow"];
+  /** When set (overview dual panels), parent owns expand to limit concurrent chart fetches. */
+  detailOpen?: boolean;
+  onDetailOpenChange?: (open: boolean) => void;
 }) {
   const [activeId, setActiveId] = useState(chartSeries[0]?.id ?? quotes[0]?.id ?? "");
   const [rightTab, setRightTab] = useState<"chart" | "flow">("chart");
-  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailOpenLocal, setDetailOpenLocal] = useState(false);
+  const controlled = typeof detailOpenControlled === "boolean";
+  const detailOpen = controlled ? detailOpenControlled : detailOpenLocal;
+  const setDetailOpen = (next: boolean | ((prev: boolean) => boolean)) => {
+    const value = typeof next === "function" ? next(detailOpen) : next;
+    if (controlled) onDetailOpenChange?.(value);
+    else setDetailOpenLocal(value);
+  };
 
   const activeQuote = quotes.find((q) => q.id === activeId) ?? quotes[0];
   const resolvedId = activeQuote?.id ?? activeId;
@@ -226,7 +238,7 @@ function ScopedPulse({
         type="button"
         className="pulse__detail-toggle"
         aria-expanded={detailOpen}
-        onClick={() => setDetailOpen((v) => !v)}
+        onClick={() => setDetailOpen(!detailOpen)}
       >
         {detailOpen ? "차트·수급 접기" : "차트·수급 펼치기"}
       </button>
@@ -295,6 +307,8 @@ export function MarketPulse({
   const us = quotes.filter((q) => q.region === "US");
   const krCharts = chartsForQuotes(charts, kr);
   const usCharts = chartsForQuotes(charts, us);
+  // Overview: only one dual panel expanded at a time → one chart fetch budget.
+  const [openOverviewPanel, setOpenOverviewPanel] = useState<"kr" | "us" | null>(null);
 
   return (
     <section id="pulse" className="board-block pulse" aria-labelledby="pulse-title">
@@ -321,8 +335,16 @@ export function MarketPulse({
             chartSeries={krCharts}
             showFlow={false}
             flow={flow}
+            detailOpen={openOverviewPanel === "kr"}
+            onDetailOpenChange={(open) => setOpenOverviewPanel(open ? "kr" : null)}
           />
-          <ScopedPulse label="미국" quotes={us} chartSeries={usCharts} />
+          <ScopedPulse
+            label="미국"
+            quotes={us}
+            chartSeries={usCharts}
+            detailOpen={openOverviewPanel === "us"}
+            onDetailOpenChange={(open) => setOpenOverviewPanel(open ? "us" : null)}
+          />
         </div>
       ) : null}
 

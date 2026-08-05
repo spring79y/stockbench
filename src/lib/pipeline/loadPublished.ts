@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { cache } from "react";
 import type { MarketScope } from "@/lib/market/scope";
 import type { EditorialView, PublishedBundle } from "@/lib/pipeline/types";
 import type { CheckItem, DailyBriefing, MarketEvent, Scenario } from "@/lib/types";
@@ -30,7 +31,7 @@ function fallbackView(meta: Pick<DailyBriefing, "headline" | "bullets" | "eviden
   };
 }
 
-export async function loadPublishedBoard(): Promise<BoardEditorial> {
+async function loadPublishedBoardUncached(): Promise<BoardEditorial> {
   try {
     const path = join(process.cwd(), "src/data/published/latest.json");
     const raw = await readFile(path, "utf8");
@@ -83,3 +84,6 @@ export async function loadPublishedBoard(): Promise<BoardEditorial> {
     };
   }
 }
+
+/** Dedupes metadata + page reads within one request. */
+export const loadPublishedBoard = cache(loadPublishedBoardUncached);

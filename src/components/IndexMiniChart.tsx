@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ChartPoint, IndexChartSeries } from "@/lib/market/chartTypes";
 import {
   INDICATOR_CHART_PERIODS,
@@ -71,6 +71,65 @@ function cacheKey(
   return `${series.source ?? "yahoo"}:${series.symbol}:${period}:${series.transform ?? "raw"}`;
 }
 
+/** Shared across mini-charts so remount / dual panels reuse stubs & in-flight fetches. */
+const sharedChartCache = new Map<string, ChartPayload>();
+const sharedChartInflight = new Map<string, Promise<ChartPayload | null>>();
+
+async function fetchChartPayload(
+  series: IndexChartSeries,
+  period: ChartPeriodId,
+  periodSet: "stock" | "indicator",
+): Promise<ChartPayload | null> {
+  const key = cacheKey(series, period);
+  const hit = sharedChartCache.get(key);
+  if (hit) return hit;
+
+  const pending = sharedChartInflight.get(key);
+  if (pending) return pending;
+
+  const job = (async () => {
+    const params = new URLSearchParams({
+      symbol: series.symbol,
+      period,
+      source: series.source ?? "yahoo",
+      transform: series.transform ?? "raw",
+      periodSet,
+      id: series.id,
+      name: series.name,
+    });
+    try {
+      const res = await fetch(`/api/chart?${params.toString()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error("chart failed");
+      const data = (await res.json()) as {
+        points: ChartPoint[];
+        periodLabel: string;
+        hasVolume: boolean;
+        period: ChartPeriodId;
+        sessionStartMs?: number;
+        sessionEndMs?: number;
+      };
+      if (!data.points || data.points.length < 1) throw new Error("empty");
+      const payload: ChartPayload = {
+        points: data.points,
+        periodLabel: data.periodLabel,
+        hasVolume: Boolean(data.hasVolume),
+        period: data.period,
+        sessionStartMs: data.sessionStartMs,
+        sessionEndMs: data.sessionEndMs,
+      };
+      sharedChartCache.set(key, payload);
+      return payload;
+    } catch {
+      return null;
+    } finally {
+      sharedChartInflight.delete(key);
+    }
+  })();
+
+  sharedChartInflight.set(key, job);
+  return job;
+}
+
 export function IndexMiniChart({
   seriesList,
   activeId,
@@ -102,7 +161,6 @@ export function IndexMiniChart({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [live, setLive] = useState<ChartPayload | null>(null);
-  const cacheRef = useRef<Map<string, ChartPayload>>(new Map());
 
   const selectedId = activeId ?? internalId;
   const shouldPoll = periodSet === "stock";
@@ -123,7 +181,7 @@ export function IndexMiniChart({
     const key = cacheKey(active, period);
 
     const applyPayload = (payload: ChartPayload) => {
-      cacheRef.current.set(key, payload);
+      sharedChartCache.set(key, payload);
       setLive(payload);
       setError(false);
       setLoading(false);
@@ -148,7 +206,7 @@ export function IndexMiniChart({
     const load = async (opts?: { background?: boolean }): Promise<boolean> => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return false;
       if (!opts?.background) {
-        const cached = cacheRef.current.get(key);
+        const cached = sharedChartCache.get(key);
         if (cached) {
           setLive(cached);
           setError(false);
@@ -161,44 +219,15 @@ export function IndexMiniChart({
       // background poll: never flip loading (avoid 60s flicker)
       setError(false);
 
-      const params = new URLSearchParams({
-        symbol: active.symbol,
-        period,
-        source: active.source ?? "yahoo",
-        transform: active.transform ?? "raw",
-        periodSet,
-        id: active.id,
-        name: active.name,
-      });
-
-      try {
-        const res = await fetch(`/api/chart?${params.toString()}`, { cache: "no-store" });
-        if (!res.ok) throw new Error("chart failed");
-        const data = (await res.json()) as {
-          points: ChartPoint[];
-          periodLabel: string;
-          hasVolume: boolean;
-          period: ChartPeriodId;
-          sessionStartMs?: number;
-          sessionEndMs?: number;
-        };
-        if (cancelled) return false;
-        if (!data.points || data.points.length < 1) throw new Error("empty");
-        applyPayload({
-          points: data.points,
-          periodLabel: data.periodLabel,
-          hasVolume: Boolean(data.hasVolume),
-          period: data.period,
-          sessionStartMs: data.sessionStartMs,
-          sessionEndMs: data.sessionEndMs,
-        });
-        return true;
-      } catch {
-        if (cancelled) return false;
-        if (!cacheRef.current.get(key)) setError(true);
+      const payload = await fetchChartPayload(active, period, periodSet);
+      if (cancelled) return false;
+      if (!payload) {
+        if (!sharedChartCache.get(key)) setError(true);
         setLoading(false);
         return false;
       }
+      applyPayload(payload);
+      return true;
     };
 
     let intervalId: number | undefined;

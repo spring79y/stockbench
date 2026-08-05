@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import YahooFinance from "yahoo-finance2";
 import { unstable_cache } from "next/cache";
 import type { IndexChartSeries } from "@/lib/market/chartTypes";
@@ -81,8 +82,8 @@ function trimFlow(flow: InvestorFlowBundle): InvestorFlowBundle {
   };
 }
 
-export async function fetchLiveMarket(
-  scope: MarketScope = "all",
+async function fetchLiveMarketUncached(
+  scope: MarketScope,
 ): Promise<LiveMarketBundle> {
   const symbols = symbolsForScope(scope);
   const needFlow = scope === "kr";
@@ -160,3 +161,14 @@ export async function fetchLiveMarket(
     };
   }
 }
+
+/** Per-request dedupe + short ISR cache for live quotes. */
+export const fetchLiveMarket = cache(
+  async (scope: MarketScope = "all"): Promise<LiveMarketBundle> => {
+    return unstable_cache(
+      () => fetchLiveMarketUncached(scope),
+      ["live-market-v2", scope],
+      { revalidate: 60 },
+    )();
+  },
+);

@@ -1,10 +1,11 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { EventDetailView } from "@/components/EventDetailView";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { findEventById, getEventDetail } from "@/lib/events/catalog";
 import { fetchEventIndicatorCharts } from "@/lib/market/fetchEventCharts";
-import { fetchLiveMarket } from "@/lib/market/fetchLiveMarket";
+import { probeMarketLive } from "@/lib/market/probeMarketLive";
 import { loadPublishedBoard } from "@/lib/pipeline/loadPublished";
 
 export const revalidate = 120;
@@ -35,10 +36,7 @@ export default async function EventPage({ params, searchParams }: PageProps) {
     ? "indicator"
     : "stock";
   const initialPeriod = periodSet === "indicator" ? "1y" : "3m";
-  const [charts, market] = await Promise.all([
-    fetchEventIndicatorCharts(detail.chartDefs, initialPeriod),
-    fetchLiveMarket("all"),
-  ]);
+  const charts = await fetchEventIndicatorCharts(detail.chartDefs, initialPeriod);
 
   return (
     <>
@@ -49,7 +47,14 @@ export default async function EventPage({ params, searchParams }: PageProps) {
         charts={charts}
         backHref={from}
       />
-      <SiteFooter live={market.source === "live"} />
+      <Suspense fallback={<SiteFooter />}>
+        <EventFooterLive />
+      </Suspense>
     </>
   );
+}
+
+async function EventFooterLive() {
+  const live = await probeMarketLive();
+  return <SiteFooter live={live} />;
 }
