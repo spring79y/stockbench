@@ -34,16 +34,16 @@ export function BriefingSlotBar({
         <p className={styles.now}>
           {slotLabel ? (
             <>
-              이번 발행 · <strong>{slotLabel}</strong>
+              이번 브리핑 · <strong>{slotLabel}</strong>
               {isRefresh ? <span className={styles.tag}>헤드라인만 갱신</span> : null}
             </>
           ) : (
-            "이번 발행 슬롯 정보 없음"
+            "이번 브리핑 슬롯 정보 없음"
           )}
         </p>
         {next ? (
           <p className={styles.next}>
-            다음 · {next.label} <time>{next.whenLabel}</time>
+            다음 발행 · {next.label} <time>{next.whenLabel}</time>
             {next.mode === "refresh" ? (
               <span className={styles.tagMuted}>헤드라인만</span>
             ) : null}

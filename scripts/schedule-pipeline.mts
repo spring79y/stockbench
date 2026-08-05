@@ -3,7 +3,7 @@
  * 실행: npm run pipeline:schedule
  *
  * 서울 시각 기준 (주말 스킵):
- * - us-mid 02:00 (refresh) · us-post · kr-pre 05:20
+ * - us-mid 02:00 (refresh) · us-post · kr-pre 07:00
  * - kr-mid 11:30 (refresh) · kr-post 15:40 · us-pre 21:50
  */
 import { spawn } from "node:child_process";

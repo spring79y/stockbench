@@ -212,7 +212,7 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
   return (
     <div className={styles.wrap}>
       <p className={styles.copy}>
-        {label} 장전·장중·장후 브리핑이 나오면 알림 (시세·속보 알림 아님)
+        {label} 장전·장중·장후 브리핑이 나오면 알림 (시세·속보 아님 · 밤 12시–오전 7시 미발송)
       </p>
       <button
         type="button"

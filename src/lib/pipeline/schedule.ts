@@ -7,12 +7,12 @@ export const SLOT_SCHEDULE: Record<
   { hour: number; minute: number; label: string }
 > = {
   /** 미국 장후와 동일 — 오버나잇 반영 후 국내 장전 브리핑 */
-  "kr-pre": { hour: 5, minute: 20, label: "한국 장전" },
+  "kr-pre": { hour: 7, minute: 0, label: "한국 장전" },
   "kr-mid": { hour: 11, minute: 30, label: "한국 장중 리프레시" },
   "kr-post": { hour: 15, minute: 40, label: "한국 장후" },
   "us-pre": { hour: 21, minute: 50, label: "미국 장전" },
   "us-mid": { hour: 2, minute: 0, label: "미국 장중 리프레시" },
-  "us-post": { hour: 5, minute: 20, label: "미국 장후" },
+  "us-post": { hour: 7, minute: 0, label: "미국 장후" },
 };
 
 export const ALL_PIPELINE_SLOTS: PipelineSlot[] = [
@@ -67,7 +67,7 @@ export function pipelineScheduleRows(): PipelineScheduleRow[] {
   const rows: PipelineScheduleRow[] = [];
   for (const slot of order) {
     if (slot === "us-post") {
-      // 05:20에 us-post + kr-pre 연속
+      // 07:00에 us-post + kr-pre 연속
       const us = SLOT_SCHEDULE["us-post"];
       const kr = SLOT_SCHEDULE["kr-pre"];
       rows.push({
@@ -159,7 +159,7 @@ export function slotTargetMins(slot: PipelineSlot): number {
  * 지금 실행해야 할 슬롯들.
  * - 주말 스킵
  * - 목표 시각 이후이면서 아직 발사 안 된 슬롯
- * - us-post / kr-pre 는 둘 다 05:20 (같은 시각에 연속 실행)
+ * - us-post / kr-pre 는 둘 다 07:00 (같은 시각에 연속 실행)
  * - us-mid(02:00)는 새벽, 하루 중 가장 이름
  */
 export function dueSlots(
@@ -231,5 +231,11 @@ export function nextSlotForScope(
   }
 
   return null;
+}
+
+/** 웹 푸시 야간 무음: KST 00:00 이상 ~ 07:00 미만 (07:00부터 발송) */
+export function isPushQuietHours(now = new Date()): boolean {
+  const { hour } = seoulDateParts(now);
+  return hour >= 0 && hour < 7;
 }
 

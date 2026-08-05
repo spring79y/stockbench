@@ -7,7 +7,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ALL_PIPELINE_SLOTS } from "../src/lib/pipeline/schedule";
+import { ALL_PIPELINE_SLOTS, isPushQuietHours } from "../src/lib/pipeline/schedule";
 import type { PipelineSlot, PublishedBundle } from "../src/lib/pipeline/types";
 import { listPushSubscriptions, pushStoreConfigured } from "../src/lib/push/store";
 import { sendSlotPushToSubscribers, vapidConfigured } from "../src/lib/push/send";
@@ -19,6 +19,11 @@ async function main() {
   const slot = process.argv[2] as PipelineSlot;
   if (!ALL_PIPELINE_SLOTS.includes(slot)) {
     console.error(`[push] unknown slot: ${slot}`);
+    process.exit(0);
+  }
+
+  if (isPushQuietHours()) {
+    console.warn("[push] skipped — quiet hours (KST 00:00–07:00)");
     process.exit(0);
   }
 
