@@ -16,16 +16,25 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 function canUseWebPush(): boolean {
-  return "serviceWorker" in navigator && "PushManager" in window;
+  return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+}
+
+function isAndroid(): boolean {
+  return typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
 }
 
 function isAppleTouchDevice(): boolean {
   if (typeof navigator === "undefined") return false;
+  // Android를 iPadOS 판별로 오인하지 않음
+  if (isAndroid()) return false;
   if (/iPad|iPhone|iPod/.test(navigator.userAgent)) return true;
   return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
 }
 
 function unsupportedPushHint(): string {
+  if (isAndroid()) {
+    return "알림을 켤 수 없습니다. Chrome 사이트 설정에서 이 사이트의 알림을 허용해 주세요.";
+  }
   if (isAppleTouchDevice()) {
     return "iPhone·iPad는 Safari 공유 → 홈 화면에 추가한 뒤, 그 아이콘으로 열어 알림을 켤 수 있습니다.";
   }
@@ -43,7 +52,6 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [unsupported, setUnsupported] = useState(false);
 
   useEffect(() => {
     if (!market) return;
@@ -64,10 +72,7 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
         return;
       }
 
-      if (!canUseWebPush()) {
-        if (!cancelled) setUnsupported(true);
-        return;
-      }
+      if (!canUseWebPush()) return;
 
       try {
         const reg = await ensureServiceWorker();
@@ -82,7 +87,7 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
           }
         }
       } catch {
-        if (!cancelled) setUnsupported(true);
+        // 구독 시도는 버튼에서 다시 진행
       }
     })();
 
@@ -106,7 +111,11 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
 
       const perm = await Notification.requestPermission();
       if (perm !== "granted") {
-        setMessage("알림 권한이 필요합니다.");
+        setMessage(
+          isAndroid()
+            ? "알림 권한이 필요합니다. Chrome 주소창 왼쪽 자물쇠 → 알림 허용 후 다시 눌러 주세요."
+            : "알림 권한이 필요합니다.",
+        );
         return;
       }
 
@@ -129,6 +138,10 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
       }
 
       const json = sub.toJSON();
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+        throw new Error("bad subscription");
+      }
+
       const res = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -146,13 +159,14 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
         // ignore
       }
       setSubscribed(true);
-      setUnsupported(false);
       setMessage(`${label} 슬롯 발행 시 알림을 보냅니다.`);
     } catch {
       setMessage(
-        isAppleTouchDevice()
-          ? unsupportedPushHint()
-          : "구독에 실패했습니다. Chrome에서 다시 시도해 주세요.",
+        isAndroid()
+          ? "구독에 실패했습니다. Chrome에서 사이트를 새로고침한 뒤 다시 시도해 주세요."
+          : isAppleTouchDevice()
+            ? unsupportedPushHint()
+            : "구독에 실패했습니다. Chrome에서 다시 시도해 주세요.",
       );
     } finally {
       setBusy(false);
@@ -175,6 +189,11 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: sub.endpoint, market }),
         });
+        try {
+          await sub.unsubscribe();
+        } catch {
+          // ignore
+        }
       }
       try {
         localStorage.removeItem(`sb-push:${market}`);
@@ -190,14 +209,6 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
     }
   };
 
-  const onClick = () => {
-    if (unsupported && !subscribed) {
-      setMessage(unsupportedPushHint());
-      return;
-    }
-    void (subscribed ? unsubscribe() : subscribe());
-  };
-
   return (
     <div className={styles.wrap}>
       <p className={styles.copy}>
@@ -207,7 +218,7 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
         type="button"
         className={styles.btn}
         disabled={busy}
-        onClick={onClick}
+        onClick={() => void (subscribed ? unsubscribe() : subscribe())}
       >
         {busy ? "처리 중…" : subscribed ? "알림 끄기" : "알림 받기"}
       </button>
