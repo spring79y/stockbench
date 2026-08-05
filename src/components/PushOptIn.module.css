@@ -1,0 +1,41 @@
+.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line, #e2e8f0);
+}
+
+.copy {
+  margin: 0;
+  flex: 1 1 12rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted, #64748b);
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--line, #e2e8f0);
+  background: #fff;
+  color: var(--ink, #0f172a);
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.msg {
+  margin: 0;
+  flex: 1 1 100%;
+  font-size: 0.72rem;
+  color: var(--brand, #1d4f91);
+}

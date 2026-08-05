@@ -92,6 +92,11 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_MODEL: claude-sonnet-4-5
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "::error::ANTHROPIC_API_KEY secret is missing. Add it in repo Settings → Secrets → Actions."
@@ -100,7 +105,11 @@ jobs:
           FAILED=0
           for slot in ${{ steps.slots.outputs.list }}; do
             echo "::group::pipeline $slot"
-            if ! npm run pipeline -- "$slot"; then
+            if npm run pipeline -- "$slot"; then
+              echo "::group::push $slot"
+              npm run push:slot -- "$slot" || echo "::warning::push $slot failed (non-blocking)"
+              echo "::endgroup::"
+            else
               echo "::error::pipeline $slot failed"
               FAILED=1
             fi

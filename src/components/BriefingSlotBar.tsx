@@ -3,6 +3,7 @@
 import type { MarketScope } from "@/lib/market/scope";
 import type { PipelineMode, PipelineSlot } from "@/lib/pipeline/types";
 import { nextSlotForScope, SLOT_SCHEDULE } from "@/lib/pipeline/schedule";
+import { PushOptIn } from "@/components/PushOptIn";
 import styles from "./BriefingSlotBar.module.css";
 
 const SLOT_LABEL: Partial<Record<PipelineSlot, string>> = Object.fromEntries(
@@ -59,6 +60,7 @@ export function BriefingSlotBar({
           </ul>
         </div>
       ) : null}
+      <PushOptIn scope={scope} />
     </section>
   );
 }
