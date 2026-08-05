@@ -31,6 +31,10 @@
 
 앱 안에 PV/UV·리퍼러 카운터는 두지 않는다. `@vercel/analytics`는 루트 레이아웃에만 심어 두었다.
 
+## 검색엔진 등록 (Google · 네이버)
+
+`robots.txt` / `sitemap.xml` 및 Search Console·서치어드바이저 제출 절차는 [`docs/seo-search-engines.md`](./seo-search-engines.md)를 본다.
+
 ## `/ops`에 보이는 것
 
 - `latest.json` 신선도: slot, publishedAt, mode  
