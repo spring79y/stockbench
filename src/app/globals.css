@@ -191,6 +191,8 @@ a {
   display: grid;
   gap: 0.15rem;
   justify-items: center;
+  align-content: center;
+  min-height: 3.35rem;
   text-decoration: none;
 }
 
@@ -994,7 +996,7 @@ a {
 
 .block-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.65rem;
   margin-bottom: 0.85rem;
 }
@@ -1002,8 +1004,11 @@ a {
 .block-head__title {
   margin: 0;
   font-family: var(--font-display), sans-serif;
-  font-size: 1.05rem;
-  letter-spacing: -0.02em;
+  font-size: 1.22rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+  color: var(--ink, #0f172a);
 }
 
 .block-head__sub {
@@ -1032,7 +1037,6 @@ a {
   font-family: var(--font-display), sans-serif;
   font-size: 0.72rem;
   font-weight: 700;
-  margin-top: 0.12rem;
 }
 
 .step-no--ghost {
