@@ -15,8 +15,10 @@ export default async function HomePage({
 }) {
   const params = await searchParams;
   const initialScope = parseMarketScope(params.view);
-  const market = await fetchLiveMarket();
-  const board = await loadPublishedBoard();
+  const [market, board] = await Promise.all([
+    fetchLiveMarket(initialScope),
+    loadPublishedBoard(),
+  ]);
 
   return (
     <>

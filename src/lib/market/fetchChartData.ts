@@ -12,6 +12,10 @@ import {
 } from "@/lib/market/intradaySession";
 import { fetchNaverIntraday } from "@/lib/market/fetchNaverIntraday";
 
+const yahooFinance = new YahooFinance({
+  suppressNotices: ["yahooSurvey"],
+});
+
 export type ChartDataRequest = {
   symbol: string;
   name?: string;
@@ -258,8 +262,7 @@ async function fetchFredSeries(req: ChartDataRequest): Promise<ChartDataResult> 
 export async function fetchChartData(req: ChartDataRequest): Promise<ChartDataResult> {
   const source = req.source ?? "yahoo";
   if (source === "fred") return fetchFredSeries(req);
-  const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
-  return fetchYahooSeries(yf, req);
+  return fetchYahooSeries(yahooFinance, req);
 }
 
 /** SSR용: 기본 기간 시리즈를 IndexChartSeries 형태로 */

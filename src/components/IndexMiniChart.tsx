@@ -145,8 +145,8 @@ export function IndexMiniChart({
       return true;
     };
 
-    const load = async (opts?: { background?: boolean }) => {
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    const load = async (opts?: { background?: boolean }): Promise<boolean> => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return false;
       if (!opts?.background) {
         const cached = cacheRef.current.get(key);
         if (cached) {
@@ -157,9 +157,8 @@ export function IndexMiniChart({
           setLive(null);
           setLoading(true);
         }
-      } else {
-        setLoading(true);
       }
+      // background poll: never flip loading (avoid 60s flicker)
       setError(false);
 
       const params = new URLSearchParams({
@@ -183,7 +182,7 @@ export function IndexMiniChart({
           sessionStartMs?: number;
           sessionEndMs?: number;
         };
-        if (cancelled) return;
+        if (cancelled) return false;
         if (!data.points || data.points.length < 1) throw new Error("empty");
         applyPayload({
           points: data.points,
@@ -193,28 +192,49 @@ export function IndexMiniChart({
           sessionStartMs: data.sessionStartMs,
           sessionEndMs: data.sessionEndMs,
         });
+        return true;
       } catch {
-        if (cancelled) return;
+        if (cancelled) return false;
         if (!cacheRef.current.get(key)) setError(true);
         setLoading(false);
+        return false;
       }
     };
 
-    void load();
-
     let intervalId: number | undefined;
-    if (shouldPoll) {
+
+    const stopPoll = () => {
+      if (intervalId != null) {
+        window.clearInterval(intervalId);
+        intervalId = undefined;
+      }
+    };
+
+    const startPoll = () => {
+      if (!shouldPoll || intervalId != null) return;
       intervalId = window.setInterval(() => void load({ background: true }), CHART_POLL_MS);
-    }
+    };
+
+    void load().then((ok) => {
+      if (cancelled || !ok) return;
+      if (document.visibilityState !== "hidden") startPoll();
+    });
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible" && shouldPoll) void load({ background: true });
+      if (document.visibilityState === "hidden") {
+        stopPoll();
+        return;
+      }
+      if (!shouldPoll) return;
+      void load({ background: true }).then((ok) => {
+        if (!cancelled && ok) startPoll();
+      });
     };
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelled = true;
-      if (intervalId != null) window.clearInterval(intervalId);
+      stopPoll();
       document.removeEventListener("visibilitychange", onVisibility);
     };
     // intentionally key off series identity fields, not points array identity

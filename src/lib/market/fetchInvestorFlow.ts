@@ -135,7 +135,7 @@ function yyyymmddKst(d: Date): string {
   return `${y}${m}${day}`;
 }
 
-function candidateBizdates(count = 8): string[] {
+function candidateBizdates(count = 5): string[] {
   const out: string[] = [];
   const now = new Date();
   for (let i = 0; i < count; i += 1) {
@@ -202,9 +202,11 @@ function mergeUnique(days: InvestorFlowDay[]): InvestorFlowDay[] {
 async function fetchMarketHistory(sosok: "01" | "02"): Promise<InvestorFlowDay[]> {
   for (const bizdate of candidateBizdates()) {
     try {
-      const page1 = await fetchMarketPage(sosok, bizdate, 1);
-      if (page1.length === 0) continue;
-      const page2 = await fetchMarketPage(sosok, bizdate, 2);
+      const [page1, page2] = await Promise.all([
+        fetchMarketPage(sosok, bizdate, 1),
+        fetchMarketPage(sosok, bizdate, 2),
+      ]);
+      if (page1.length === 0 && page2.length === 0) continue;
       return mergeUnique([...page1, ...page2]);
     } catch {
       // try older bizdate

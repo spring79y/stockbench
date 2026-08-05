@@ -1,14 +1,13 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckList } from "@/components/CheckList";
 import { EventList } from "@/components/EventList";
-import { MarketFlashNews } from "@/components/MarketFlashNews";
 import { MarketPulse } from "@/components/MarketPulse";
 import { OverviewDualBrief } from "@/components/OverviewDualBrief";
 import { OverviewMacroStrip } from "@/components/OverviewMacroStrip";
-import { RetailScanPanel } from "@/components/RetailScanPanel";
 import { ScenarioPanel } from "@/components/ScenarioPanel";
 import { ScopeTabs } from "@/components/ScopeTabs";
 import { TodayBriefing } from "@/components/TodayBriefing";
@@ -19,6 +18,16 @@ import { parseMarketScope } from "@/lib/market/scope";
 import { applySessionStatusToQuotes, buildScopeTabHints, temperatureForScope } from "@/lib/market/session";
 import type { BoardEditorial } from "@/lib/pipeline/loadPublished";
 import type { DailyBriefing, MarketEvent } from "@/lib/types";
+
+const MarketFlashNews = dynamic(
+  () => import("@/components/MarketFlashNews").then((m) => m.MarketFlashNews),
+  { loading: () => <section className="board-block">속보 준비 중…</section> },
+);
+
+const RetailScanPanel = dynamic(
+  () => import("@/components/RetailScanPanel").then((m) => m.RetailScanPanel),
+  { loading: () => <section className="board-block">지표 불러오는 중…</section> },
+);
 
 function filterEvents(events: MarketEvent[], scope: MarketScope): MarketEvent[] {
   if (scope === "all") return events;
@@ -44,8 +53,19 @@ export function HomeBoard({
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const id = window.setInterval(() => setNow(new Date()), 30_000);
-    return () => window.clearInterval(id);
+    const tick = () => {
+      if (document.visibilityState === "hidden") return;
+      setNow(new Date());
+    };
+    const id = window.setInterval(tick, 30_000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   const view = board.views[activeScope] ?? board.views.all;

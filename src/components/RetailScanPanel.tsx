@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { IndexMiniChart } from "@/components/IndexMiniChart";
+import dynamic from "next/dynamic";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { changeToneClass, directionFromChange, formatIndexValue, formatSigned } from "@/lib/format";
 import { formatFlowShares } from "@/lib/market/flowFormat";
 import type { IndexChartSeries } from "@/lib/market/chartTypes";
@@ -10,6 +10,11 @@ import type { FlowLeg, MegaCapQuote, RetailScanBundle } from "@/lib/market/retai
 import type { Ks200NightFuturesQuote } from "@/lib/market/fetchKs200NightFutures";
 
 const NIGHT_POLL_MS = 60_000;
+
+const IndexMiniChart = dynamic(
+  () => import("@/components/IndexMiniChart").then((m) => m.IndexMiniChart),
+  { loading: () => <p className="mini-chart__empty">불러오는 중…</p> },
+);
 
 const SIGNAL_TIPS: Record<string, string> = {
   "ks200-vs-kospi": "코스피200과 코스피 등락 차이. 대형주 온도를 가늠하는 참고.",
@@ -25,9 +30,11 @@ function FlowShareAmount({ n }: { n: number }) {
 function StockFlowHistoryTable({
   stockName,
   rows,
+  loading,
 }: {
   stockName: string;
   rows: FlowLeg[];
+  loading?: boolean;
 }) {
   const week = rows.slice(0, 7);
 
@@ -38,7 +45,9 @@ function StockFlowHistoryTable({
       </div>
       <p className="flow-sheet__unit-line">단위: 주(순매매량) · 장중 실시간 아님 · 매매 신호 아님</p>
 
-      {week.length === 0 ? (
+      {loading && week.length === 0 ? (
+        <p className="retail-card__note">수급을 불러오는 중…</p>
+      ) : week.length === 0 ? (
         <p className="retail-card__note">이 종목 수급 데이터를 불러오지 못했습니다.</p>
       ) : (
         <div className="flow-sheet__table-wrap">
@@ -90,18 +99,67 @@ function MegaCapSplit({
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(topCaps[0]?.id ?? "");
   const [rightTab, setRightTab] = useState<"chart" | "flow">("chart");
+  const [byStock, setByStock] = useState<Record<string, FlowLeg[]>>(flow.byStock ?? {});
+  const [flowLoading, setFlowLoading] = useState(false);
+  const flowFetchedRef = useRef(false);
 
   const seriesList = useMemo(
     () =>
-      topCaps
-        .map((q) => charts[q.id])
-        .filter((s): s is IndexChartSeries => Boolean(s && s.points.length >= 1)),
+      topCaps.map((q) => {
+        const hit = charts[q.id];
+        if (hit && hit.points.length >= 1) return hit;
+        return {
+          id: q.id,
+          name: q.name,
+          symbol: q.symbol,
+          points: hit?.points ?? [],
+          period: "1d" as const,
+          source: "yahoo" as const,
+        };
+      }),
     [topCaps, charts],
   );
 
   const activeQuote = topCaps.find((q) => q.id === selectedId) ?? topCaps[0];
   const activeId = activeQuote?.id ?? "";
-  const stockFlowRows = (activeId ? flow.byStock[activeId] : undefined) ?? [];
+  const stockFlowRows = (activeId ? byStock[activeId] : undefined) ?? [];
+
+  // SSR에서 byStock을 비우므로, 수급 탭을 열 때 클라이언트에서 로드
+  useEffect(() => {
+    if (!showFlow || !open || rightTab !== "flow") return;
+    if (flowFetchedRef.current) return;
+    const hasAny = topCaps.some((q) => (byStock[q.id]?.length ?? 0) > 0);
+    if (hasAny) {
+      flowFetchedRef.current = true;
+      return;
+    }
+
+    let cancelled = false;
+    flowFetchedRef.current = true;
+    setFlowLoading(true);
+    const ids = topCaps.map((q) => q.id).join(",");
+    fetch(`/api/stock-flow?ids=${encodeURIComponent(ids)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("flow failed");
+        return res.json() as Promise<{ byStock: Record<string, FlowLeg[]> }>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setByStock((prev) => ({ ...prev, ...(data.byStock ?? {}) }));
+      })
+      .catch(() => {
+        flowFetchedRef.current = false;
+      })
+      .finally(() => {
+        if (!cancelled) setFlowLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // topCaps identity is stable per mount; byStock read only for initial seed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFlow, open, rightTab]);
 
   return (
     <article className="retail-card retail-card--wide mega-split">
@@ -202,6 +260,7 @@ function MegaCapSplit({
                 <StockFlowHistoryTable
                   stockName={activeQuote?.name ?? "종목"}
                   rows={stockFlowRows}
+                  loading={flowLoading}
                 />
               )}
             </div>
@@ -221,36 +280,73 @@ function Ks200NightFuturesCard({ active }: { active: boolean }) {
     if (!active) return;
 
     let cancelled = false;
+    let intervalId: number | undefined;
+    let idleId: number | undefined;
+    let timerId: number | undefined;
 
-    const load = async () => {
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      setLoading(true);
+    const stopPoll = () => {
+      if (intervalId != null) {
+        window.clearInterval(intervalId);
+        intervalId = undefined;
+      }
+    };
+
+    const load = async (opts?: { background?: boolean }): Promise<boolean> => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return false;
+      if (!opts?.background) setLoading(true);
       try {
         const res = await fetch("/api/ks200-night", { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as Ks200NightFuturesQuote;
-        if (cancelled) return;
+        if (cancelled) return false;
         setQuote(data);
         setError(null);
+        return true;
       } catch {
-        if (cancelled) return;
+        if (cancelled) return false;
         setError("야간선물 시세를 불러오지 못했습니다.");
+        return false;
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && !opts?.background) setLoading(false);
       }
     };
 
-    void load();
-    const id = window.setInterval(() => void load(), NIGHT_POLL_MS);
+    const startPoll = () => {
+      if (intervalId != null) return;
+      intervalId = window.setInterval(() => void load({ background: true }), NIGHT_POLL_MS);
+    };
+
+    const begin = () => {
+      void load().then((ok) => {
+        if (!cancelled && ok && document.visibilityState !== "hidden") startPoll();
+      });
+    };
+
+    // 첫 페인트 이후 야간선물 요청 (KR 탭 초기 버벅임 완화)
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(begin, { timeout: 2500 });
+    } else {
+      timerId = globalThis.setTimeout(begin, 800) as unknown as number;
+    }
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible") void load();
+      if (document.visibilityState === "hidden") {
+        stopPoll();
+        return;
+      }
+      void load({ background: true }).then((ok) => {
+        if (!cancelled && ok) startPoll();
+      });
     };
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelled = true;
-      window.clearInterval(id);
+      stopPoll();
+      if (idleId != null && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timerId != null) window.clearTimeout(timerId);
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [active]);

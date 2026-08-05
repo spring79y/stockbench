@@ -14,31 +14,50 @@ export function MarketFlashNews() {
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), NEWS_TIMEOUT_MS);
-    setLoading(true);
-    setError(false);
-    fetch("/api/market-news?limit=3", { signal: controller.signal })
-      .then(async (res) => {
-        if (!res.ok) throw new Error("news failed");
-        return res.json() as Promise<{ items: StockNewsItem[] }>;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setNews((data.items ?? []).slice(0, 3));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setNews([]);
-        setError(true);
-      })
-      .finally(() => {
-        window.clearTimeout(timer);
-        if (!cancelled) setLoading(false);
-      });
+    let idleId: number | undefined;
+    let timerId: number | undefined;
+    let abortTimer: number | undefined;
+
+    const start = () => {
+      if (cancelled) return;
+      abortTimer = window.setTimeout(() => controller.abort(), NEWS_TIMEOUT_MS);
+      setLoading(true);
+      setError(false);
+      fetch("/api/market-news?limit=3", { signal: controller.signal })
+        .then(async (res) => {
+          if (!res.ok) throw new Error("news failed");
+          return res.json() as Promise<{ items: StockNewsItem[] }>;
+        })
+        .then((data) => {
+          if (cancelled) return;
+          setNews((data.items ?? []).slice(0, 3));
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setNews([]);
+          setError(true);
+        })
+        .finally(() => {
+          if (abortTimer != null) window.clearTimeout(abortTimer);
+          if (!cancelled) setLoading(false);
+        });
+    };
+
+    // 첫 페인트·하이드레이션 이후에 속보 요청 (초기 버벅임 완화)
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(start, { timeout: 2000 });
+    } else {
+      timerId = globalThis.setTimeout(start, 600) as unknown as number;
+    }
+
     return () => {
       cancelled = true;
       controller.abort();
-      window.clearTimeout(timer);
+      if (idleId != null && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timerId != null) window.clearTimeout(timerId);
+      if (abortTimer != null) window.clearTimeout(abortTimer);
     };
   }, []);
 

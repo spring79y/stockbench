@@ -1,7 +1,7 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useId, useState } from "react";
-import { IndexMiniChart } from "@/components/IndexMiniChart";
 import type { IndexQuote } from "@/lib/types";
 import {
   changeToneClass,
@@ -15,6 +15,11 @@ import { chartsForQuotes } from "@/lib/market/chartTypes";
 import type { MarketScope } from "@/lib/market/scope";
 import type { FlowLeg, RetailScanBundle } from "@/lib/market/retailScan";
 import { summarizeOtherMarket } from "@/lib/market/session";
+
+const IndexMiniChart = dynamic(
+  () => import("@/components/IndexMiniChart").then((m) => m.IndexMiniChart),
+  { loading: () => <p className="mini-chart__empty">불러오는 중…</p> },
+);
 
 function FlowAmount({ n }: { n: number }) {
   return <span className={changeToneClass(directionFromChange(n))}>{formatFlowAmount(n)}</span>;

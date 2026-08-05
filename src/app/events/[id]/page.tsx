@@ -37,7 +37,7 @@ export default async function EventPage({ params, searchParams }: PageProps) {
   const initialPeriod = periodSet === "indicator" ? "1y" : "3m";
   const [charts, market] = await Promise.all([
     fetchEventIndicatorCharts(detail.chartDefs, initialPeriod),
-    fetchLiveMarket(),
+    fetchLiveMarket("all"),
   ]);
 
   return (

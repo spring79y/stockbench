@@ -1,6 +1,7 @@
 import "server-only";
 
 import YahooFinance from "yahoo-finance2";
+import { unstable_cache } from "next/cache";
 import type { IndexChartSeries } from "@/lib/market/chartTypes";
 import {
   INDEX_DEFINITIONS,
@@ -13,8 +14,7 @@ import {
   toMacroChip,
   type YahooQuoteLike,
 } from "@/lib/market/map";
-import { fetchIndexCharts } from "@/lib/market/fetchIndexCharts";
-import { fetchInvestorFlow } from "@/lib/market/fetchInvestorFlow";
+import { fetchInvestorFlow, type InvestorFlowBundle } from "@/lib/market/fetchInvestorFlow";
 import {
   KS200_SYMBOL,
   MEGA_CAP_CANDIDATES_KR,
@@ -23,6 +23,7 @@ import {
   emptyRetailScan,
   type RetailScanBundle,
 } from "@/lib/market/retailScan";
+import type { MarketScope } from "@/lib/market/scope";
 import type { IndexQuote, MacroChip, MarketMood } from "@/lib/types";
 import {
   indexQuotes as fallbackIndexes,
@@ -45,25 +46,53 @@ const yahooFinance = new YahooFinance({
   suppressNotices: ["yahooSurvey"],
 });
 
+/** 시장 단위 수급만 캐시 (종목별 byStock 없음). SSR TTFB 완화. */
+const getCachedMarketFlow = unstable_cache(
+  async (): Promise<InvestorFlowBundle> => fetchInvestorFlow([]),
+  ["investor-flow-market-v1"],
+  { revalidate: 120 },
+);
+
 function asQuoteMap(result: unknown): Record<string, YahooQuoteLike> {
   if (!result || typeof result !== "object") return {};
   return result as Record<string, YahooQuoteLike>;
 }
 
-export async function fetchLiveMarket(): Promise<LiveMarketBundle> {
-  const symbols = [
+function symbolsForScope(scope: MarketScope): string[] {
+  const symbols: string[] = [
     ...INDEX_DEFINITIONS.map((d) => d.symbol),
     ...MACRO_DEFINITIONS.map((d) => d.symbol),
-    KS200_SYMBOL,
-    ...MEGA_CAP_CANDIDATES_KR.map((d) => d.symbol),
-    ...MEGA_CAP_CANDIDATES_US.map((d) => d.symbol),
   ];
+  if (scope === "kr") {
+    symbols.push(KS200_SYMBOL, ...MEGA_CAP_CANDIDATES_KR.map((d) => d.symbol));
+  } else if (scope === "us") {
+    symbols.push(...MEGA_CAP_CANDIDATES_US.map((d) => d.symbol));
+  }
+  // overview: 지수·매크로만 (시총·수급은 탭 전환 시 해당 scope SSR)
+  return symbols;
+}
+
+function trimFlow(flow: InvestorFlowBundle): InvestorFlowBundle {
+  return {
+    ...flow,
+    kospiHistory: flow.kospiHistory.slice(0, 7),
+    kosdaqHistory: flow.kosdaqHistory.slice(0, 7),
+    byStock: {},
+  };
+}
+
+export async function fetchLiveMarket(
+  scope: MarketScope = "all",
+): Promise<LiveMarketBundle> {
+  const symbols = symbolsForScope(scope);
+  const needFlow = scope === "kr";
+  const needRetailScan = scope === "kr" || scope === "us";
 
   try {
-    const [rawResult, charts, investorFlow] = await Promise.all([
+    // 차트·종목별 수급은 펼칠 때 /api 로 로드. overview는 수급 HTML 스크랩도 생략.
+    const [rawResult, investorFlow] = await Promise.all([
       yahooFinance.quote(symbols, { return: "object" }),
-      fetchIndexCharts(yahooFinance),
-      fetchInvestorFlow(MEGA_CAP_CANDIDATES_KR),
+      needFlow ? getCachedMarketFlow() : Promise.resolve(null),
     ]);
     const quotes = asQuoteMap(rawResult);
 
@@ -84,17 +113,26 @@ export async function fetchLiveMarket(): Promise<LiveMarketBundle> {
 
     const times = Object.values(quotes).map((q) => parseYahooTime(q?.regularMarketTime));
     const { mood, moodLabel } = buildMood(indexes);
-    const retailScan = buildRetailScan(quotes, indexes, macros, {
-      status: investorFlow.status,
-      summary: investorFlow.summary,
-      note: investorFlow.note,
-      asOfLabel: investorFlow.asOfLabel,
-      kospi: investorFlow.kospi,
-      kosdaq: investorFlow.kosdaq,
-      kospiHistory: investorFlow.kospiHistory,
-      kosdaqHistory: investorFlow.kosdaqHistory,
-      byStock: investorFlow.byStock,
-    });
+
+    let retailScan: RetailScanBundle;
+    if (!needRetailScan) {
+      retailScan = emptyRetailScan();
+    } else if (investorFlow) {
+      const slim = trimFlow(investorFlow);
+      retailScan = buildRetailScan(quotes, indexes, macros, {
+        status: slim.status,
+        summary: slim.summary,
+        note: slim.note,
+        asOfLabel: slim.asOfLabel,
+        kospi: slim.kospi,
+        kosdaq: slim.kosdaq,
+        kospiHistory: slim.kospiHistory,
+        kosdaqHistory: slim.kosdaqHistory,
+        byStock: {},
+      });
+    } else {
+      retailScan = buildRetailScan(quotes, indexes, macros);
+    }
 
     return {
       indexes,
@@ -105,7 +143,7 @@ export async function fetchLiveMarket(): Promise<LiveMarketBundle> {
       asOfLabel: formatAsOfLabel(times),
       source: "live",
       retailScan,
-      charts,
+      charts: {},
     };
   } catch (error) {
     console.error("[market] live fetch failed, using fallback", error);

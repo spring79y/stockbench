@@ -125,7 +125,7 @@ async function confirmFreshArticles(
   maxAgeDays: number,
   limit: number,
 ): Promise<StockNewsItem[]> {
-  const pool = items.slice(0, Math.min(items.length, Math.max(limit * 4, 10)));
+  const pool = items.slice(0, Math.min(items.length, Math.max(limit * 2, 6)));
   const checked = await Promise.all(
     pool.map(async (item): Promise<StockNewsItem | null> => {
       if (!item.link) return item;
