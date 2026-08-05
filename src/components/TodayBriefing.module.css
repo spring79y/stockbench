@@ -53,11 +53,6 @@
   gap: 0;
 }
 
-.chipsRest {
-  margin-top: 0.35rem;
-  opacity: 0.85;
-}
-
 .chip {
   display: grid;
   grid-template-columns: minmax(4.5rem, auto) auto auto;
@@ -70,8 +65,8 @@
   background: transparent;
 }
 
-.chipMuted {
-  opacity: 0.72;
+.chip:last-child {
+  border-bottom: none;
 }
 
 .chipName {

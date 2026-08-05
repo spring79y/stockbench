@@ -16,7 +16,12 @@ export function TodayBriefing({
   /** 장중 리프레시일 때 짧은 라벨 */
   refreshLabel?: boolean;
 }) {
-  const evidence = macros.filter((m) => briefing.evidenceIds.includes(m.id));
+  const evidenceIdSet = new Set(briefing.evidenceIds);
+  // 근거 지정 지표를 앞에, 나머지는 뒤에 — 모두 동일 대비로 표시
+  const chips = [
+    ...macros.filter((m) => evidenceIdSet.has(m.id)),
+    ...macros.filter((m) => !evidenceIdSet.has(m.id)),
+  ];
 
   return (
     <section id="briefing" className="board-block briefing" aria-labelledby="briefing-title">
@@ -43,24 +48,12 @@ export function TodayBriefing({
         ))}
       </ul>
 
-      <div className={styles.evidence}>
-        <p className={styles.evidenceLabel}>근거 지표</p>
-        <div className={styles.chips}>
-          {evidence.map((chip) => (
-            <div key={chip.id} className={styles.chip}>
-              <span className={styles.chipName}>{chip.name}</span>
-              <span className={styles.chipValue}>{chip.value}</span>
-              <span className={`${styles.chipChange} ${changeToneClass(chip.direction)}`}>
-                {chip.changeLabel}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className={`${styles.chips} ${styles.chipsRest}`}>
-          {macros
-            .filter((m) => !briefing.evidenceIds.includes(m.id))
-            .map((chip) => (
-              <div key={chip.id} className={`${styles.chip} ${styles.chipMuted}`}>
+      {chips.length > 0 ? (
+        <div className={styles.evidence}>
+          <p className={styles.evidenceLabel}>근거 지표</p>
+          <div className={styles.chips}>
+            {chips.map((chip) => (
+              <div key={chip.id} className={styles.chip}>
                 <span className={styles.chipName}>{chip.name}</span>
                 <span className={styles.chipValue}>{chip.value}</span>
                 <span className={`${styles.chipChange} ${changeToneClass(chip.direction)}`}>
@@ -68,8 +61,9 @@ export function TodayBriefing({
                 </span>
               </div>
             ))}
+          </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 }
