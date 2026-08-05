@@ -35,7 +35,7 @@ export async function runBriefingAgent(
     if (!isBriefingDraft(json)) {
       throw new Error("Briefing JSON shape invalid");
     }
-    if (json.bullets.length < 2) {
+    if (json.bullets.length < 3) {
       throw new Error("Briefing bullets too few");
     }
     json.bullets = json.bullets.slice(0, 5);

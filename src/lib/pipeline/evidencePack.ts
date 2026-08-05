@@ -39,6 +39,8 @@ export type EvidencePack = {
   };
   megaCaps: {
     summary: string;
+    /** KR· / US· 접두 항목 — 탭별 필터용 */
+    items: Array<{ name: string; changePercent: number }>;
     avgChangePct: number | null;
     dispersionPct: number | null;
     upCount: number;
@@ -83,12 +85,12 @@ const SLOT_LABEL: Record<PipelineSlot, string> = {
 };
 
 const SLOT_FOCUS: Record<PipelineSlot, string> = {
-  "kr-pre": "미국 오버나잇·국내 개장 앞 포인트",
+  "kr-pre": "국내 1순위 · 미국 오버나잇은 필요 시 한 줄 브릿지만",
   "kr-mid": "국내 장중 온도만 짧게 — 시나리오·점검은 건드리지 않음",
-  "kr-post": "오늘 국내 정리 + 밤 미장 앞 점검",
-  "us-pre": "국내 마감 맥락 + 오늘 미장 포인트",
+  "kr-post": "국내 정리 1순위 · 밤 미장 앞은 한 줄 브릿지만",
+  "us-pre": "미장 1순위 · 국내 마감 맥락은 필요 시 한 줄 브릿지만",
   "us-mid": "미 장중 온도만 짧게 — 시나리오·점검은 건드리지 않음",
-  "us-post": "미장 정리 + 다음 국내 장전 연결",
+  "us-post": "미장 정리 1순위 · 다음 국내 장전 연결은 한 줄 브릿지만",
 };
 
 function avg(nums: number[]): number | null {
@@ -242,6 +244,10 @@ export function buildEvidencePack(input: {
         input.megaCaps.length > 0
           ? input.megaCaps.map((q) => `${q.name} ${formatPct(q.changePercent)}`).join(", ")
           : "시총상위 없음",
+      items: input.megaCaps.map((q) => ({
+        name: q.name,
+        changePercent: Number(q.changePercent.toFixed(2)),
+      })),
       avgChangePct: megaAvg == null ? null : Number(megaAvg.toFixed(2)),
       dispersionPct: dispersion,
       upCount,
@@ -272,11 +278,24 @@ export function buildEvidencePack(input: {
   };
 }
 
-/** LLM user prompt용 — 섹션화·복창 금지 안내 포함 */
+/** LLM user prompt용 — 섹션화·복창 금지·탭 초점 필터 포함 */
 export function renderEvidencePackForPrompt(
   pack: EvidencePack,
   scope: MarketScope,
 ): string {
+  const krBridge =
+    pack.indexes.kr.length > 0
+      ? `국내 보조(브릿지≤1불릿): ${pack.indexes.kr
+          .map((q) => `${q.name} ${formatPct(q.changePercent)}`)
+          .join(" · ")}`
+      : "국내 보조: n/a";
+  const usBridge =
+    pack.indexes.us.length > 0
+      ? `미국 보조(브릿지≤1불릿): ${pack.indexes.us
+          .map((q) => `${q.name} ${formatPct(q.changePercent)}`)
+          .join(" · ")}`
+      : "미국 보조: n/a";
+
   const indexBlock =
     scope === "kr"
       ? [
@@ -284,8 +303,7 @@ export function renderEvidencePackForPrompt(
           ...pack.indexes.kr.map(
             (q) => `- ${q.id} ${q.name} ${formatPct(q.changePercent)} 상태=${q.status}`,
           ),
-          "미국(보조):",
-          ...pack.indexes.us.map((q) => `- ${q.name} ${formatPct(q.changePercent)}`),
+          usBridge,
         ]
       : scope === "us"
         ? [
@@ -293,8 +311,7 @@ export function renderEvidencePackForPrompt(
             ...pack.indexes.us.map(
               (q) => `- ${q.id} ${q.name} ${formatPct(q.changePercent)} 상태=${q.status}`,
             ),
-            "한국(보조):",
-            ...pack.indexes.kr.map((q) => `- ${q.name} ${formatPct(q.changePercent)}`),
+            krBridge,
           ]
         : [
             "지수 (화면에도 표시 — 복창 금지):",
@@ -308,23 +325,104 @@ export function renderEvidencePackForPrompt(
             ),
           ];
 
-  const prevHeadlines = (["all", "kr", "us"] as MarketScope[])
+  const tempBlock =
+    scope === "us"
+      ? [
+          "## 시장 온도",
+          `온도: ${pack.temperature.label}`,
+          `분위기: ${pack.temperature.moodLabel}`,
+          `미국 평균: ${formatPct(pack.temperature.usAvgPct)}`,
+          `상대(국내 평균·갭, 브릿지용): 국내 ${formatPct(pack.temperature.krAvgPct)} · 갭(국내−미국) ${formatPct(pack.temperature.decouplingPct)}`,
+          "지시: 미국 평균·미 지수·금리·VIX가 본문. 국내/갭은 최대 1불릿.",
+        ]
+      : scope === "kr"
+        ? [
+            "## 시장 온도",
+            `온도: ${pack.temperature.label}`,
+            `분위기: ${pack.temperature.moodLabel}`,
+            `국내 평균: ${formatPct(pack.temperature.krAvgPct)}`,
+            `상대(미국 평균·갭, 브릿지용): 미국 ${formatPct(pack.temperature.usAvgPct)} · 갭(국내−미국) ${formatPct(pack.temperature.decouplingPct)}`,
+            "지시: 국내 평균·수급·시총이 본문. 미국/갭은 최대 1불릿.",
+          ]
+        : [
+            "## 시장 온도",
+            `온도: ${pack.temperature.label}`,
+            `분위기: ${pack.temperature.moodLabel}`,
+            `국내 평균: ${formatPct(pack.temperature.krAvgPct)} · 미국 평균: ${formatPct(pack.temperature.usAvgPct)}`,
+            `한·미 갭(국내−미국): ${formatPct(pack.temperature.decouplingPct)} — ${pack.temperature.decouplingNote}`,
+          ];
+
+  const megaItems =
+    scope === "us"
+      ? pack.megaCaps.items.filter((q) => q.name.startsWith("US·"))
+      : scope === "kr"
+        ? pack.megaCaps.items.filter((q) => q.name.startsWith("KR·"))
+        : pack.megaCaps.items;
+  const megaSummary =
+    megaItems.length > 0
+      ? megaItems.map((q) => `${q.name} ${formatPct(q.changePercent)}`).join(", ")
+      : scope === "all"
+        ? pack.megaCaps.summary
+        : "해당 탭 시총상위 없음";
+  const megaAvg = avg(megaItems.map((q) => q.changePercent));
+
+  const events =
+    scope === "us"
+      ? pack.events.filter((e) => e.region === "US" || e.region === "GLOBAL")
+      : scope === "kr"
+        ? pack.events.filter((e) => e.region === "KR" || e.region === "GLOBAL")
+        : pack.events;
+
+  const flowBlock =
+    scope === "us"
+      ? [
+          "## 수급",
+          "상태: US 탭에서는 국내 시장 수급 생략 (UI와 동일). 미 수급 숫자 없으면 언급 금지.",
+        ]
+      : [
+          "## 수급 (시장 합계 · 예측/매매신호 아님)",
+          `상태: ${pack.flow.status} · 기준일: ${pack.flow.asOfLabel || "n/a"}`,
+          `오늘: ${pack.flow.todaySummary}`,
+          `주간(5거래일 합): ${pack.flow.weekSummary}`,
+          `연속: ${pack.flow.foreignStreakNote}`,
+        ];
+
+  const signalsBlock =
+    scope === "us"
+      ? [
+          "## 기대·경계 신호",
+          "KS200·국내 갭 신호: US 탭 생략.",
+          `미장 관련만: VIX·금리 맥락은 매크로 섹션 참고. 신호요약(필터 전): ${pack.signals.summary}`,
+        ]
+      : [
+          "## 기대·경계 신호",
+          `KS200: ${pack.signals.ks200}`,
+          `신호: ${pack.signals.summary}`,
+        ];
+
+  const prevScopes: MarketScope[] =
+    scope === "us" ? ["us", "all"] : scope === "kr" ? ["kr", "all"] : ["all", "kr", "us"];
+  const prevHeadlines = prevScopes
     .map((s) => (pack.previous.headlines[s] ? `- ${s}: ${pack.previous.headlines[s]}` : null))
     .filter(Boolean);
+
+  const scopeRule =
+    scope === "us"
+      ? "SCOPE 규칙: 헤드라인·불릿 과반 = 미 지수·금리·VIX·미 시총·US/GLOBAL 일정. 코스피/코스닥/국내 수급/KS200은 헤드라인 금지·본문 최대 1불릿 브릿지."
+      : scope === "kr"
+        ? "SCOPE 규칙: 헤드라인·불릿 과반 = 국내 지수·수급·시총·KS200·환율. 나스닥/S&P/다우는 헤드라인 금지·본문 최대 1불릿 브릿지."
+        : "SCOPE 규칙: 한·미를 균형 있게. 한쪽만 장황하게 쓰지 말 것.";
 
   return [
     "## 세션",
     `탭 초점(scope): ${scope}`,
+    scopeRule,
     `슬롯: ${pack.session.slot} (${pack.session.slotLabel})`,
     `슬롯 초점: ${pack.session.focusHint}`,
     `수집: ${pack.session.collectedAt}`,
     `시세 기준: ${pack.session.asOfLabel}`,
     "",
-    "## 시장 온도",
-    `온도: ${pack.temperature.label}`,
-    `분위기: ${pack.temperature.moodLabel}`,
-    `국내 평균: ${formatPct(pack.temperature.krAvgPct)} · 미국 평균: ${formatPct(pack.temperature.usAvgPct)}`,
-    `한·미 갭(국내−미국): ${formatPct(pack.temperature.decouplingPct)} — ${pack.temperature.decouplingNote}`,
+    ...tempBlock,
     "",
     ...indexBlock,
     "",
@@ -333,25 +431,20 @@ export function renderEvidencePackForPrompt(
       (m) => `- ${m.id} ${m.name} ${m.value} ${m.changeLabel} dir=${m.direction}`,
     ),
     "",
-    "## 수급 (시장 합계 · 예측/매매신호 아님)",
-    `상태: ${pack.flow.status} · 기준일: ${pack.flow.asOfLabel || "n/a"}`,
-    `오늘: ${pack.flow.todaySummary}`,
-    `주간(5거래일 합): ${pack.flow.weekSummary}`,
-    `연속: ${pack.flow.foreignStreakNote}`,
+    ...flowBlock,
     "",
-    "## 시총 상위 맥락",
-    `종목: ${pack.megaCaps.summary}`,
-    `평균: ${formatPct(pack.megaCaps.avgChangePct)} · 분산(고−저): ${formatPct(pack.megaCaps.dispersionPct)} · 상승 ${pack.megaCaps.upCount}/하락 ${pack.megaCaps.downCount}`,
-    pack.megaCaps.dispersionNote,
+    "## 시총 상위 맥락 (이 탭 초점만)",
+    `종목: ${megaSummary}`,
+    `평균: ${formatPct(megaAvg == null ? null : Number(megaAvg.toFixed(2)))}`,
     "",
-    "## 기대·경계 신호",
-    `KS200: ${pack.signals.ks200}`,
-    `신호: ${pack.signals.summary}`,
+    ...signalsBlock,
     "",
-    "## 일정 (캘린더 라벨)",
-    ...pack.events.map(
-      (e) => `- ${e.dateLabel} [${e.region}/${e.level}] ${e.title} — ${e.oneLiner}`,
-    ),
+    "## 일정 (이 탭·글로벌)",
+    ...(events.length > 0
+      ? events.map(
+          (e) => `- ${e.dateLabel} [${e.region}/${e.level}] ${e.title} — ${e.oneLiner}`,
+        )
+      : ["- 해당 일정 없음"]),
     "",
     "## 리스크·지정학 맥락 (정치 올인원 아님 · 숫자 연결 시에만)",
     pack.risk.note,
@@ -364,7 +457,8 @@ export function renderEvidencePackForPrompt(
       ? [
           "관련 헤드라인(참고·단정 금지):",
           ...pack.risk.headlines.map(
-            (h) => `- ${h.title} · ${h.publisher}${h.publishedAt ? ` · ${h.publishedAt.slice(0, 10)}` : ""}`,
+            (h) =>
+              `- ${h.title} · ${h.publisher}${h.publishedAt ? ` · ${h.publishedAt.slice(0, 10)}` : ""}`,
           ),
         ]
       : ["관련 헤드라인: 없음"]),

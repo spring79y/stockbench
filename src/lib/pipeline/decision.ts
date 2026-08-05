@@ -33,7 +33,7 @@ export const DECISION_SYSTEM_PROMPT = `당신은 증시 브리핑의 Decision Ag
 - checkItems 3~5개 = 「오늘 볼 것」
   - text: 오늘 눈으로 확인할 신호
   - why: 그 신호가 A(기본) vs B(주의)를 가르는 이유 한 줄
-- 브리핑과 모순 금지 · 탭 scope 존중
+- 브리핑과 모순 금지 · 탭 scope 존중 (us면 미장 중심, kr면 국내 중심. 상대 시장은 시나리오에서도 보조만)
 
 출력 JSON만:
 {

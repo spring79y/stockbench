@@ -70,7 +70,11 @@ export function seedBriefing(snapshot: CollectorSnapshot, scope: MarketScope): B
 
 export function seedDecision(snapshot: CollectorSnapshot, scope: MarketScope): DecisionDraft {
   const kospi = snapshot.indexes.find((q) => q.id === "kospi");
-  const sharpDrop = (kospi?.changePercent ?? 0) <= -3;
+  const nasdaq = snapshot.indexes.find((q) => q.id === "nasdaq");
+  const sharpDrop =
+    scope === "us"
+      ? (nasdaq?.changePercent ?? 0) <= -2
+      : (kospi?.changePercent ?? 0) <= -3;
   const riskElevated = Boolean(snapshot.evidence?.risk?.elevated);
 
   return {
@@ -81,9 +85,13 @@ export function seedDecision(snapshot: CollectorSnapshot, scope: MarketScope): D
         title: sharpDrop ? "급변 후 숨 고르기" : "혼조 속 관망",
         summary: sharpDrop
           ? "큰 움직임 뒤에는 ‘추가 하락 확정’보다 변동성 구간으로 읽는 경우가 많습니다."
-          : "한·미가 크게 안 어긋나면 환율·금리 같은 공통 변수로 나누는 편이 낫습니다.",
+          : scope === "us"
+            ? "미 지수·금리·VIX가 크게 안 어긋나면 공통 변수로 나누는 편이 낫습니다."
+            : "한·미가 크게 안 어긋나면 환율·금리 같은 공통 변수로 나누는 편이 낫습니다.",
         implication:
-          "체감≠지수인지, 환율·금리 중 무엇이 더 움직였는지로 나눕니다.",
+          scope === "us"
+            ? "금리·VIX 중 무엇이 더 움직였는지로 나눕니다."
+            : "체감≠지수인지, 환율·금리 중 무엇이 더 움직였는지로 나눕니다.",
       },
       {
         id: "risk",
@@ -91,8 +99,13 @@ export function seedDecision(snapshot: CollectorSnapshot, scope: MarketScope): D
         title: riskElevated ? "지정학·변동성 경계" : "추가 흔들림 경계",
         summary: riskElevated
           ? "유가·VIX가 같이 움직이면 방향보다 흔들림을 먼저 봅니다."
-          : "환율·금리가 더 튀면 성장주·심리에 부담이 커질 수 있습니다.",
-        implication: "보유가 환율·금리·유가에 얼마나 민감한지만 봅니다.",
+          : scope === "us"
+            ? "금리가 더 튀면 성장주·심리에 부담이 커질 수 있습니다."
+            : "환율·금리가 더 튀면 성장주·심리에 부담이 커질 수 있습니다.",
+        implication:
+          scope === "us"
+            ? "보유가 금리·유가에 얼마나 민감한지만 봅니다."
+            : "보유가 환율·금리·유가에 얼마나 민감한지만 봅니다.",
       },
     ],
     checkItems: [

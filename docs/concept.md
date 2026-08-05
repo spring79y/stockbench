@@ -75,7 +75,7 @@ Discuss 원칙: 사용자가 말한 “예측 지수”는 **기대·경계 신�
 | 단계 | 역할 |
 |------|------|
 | Collector | Yahoo·네이버 등 API로 지수·매크로·시총·수급 수집 → **Evidence Pack** 구조화 (비AI) |
-| Briefing | Evidence Pack 섹션 입력 → 헤드라인·불릿·근거 (**탭별**, LLM → seed). 한·미는 밀도↑. 숫자 복창 금지 |
+| Briefing | Evidence Pack 섹션 입력 → 헤드라인·불릿·근거 (**탭별**, LLM → seed). **한·미는 해당 시장 1순위·상대 시장 ≤1불릿 브릿지**. 숫자 복창·공허 일반론 금지 |
 | Decision | 브리핑+Evidence Pack → 시나리오 A/B + 「오늘 볼 것」3~5 (**탭별**, LLM → seed) |
 | Guard | 추천/예측 톤·숫자 복창·공허 점검·사실 불일치 차단 |
 | Publisher | `src/data/published/latest.json` (version 2, views.all/kr/us) |

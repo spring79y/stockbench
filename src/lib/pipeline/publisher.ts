@@ -20,6 +20,7 @@ export function publishBundle(input: {
       snapshot: input.snapshot,
       briefing: view.briefing,
       decision: view.decision,
+      scope,
     }).findings.map((f) => ({ ...f, message: `[${scope}] ${f.message}` }));
   });
 

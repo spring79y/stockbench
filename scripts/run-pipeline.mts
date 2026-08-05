@@ -74,6 +74,7 @@ async function generateFullView(
       snapshot,
       briefing: briefingResult.data,
       decision: decisionResult.data,
+      scope,
     });
 
     if (guard.ok || attempt === 2) {
@@ -136,6 +137,7 @@ async function generateRefreshView(
       snapshot,
       briefing: briefingResult.data,
       frozenDecision,
+      scope,
     });
 
     if (guard.ok || attempt === 2) {

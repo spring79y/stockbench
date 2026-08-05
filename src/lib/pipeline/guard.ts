@@ -4,6 +4,7 @@ import type {
   DecisionDraft,
   GuardFinding,
   GuardReport,
+  MarketScope,
 } from "@/lib/pipeline/types";
 
 const RECOMMENDATION_PATTERNS = [
@@ -33,6 +34,19 @@ const EMPTY_CHECK_PATTERNS = [
   /있는가\?$/,
 ];
 
+const EMPTY_BRIEFING_PATTERNS = [
+  /변동성\s*(에\s*)?유의/,
+  /시장이\s*주목/,
+  /혼조세/,
+  /관망세/,
+  /신중히\s*접근/,
+  /지켜볼\s*필요/,
+  /관심이\s*쏠/,
+];
+
+const KR_LEAK_RE = /코스피|코스닥|KS200|코스피200|국내\s*(증시|시장|수급)|외국인\s*순매/;
+const US_LEAK_RE = /나스닥|S&P|다우|미\s*증시|미\s*장|뉴욕\s*증시/;
+
 /** 등락 숫자 복창성 문장 */
 function looksLikeNumberRestatement(text: string): boolean {
   const pctHits = (text.match(/-?\d+(?:\.\d+)?%/g) || []).length;
@@ -41,16 +55,22 @@ function looksLikeNumberRestatement(text: string): boolean {
   return pctHits >= 2 && hasVerb && text.length < 80;
 }
 
-/** Guard Agent — 사실·톤·복창·공허 점검 */
+function countMatches(texts: string[], re: RegExp): number {
+  return texts.reduce((n, t) => n + (re.test(t) ? 1 : 0), 0);
+}
+
+/** Guard Agent — 사실·톤·복창·공허·탭 이탈 점검 */
 export function runGuard(input: {
   snapshot: CollectorSnapshot;
   briefing: BriefingDraft;
   decision: DecisionDraft;
+  scope?: MarketScope;
 }): GuardReport {
   const findings: GuardFinding[] = [];
+  const scope = input.scope ?? "all";
+  const briefingTexts = [input.briefing.headline, ...input.briefing.bullets];
   const texts: string[] = [
-    input.briefing.headline,
-    ...input.briefing.bullets,
+    ...briefingTexts,
     ...input.decision.scenarios.flatMap((s) => [s.title, s.summary, s.implication]),
     ...input.decision.checkItems.flatMap((c) => [c.text, c.why]),
   ];
@@ -73,6 +93,53 @@ export function runGuard(input: {
         severity: "block",
         code: "number-restatement",
         message: `숫자 복창 브리핑 감지: "${bullet.slice(0, 48)}"`,
+      });
+    }
+    for (const pattern of EMPTY_BRIEFING_PATTERNS) {
+      if (pattern.test(bullet)) {
+        findings.push({
+          severity: "block",
+          code: "empty-briefing",
+          message: `공허한 브리핑 문장: "${bullet.slice(0, 48)}"`,
+        });
+      }
+    }
+  }
+
+  if (scope === "us") {
+    const krHits = countMatches(briefingTexts, KR_LEAK_RE);
+    if (KR_LEAK_RE.test(input.briefing.headline)) {
+      findings.push({
+        severity: "block",
+        code: "scope-leakage",
+        message:
+          "미국 탭 헤드라인에 코스피/국내 초점 금지. 미 지수·금리·VIX 중심으로 재작성.",
+      });
+    } else if (krHits > 1) {
+      findings.push({
+        severity: "block",
+        code: "scope-leakage",
+        message:
+          "미국 탭에서 코스피/국내 언급이 過多. 최대 1불릿 브릿지만 허용. 미장 위주로 재작성.",
+      });
+    }
+  }
+
+  if (scope === "kr") {
+    const usHits = countMatches(briefingTexts, US_LEAK_RE);
+    if (US_LEAK_RE.test(input.briefing.headline)) {
+      findings.push({
+        severity: "block",
+        code: "scope-leakage",
+        message:
+          "한국 탭 헤드라인에 미 지수 초점 금지. 국내 지수·수급·시총 중심으로 재작성.",
+      });
+    } else if (usHits > 1) {
+      findings.push({
+        severity: "block",
+        code: "scope-leakage",
+        message:
+          "한국 탭에서 미 지수 언급이 過多. 최대 1불릿 브릿지만 허용. 국내 위주로 재작성.",
       });
     }
   }
@@ -168,6 +235,27 @@ export function runGuard(input: {
     }
   }
 
+  const prose = briefingTexts.join(" ");
+  for (const id of input.briefing.evidenceIds) {
+    const macro = input.snapshot.macros.find((m) => m.id === id);
+    if (!macro) continue;
+    const tokens = [
+      macro.name,
+      id,
+      macro.id === "usdkkrw" ? "환율" : "",
+      macro.id === "us10y" ? "금리" : "",
+      macro.id === "wti" ? "유가" : "",
+      macro.id === "vix" ? "VIX" : "",
+    ].filter(Boolean);
+    if (!tokens.some((t) => prose.includes(t))) {
+      findings.push({
+        severity: "warn",
+        code: "evidence-unused",
+        message: `evidenceIds에 ${id}(${macro.name})가 있으나 본문에 드러나지 않음`,
+      });
+    }
+  }
+
   const kospi = input.snapshot.indexes.find((q) => q.id === "kospi");
   const claimsDomesticBullish = texts.some((text) =>
     /코스피(?:가|는|도)?\s*강세|국내\s*(?:증시|시장)(?:가|는|도)?\s*강세/.test(text),
@@ -175,14 +263,14 @@ export function runGuard(input: {
   const claimsDomesticBearish = texts.some((text) =>
     /코스피(?:가|는|도)?\s*약세|국내\s*(?:증시|시장)(?:가|는|도)?\s*약세/.test(text),
   );
-  if (kospi && kospi.changePercent <= -1 && claimsDomesticBullish) {
+  if (scope !== "us" && kospi && kospi.changePercent <= -1 && claimsDomesticBullish) {
     findings.push({
       severity: "block",
       code: "fact-mismatch",
       message: "코스피 약세인데 강세 서술 감지",
     });
   }
-  if (kospi && kospi.changePercent >= 1 && claimsDomesticBearish) {
+  if (scope !== "us" && kospi && kospi.changePercent >= 1 && claimsDomesticBearish) {
     findings.push({
       severity: "warn",
       code: "fact-mismatch-soft",
@@ -223,6 +311,7 @@ export function runBriefingOnlyGuard(input: {
   snapshot: CollectorSnapshot;
   briefing: BriefingDraft;
   frozenDecision: DecisionDraft;
+  scope?: MarketScope;
 }): GuardReport {
   const ignored = new Set([
     "scenario-count",
@@ -236,10 +325,10 @@ export function runBriefingOnlyGuard(input: {
     snapshot: input.snapshot,
     briefing: input.briefing,
     decision: input.frozenDecision,
+    scope: input.scope,
   });
   const findings = report.findings.filter((f) => {
     if (ignored.has(f.code)) return false;
-    // 동결 시나리오/점검 문장에서 난 추천 톤은 리프레시를 막지 않음
     const fromFrozen = input.frozenDecision.scenarios.some(
       (s) =>
         f.message.includes(s.title.slice(0, 12)) ||
@@ -255,4 +344,4 @@ export function runBriefingOnlyGuard(input: {
 }
 
 export const GUARD_SYSTEM_PROMPT = `당신은 증시 브리핑의 Guard Agent다.
-숫자 복창, 공허한 점검, 추천/예측 톤, 사실 불일치를 차단한다.`;
+숫자 복창, 공허한 브리핑, 추천/예측 톤, 탭 초점 이탈(scope-leakage), 사실 불일치를 차단한다.`;
