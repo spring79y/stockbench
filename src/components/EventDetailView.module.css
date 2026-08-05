@@ -71,6 +71,25 @@
   color: var(--muted, #64748b);
 }
 
+.consensus {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: var(--brand-tint, #f4f7fb);
+  font-size: 0.88rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.consensus p {
+  margin: 0;
+}
+
+.consensusNote {
+  font-size: 0.75rem;
+  color: var(--muted, #64748b);
+}
+
 .sectionTitle {
   margin: 0 0 0.55rem;
   font-family: var(--font-display), sans-serif;

@@ -31,7 +31,7 @@ export default async function EventPage({ params, searchParams }: PageProps) {
   const event = findEventById(id, board.events);
   if (!event) notFound();
 
-  const detail = getEventDetail(event.id);
+  const detail = getEventDetail(event);
   const periodSet = detail.chartDefs.some((d) => d.source === "fred")
     ? "indicator"
     : "stock";

@@ -80,6 +80,9 @@ export function EventList({
                   <span className={`${styles.level} ${levelClass[event.level]}`}>
                     {levelLabel[event.level]}
                   </span>
+                  {event.kind === "earnings" ? (
+                    <span className={styles.kindEarnings}>실적</span>
+                  ) : null}
                 </div>
                 <div className={styles.body}>
                   <strong>{event.title}</strong>

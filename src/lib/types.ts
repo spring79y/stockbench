@@ -23,6 +23,18 @@ export interface MacroChip {
   direction: ChangeDirection;
 }
 
+export type MarketEventKind = "macro" | "earnings";
+
+export interface EarningsConsensus {
+  epsAvg?: number;
+  epsLow?: number;
+  epsHigh?: number;
+  epsLabel?: string;
+  revenueAvg?: number;
+  revenueLabel?: string;
+  isEstimate?: boolean;
+}
+
 export interface MarketEvent {
   id: string;
   dateLabel: string;
@@ -30,6 +42,15 @@ export interface MarketEvent {
   title: string;
   level: "high" | "medium" | "low";
   oneLiner: string;
+  kind?: MarketEventKind;
+  symbol?: string;
+  megaCapId?: string;
+  bridgeId?: string;
+  dateISO?: string;
+  sector?: "memory" | "ai" | "auto";
+  bridgeOf?: string;
+  relatedMegaCapIds?: string[];
+  consensus?: EarningsConsensus;
 }
 
 export interface DailyBriefing {

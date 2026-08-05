@@ -1,4 +1,5 @@
 import type { MarketEvent } from "@/lib/types";
+import { buildEarningsDetail } from "@/lib/events/earningsDetail";
 import { upcomingEvents } from "@/data/mock";
 import type { EventChartDef } from "@/lib/market/fetchEventCharts";
 
@@ -268,8 +269,11 @@ export function findEventById(
   return events.find((e) => e.id === id) ?? upcomingEvents.find((e) => e.id === id) ?? null;
 }
 
-export function getEventDetail(id: string): EventDetailContent {
-  return DETAILS[id] ?? GENERIC;
+export function getEventDetail(event: MarketEvent): EventDetailContent {
+  if (event.kind === "earnings") {
+    return buildEarningsDetail(event);
+  }
+  return DETAILS[event.id] ?? GENERIC;
 }
 
 export function formatBriefingUpdatedAt(iso: string | null | undefined): string {

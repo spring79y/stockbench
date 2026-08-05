@@ -65,6 +65,23 @@ export function EventDetailView({
         </div>
         <h1 className={styles.title}>{event.title}</h1>
         <p className={styles.oneliner}>{event.oneLiner}</p>
+        {event.kind === "earnings" && event.consensus ? (
+          <div className={styles.consensus}>
+            {event.consensus.epsLabel ? (
+              <p>
+                <strong>EPS 컨센서스</strong> {event.consensus.epsLabel}
+              </p>
+            ) : null}
+            {event.consensus.revenueLabel ? (
+              <p>
+                <strong>매출 컨센서스</strong> {event.consensus.revenueLabel}
+              </p>
+            ) : null}
+            <p className={styles.consensusNote}>
+              Yahoo 참고 · 발표 전 추정치 · 매매 신호 아님
+            </p>
+          </div>
+        ) : null}
       </article>
 
       <section className="board-block" aria-labelledby="event-meaning">

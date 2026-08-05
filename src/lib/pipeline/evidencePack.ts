@@ -58,6 +58,9 @@ export type EvidencePack = {
     title: string;
     level: string;
     oneLiner: string;
+    kind?: string;
+    dateISO?: string;
+    symbol?: string;
   }>;
   /** 유가·VIX·지정학 헤드라인 (숫자 연결 시에만 해석) */
   risk: {
@@ -265,6 +268,9 @@ export function buildEvidencePack(input: {
       title: e.title,
       level: e.level,
       oneLiner: e.oneLiner,
+      kind: e.kind,
+      dateISO: e.dateISO,
+      symbol: e.symbol,
     })),
     risk: input.risk ?? {
       status: "pending",
@@ -439,12 +445,19 @@ export function renderEvidencePackForPrompt(
     "",
     ...signalsBlock,
     "",
-    "## 일정 (이 탭·글로벌)",
+    "## 일정 (이 탭·글로벌 · 실적은 점검용)",
     ...(events.length > 0
-      ? events.map(
-          (e) => `- ${e.dateLabel} [${e.region}/${e.level}] ${e.title} — ${e.oneLiner}`,
-        )
+      ? events.map((e) => {
+          const tag = e.kind === "earnings" ? "실적" : "매크로";
+          const when = e.dateISO ? ` · ${e.dateISO.slice(0, 10)}` : "";
+          return `- ${e.dateLabel}${when} [${e.region}/${e.level}/${tag}] ${e.title} — ${e.oneLiner}`;
+        })
       : ["- 해당 일정 없음"]),
+    ...(events.some((e) => e.kind === "earnings")
+      ? [
+          "지시: 48시간 이내 실적(kind=earnings)이 있으면 bullets 중 1개에 회사명·섹터 맥락을 ‘점검’으로만 언급. EPS/매출 숫자 복창·매매 신호 금지.",
+        ]
+      : []),
     "",
     "## 리스크·지정학 맥락 (정치 올인원 아님 · 숫자 연결 시에만)",
     pack.risk.note,
