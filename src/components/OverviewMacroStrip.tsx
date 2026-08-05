@@ -14,13 +14,11 @@ export function OverviewMacroStrip({ macros }: { macros: MacroChip[] }) {
 
   return (
     <section className="board-block overview-macros" aria-labelledby="overview-macros-title">
-      <div className="block-head">
-        <div>
-          <h2 id="overview-macros-title" className="block-head__title">
-            환율·금리·유가
-          </h2>
-          <p className="block-head__sub">시장 온도 맥락 · 매매 판단용 아님</p>
-        </div>
+      <div className={styles.head}>
+        <h2 id="overview-macros-title" className={styles.title}>
+          환율·금리·유가
+        </h2>
+        <p className={styles.sub}>시장 온도 맥락 · 매매 판단용 아님</p>
       </div>
       <div className={styles.row}>
         {chips.map((chip) => (
