@@ -9,15 +9,24 @@ function subKey(endpoint: string): string {
   return `push:sub:${hash}`;
 }
 
-function getRedis(): Redis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+/** Vercel Upstash 연결은 KV_REST_API_* 로, 직접 설정은 UPSTASH_REDIS_REST_* 로 들어온다. */
+function redisCredentials(): { url: string; token: string } | null {
+  const url =
+    process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL ?? null;
+  const token =
+    process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN ?? null;
   if (!url || !token) return null;
-  return new Redis({ url, token });
+  return { url, token };
+}
+
+function getRedis(): Redis | null {
+  const creds = redisCredentials();
+  if (!creds) return null;
+  return new Redis(creds);
 }
 
 export function pushStoreConfigured(): boolean {
-  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return Boolean(redisCredentials());
 }
 
 export async function upsertPushSubscription(input: {
