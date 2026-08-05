@@ -863,6 +863,10 @@ a {
   border: 1px solid #d7e0ea;
 }
 
+.mega-split__tabs--3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .mega-split__tab {
   appearance: none;
   border: 0;

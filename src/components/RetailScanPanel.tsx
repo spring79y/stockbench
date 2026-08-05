@@ -8,8 +8,14 @@ import type { IndexChartSeries } from "@/lib/market/chartTypes";
 import type { MarketScope } from "@/lib/market/scope";
 import type { FlowLeg, MegaCapQuote, RetailScanBundle } from "@/lib/market/retailScan";
 import type { Ks200NightFuturesQuote } from "@/lib/market/fetchKs200NightFutures";
+import type { StockNewsItem } from "@/lib/market/fetchStockNews";
+import newsStyles from "./MegaNews.module.css";
 
 const NIGHT_POLL_MS = 60_000;
+const INFLUENCE_TIMEOUT_MS = 12_000;
+const INFLUENCE_LIMIT = 2;
+
+type MegaRightTab = "chart" | "flow" | "influence";
 
 const IndexMiniChart = dynamic(
   () => import("@/components/IndexMiniChart").then((m) => m.IndexMiniChart),
@@ -83,6 +89,77 @@ function StockFlowHistoryTable({
   );
 }
 
+function IndexInfluencePanel({
+  stockName,
+  items,
+  loading,
+  error,
+}: {
+  stockName: string;
+  items: StockNewsItem[];
+  loading?: boolean;
+  error?: boolean;
+}) {
+  return (
+    <div className={`flow-sheet ${newsStyles.wrap} ${newsStyles.inPanel}`}>
+      <div className="flow-sheet__head">
+        <h4 className="flow-sheet__title">{stockName} · 지수 영향</h4>
+      </div>
+      <p className="flow-sheet__unit-line">
+        오늘 지수·시총5 온도에 왜 중요한지 · 종목 피드 아님
+      </p>
+
+      {loading && items.length === 0 ? (
+        <p className="retail-card__note">불러오는 중…</p>
+      ) : error && items.length === 0 ? (
+        <p className="retail-card__note">지수 영향을 불러오지 못했습니다.</p>
+      ) : items.length === 0 ? (
+        <p className="retail-card__note">최근 지수 영향 헤드라인이 없습니다.</p>
+      ) : (
+        <div className="flow-sheet__table-wrap">
+          <table className="flow-sheet__table">
+            <thead>
+              <tr>
+                <th scope="col">시간</th>
+                <th scope="col">출처</th>
+                <th scope="col" className={newsStyles.thTitle}>
+                  헤드라인
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((n, i) => (
+                <tr key={n.id} className={i === 0 ? newsStyles.latest : undefined}>
+                  <th scope="row">
+                    <time dateTime={n.publishedAt || undefined}>{n.publishedLabel}</time>
+                  </th>
+                  <td className={newsStyles.tdSource}>
+                    <span title={n.publisher}>{n.publisher}</span>
+                  </td>
+                  <td className={newsStyles.tdTitle}>
+                    {n.link ? (
+                      <a
+                        href={n.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={newsStyles.link}
+                      >
+                        {n.title}
+                      </a>
+                    ) : (
+                      <span className={newsStyles.link}>{n.title}</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MegaCapSplit({
   title,
   topCaps,
@@ -98,10 +175,13 @@ function MegaCapSplit({
 }) {
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(topCaps[0]?.id ?? "");
-  const [rightTab, setRightTab] = useState<"chart" | "flow">("chart");
+  const [rightTab, setRightTab] = useState<MegaRightTab>("chart");
   const [byStock, setByStock] = useState<Record<string, FlowLeg[]>>(flow.byStock ?? {});
   const [flowLoading, setFlowLoading] = useState(false);
   const flowFetchedRef = useRef(false);
+  const [newsById, setNewsById] = useState<Record<string, StockNewsItem[]>>({});
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsErrorById, setNewsErrorById] = useState<Record<string, boolean>>({});
 
   const seriesList = useMemo(
     () =>
@@ -123,6 +203,9 @@ function MegaCapSplit({
   const activeQuote = topCaps.find((q) => q.id === selectedId) ?? topCaps[0];
   const activeId = activeQuote?.id ?? "";
   const stockFlowRows = (activeId ? byStock[activeId] : undefined) ?? [];
+  const influenceItems = (activeId ? newsById[activeId] : undefined) ?? [];
+  const influenceCached = Boolean(activeId && activeId in newsById);
+  const tabCols = showFlow ? 3 : 2;
 
   // SSR에서 byStock을 비우므로, 수급 탭을 열 때 클라이언트에서 로드
   useEffect(() => {
@@ -160,6 +243,63 @@ function MegaCapSplit({
     // topCaps identity is stable per mount; byStock read only for initial seed
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showFlow, open, rightTab]);
+
+  // 지수 영향: 탭 선택 + 선택 종목일 때만 lazy fetch · 종목별 캐시
+  useEffect(() => {
+    if (!open || rightTab !== "influence" || !activeQuote || !activeId) return;
+    if (activeId in newsById) return;
+
+    let cancelled = false;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), INFLUENCE_TIMEOUT_MS);
+    setNewsLoading(true);
+    setNewsErrorById((prev) => {
+      if (!prev[activeId]) return prev;
+      const next = { ...prev };
+      delete next[activeId];
+      return next;
+    });
+
+    const params = new URLSearchParams({
+      id: activeQuote.id,
+      name: activeQuote.name,
+      symbol: activeQuote.symbol,
+      region: activeQuote.region,
+      limit: String(INFLUENCE_LIMIT),
+    });
+
+    fetch(`/api/stock-news?${params.toString()}`, { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("news failed");
+        return res.json() as Promise<{ items: StockNewsItem[] }>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setNewsById((prev) => ({
+          ...prev,
+          [activeId]: (data.items ?? []).slice(0, INFLUENCE_LIMIT),
+        }));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setNewsErrorById((prev) => ({ ...prev, [activeId]: true }));
+      })
+      .finally(() => {
+        window.clearTimeout(timer);
+        if (!cancelled) setNewsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+    // newsById checked for cache; omit from deps to avoid re-run after set
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, rightTab, activeId, activeQuote?.name, activeQuote?.symbol, activeQuote?.region]);
+
+  const showFlowPanel = showFlow && rightTab === "flow";
+  const showInfluencePanel = rightTab === "influence";
 
   return (
     <article className="retail-card retail-card--wide mega-split">
@@ -224,17 +364,21 @@ function MegaCapSplit({
           </div>
 
           <div className="mega-split__side">
-            {showFlow ? (
-              <div className="mega-split__tabs" role="tablist" aria-label="시총 상위 보조 보기">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={rightTab === "chart"}
-                  className={`mega-split__tab ${rightTab === "chart" ? "is-on" : ""}`}
-                  onClick={() => setRightTab("chart")}
-                >
-                  차트
-                </button>
+            <div
+              className={`mega-split__tabs mega-split__tabs--${tabCols}`}
+              role="tablist"
+              aria-label="시총 상위 보조 보기"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={rightTab === "chart"}
+                className={`mega-split__tab ${rightTab === "chart" ? "is-on" : ""}`}
+                onClick={() => setRightTab("chart")}
+              >
+                차트
+              </button>
+              {showFlow ? (
                 <button
                   type="button"
                   role="tab"
@@ -244,23 +388,39 @@ function MegaCapSplit({
                 >
                   수급 1주
                 </button>
-              </div>
-            ) : null}
+              ) : null}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={rightTab === "influence"}
+                className={`mega-split__tab ${rightTab === "influence" ? "is-on" : ""}`}
+                onClick={() => setRightTab("influence")}
+              >
+                지수 영향
+              </button>
+            </div>
 
             <div className="mega-split__panel">
-              {rightTab === "chart" || !showFlow ? (
+              {showInfluencePanel ? (
+                <IndexInfluencePanel
+                  stockName={activeQuote?.name ?? "종목"}
+                  items={influenceItems}
+                  loading={newsLoading && !influenceCached}
+                  error={Boolean(activeId && newsErrorById[activeId])}
+                />
+              ) : showFlowPanel ? (
+                <StockFlowHistoryTable
+                  stockName={activeQuote?.name ?? "종목"}
+                  rows={stockFlowRows}
+                  loading={flowLoading}
+                />
+              ) : (
                 <IndexMiniChart
                   seriesList={seriesList}
                   activeId={activeId}
                   onActiveChange={setSelectedId}
                   hideSelector
                   quoteChangePercent={activeQuote?.changePercent}
-                />
-              ) : (
-                <StockFlowHistoryTable
-                  stockName={activeQuote?.name ?? "종목"}
-                  rows={stockFlowRows}
-                  loading={flowLoading}
                 />
               )}
             </div>
