@@ -240,7 +240,13 @@ function ScopedPulse({
         aria-expanded={detailOpen}
         onClick={() => setDetailOpen(!detailOpen)}
       >
-        {detailOpen ? "차트·수급 접기" : "차트·수급 펼치기"}
+        {detailOpen
+          ? showFlow
+            ? "차트·수급 접기"
+            : "차트 접기"
+          : showFlow
+            ? "차트·수급 펼치기"
+            : "차트 펼치기"}
       </button>
       {detailOpen ? (
         <div className="pulse__chart">
