@@ -18,12 +18,12 @@
 
 .btn {
   appearance: none;
-  border: 1px solid var(--line, #e2e8f0);
-  background: #fff;
-  color: var(--ink, #0f172a);
+  border: 1px solid color-mix(in srgb, var(--brand, #1d4f91) 35%, var(--line, #e2e8f0));
+  background: color-mix(in srgb, var(--brand, #1d4f91) 8%, #fff);
+  color: var(--brand, #1d4f91);
   border-radius: 8px;
-  padding: 0.4rem 0.7rem;
-  font-size: 0.75rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
 }

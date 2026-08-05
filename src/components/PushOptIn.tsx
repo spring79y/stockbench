@@ -26,6 +26,7 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [unsupported, setUnsupported] = useState(false);
 
   useEffect(() => {
     if (!market) return;
@@ -41,7 +42,18 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
           return;
         }
         setEnabled(true);
+      } catch {
+        if (!cancelled) setEnabled(false);
+        return;
+      }
 
+      // SW 실패해도 옵트인 UI는 유지 (구독 버튼에서 안내)
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        if (!cancelled) setUnsupported(true);
+        return;
+      }
+
+      try {
         const reg = await ensureServiceWorker();
         const sub = await reg?.pushManager.getSubscription();
         if (cancelled) return;
@@ -52,15 +64,9 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
           } catch {
             // ignore
           }
-        } else {
-          try {
-            setSubscribed(localStorage.getItem(`sb-push:${market}`) === "1");
-          } catch {
-            setSubscribed(false);
-          }
         }
       } catch {
-        if (!cancelled) setEnabled(false);
+        if (!cancelled) setUnsupported(true);
       }
     })();
 
@@ -77,6 +83,11 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
     setBusy(true);
     setMessage(null);
     try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        setMessage("이 브라우저는 웹 푸시를 지원하지 않습니다. Chrome에서 열어 주세요.");
+        return;
+      }
+
       const perm = await Notification.requestPermission();
       if (perm !== "granted") {
         setMessage("알림 권한이 필요합니다.");
@@ -116,9 +127,10 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
         // ignore
       }
       setSubscribed(true);
+      setUnsupported(false);
       setMessage(`${label} 슬롯 발행 시 알림을 보냅니다.`);
     } catch {
-      setMessage("구독에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      setMessage("구독에 실패했습니다. Chrome에서 다시 시도해 주세요.");
     } finally {
       setBusy(false);
     }
@@ -156,15 +168,20 @@ export function PushOptIn({ scope }: { scope: MarketScope }) {
       <p className={styles.copy}>
         {label} 장전·장중·장후 브리핑이 나오면 알림 (시세·속보 알림 아님)
       </p>
-      <button
-        type="button"
-        className={styles.btn}
-        disabled={busy}
-        onClick={() => void (subscribed ? unsubscribe() : subscribe())}
-      >
-        {busy ? "처리 중…" : subscribed ? "알림 끄기" : "이 시장 알림 켜기"}
-      </button>
+      {unsupported ? (
+        <p className={styles.msg}>웹 푸시는 Chrome 등에서 사용할 수 있습니다.</p>
+      ) : (
+        <button
+          type="button"
+          className={styles.btn}
+          disabled={busy}
+          onClick={() => void (subscribed ? unsubscribe() : subscribe())}
+        >
+          {busy ? "처리 중…" : subscribed ? "알림 끄기" : "알림 받기"}
+        </button>
+      )}
       {message ? <p className={styles.msg}>{message}</p> : null}
     </div>
   );
 }
+
