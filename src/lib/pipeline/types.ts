@@ -75,6 +75,8 @@ export type EditorialView = {
   slot?: PipelineSlot;
   /** full | refresh — refresh면 시나리오·점검은 직전 풀 발행 유지 */
   mode?: PipelineMode;
+  /** 직전 발행 대비 짧은 변화 (최대 3) */
+  changeLines?: string[];
 };
 
 export type PublishedBundle = {

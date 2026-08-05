@@ -14,6 +14,7 @@ function briefOnly(view: EditorialView): EditorialView {
     publishedAt: view.publishedAt,
     slot: view.slot,
     mode: view.mode,
+    changeLines: view.changeLines,
   };
 }
 

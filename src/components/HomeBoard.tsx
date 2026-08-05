@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckList } from "@/components/CheckList";
+import { BriefingSlotBar } from "@/components/BriefingSlotBar";
 import { EventList } from "@/components/EventList";
 import { MarketPulse } from "@/components/MarketPulse";
 import { OverviewDualBrief } from "@/components/OverviewDualBrief";
@@ -130,6 +131,12 @@ export function HomeBoard({
         ) : (
           <>
             <RetailScanPanel scan={market.retailScan} charts={market.charts} scope={activeScope} />
+            <BriefingSlotBar
+              scope={activeScope}
+              slot={view.slot}
+              mode={viewMode}
+              changeLines={view.changeLines}
+            />
             <TodayBriefing
               briefing={briefing}
               macros={market.macros}
@@ -138,7 +145,12 @@ export function HomeBoard({
               refreshLabel={viewMode === "refresh"}
             />
             <ScenarioPanel scenarios={view.scenarios} />
-            <CheckList key={`check-${activeScope}`} items={view.checkItems} />
+            <CheckList
+              key={`check-${activeScope}-${view.publishedAt ?? ""}`}
+              items={view.checkItems}
+              scope={activeScope}
+              issuedAt={view.publishedAt}
+            />
             <EventList events={events} scope={activeScope} stepNo={4} />
           </>
         )}

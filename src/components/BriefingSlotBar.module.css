@@ -1,0 +1,99 @@
+.bar {
+  background: var(--panel, #fff);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: var(--radius-block, 14px);
+  padding: 0.75rem 1rem 0.85rem;
+  box-shadow: var(--shadow);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+}
+
+.now,
+.next {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--ink, #0f172a);
+}
+
+.now strong {
+  font-weight: 700;
+}
+
+.next {
+  color: var(--muted, #64748b);
+}
+
+.next time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ink, #0f172a);
+}
+
+.tag,
+.tagMuted {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.08rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.tag {
+  background: color-mix(in srgb, var(--brand, #1d4f91) 14%, #fff);
+  color: var(--brand, #1d4f91);
+}
+
+.tagMuted {
+  background: var(--seg-track, #f1f5f9);
+  color: var(--muted, #64748b);
+}
+
+.delta {
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line, #e2e8f0);
+}
+
+.deltaLabel {
+  margin: 0 0 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--muted, #64748b);
+}
+
+.deltaList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.deltaList li {
+  position: relative;
+  padding-left: 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--ink, #0f172a);
+}
+
+.deltaList li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.5rem;
+  width: 0.28rem;
+  height: 0.28rem;
+  border-radius: 999px;
+  background: var(--brand, #1d4f91);
+}

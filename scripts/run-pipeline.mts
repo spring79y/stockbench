@@ -20,6 +20,7 @@ import { writePipelineStatus } from "../src/lib/pipeline/pipelineStatus";
 import { runBriefingAgent } from "../src/lib/pipeline/runBriefingAgent";
 import { runDecisionAgent } from "../src/lib/pipeline/runDecisionAgent";
 import { ALL_PIPELINE_SLOTS, modeForSlot, scopesForSlot } from "../src/lib/pipeline/schedule";
+import { buildChangeLines } from "../src/lib/pipeline/briefingDelta";
 import type {
   EditorialView,
   MarketScope,
@@ -30,6 +31,7 @@ import type {
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const latestPath = join(root, "src/data/published/latest.json");
+const previousPath = join(root, "src/data/published/previous.json");
 
 function summarizeGuard(guard: PublishedBundle["guard"]): string {
   if (!guard.ok) {
@@ -248,7 +250,8 @@ async function main() {
         mode === "refresh"
           ? await generateRefreshView(snapshot, scope, publishedAt, slot, views[scope])
           : await generateFullView(snapshot, scope, publishedAt, slot);
-      views[scope] = view;
+      const changeLines = buildChangeLines(previous?.views?.[scope], view, mode);
+      views[scope] = { ...view, changeLines };
       findings.push(...scopeFindings);
     }
 
@@ -275,7 +278,10 @@ async function main() {
             publishedAt,
             slot,
           );
-          views[scope] = view;
+          views[scope] = {
+            ...view,
+            changeLines: buildChangeLines(previous?.views?.[scope], view, "full"),
+          };
           findings.push(...scopeFindings);
         }
       }
@@ -317,6 +323,9 @@ async function main() {
     };
 
     mkdirSync(dirname(latestPath), { recursive: true });
+    if (previous) {
+      writeFileSync(previousPath, `${JSON.stringify(previous, null, 2)}\n`, "utf8");
+    }
     writeFileSync(latestPath, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
     recordStatus({
       updatedAt: publishedAt,

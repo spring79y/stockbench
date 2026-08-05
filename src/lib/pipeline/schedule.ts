@@ -182,3 +182,54 @@ export function dueSlots(
     return mins >= slotTargetMins(slot);
   });
 }
+
+export type NextSlotInfo = {
+  slot: PipelineSlot;
+  label: string;
+  /** 예: 08.06 11:30 */
+  whenLabel: string;
+  mode: PipelineMode;
+};
+
+/** 이 탭을 갱신하는 다음 슬롯 (평일 기준 · 주말이면 다음 월요일) */
+export function nextSlotForScope(
+  scope: MarketScope,
+  now = new Date(),
+): NextSlotInfo | null {
+  const candidates: PipelineSlot[] =
+    scope === "kr"
+      ? ["kr-pre", "kr-mid", "kr-post"]
+      : scope === "us"
+        ? ["us-mid", "us-post", "us-pre"]
+        : ["us-mid", "us-post", "kr-pre", "kr-mid", "kr-post", "us-pre"];
+
+  const parts = seoulDateParts(now);
+
+  for (let dayOffset = 0; dayOffset < 8; dayOffset += 1) {
+    const probe = new Date(now.getTime() + dayOffset * 24 * 60 * 60 * 1000);
+    const day = seoulDateParts(probe);
+    if (day.weekend) continue;
+
+    const dayMins = dayOffset === 0 ? parts.mins : -1;
+    const sorted = [...candidates].sort(
+      (a, b) => slotTargetMins(a) - slotTargetMins(b),
+    );
+
+    for (const slot of sorted) {
+      const target = slotTargetMins(slot);
+      if (dayOffset === 0 && target <= dayMins) continue;
+
+      const label = SLOT_SCHEDULE[slot].label;
+      const md = day.ymd.slice(5).replace("-", ".");
+      return {
+        slot,
+        label,
+        whenLabel: `${md} ${pad2(SLOT_SCHEDULE[slot].hour)}:${pad2(SLOT_SCHEDULE[slot].minute)}`,
+        mode: modeForSlot(slot),
+      };
+    }
+  }
+
+  return null;
+}
+

@@ -7,15 +7,32 @@
 }
 
 .item {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.7rem;
-  align-items: start;
   border: 1px solid var(--line);
   border-radius: var(--radius-panel, 10px);
-  padding: 0.8rem 0.85rem;
+  padding: 0.15rem;
   background: var(--brand-tint, #f4f7fb);
   box-shadow: inset 3px 0 0 var(--brand, #1d4f91);
+}
+
+.itemDone {
+  opacity: 0.72;
+  box-shadow: inset 3px 0 0 var(--muted, #94a3b8);
+}
+
+.checkRow {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0.55rem 0.65rem;
+  align-items: start;
+  padding: 0.65rem 0.7rem;
+  cursor: pointer;
+}
+
+.checkbox {
+  margin-top: 0.28rem;
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--brand, #1d4f91);
 }
 
 .no {
@@ -33,8 +50,14 @@
   flex-shrink: 0;
 }
 
+.itemDone .no {
+  background: var(--muted, #94a3b8);
+}
+
 .body {
   min-width: 0;
+  display: grid;
+  gap: 0.35rem;
 }
 
 .text {
@@ -46,8 +69,13 @@
   color: var(--ink, #0f172a);
 }
 
+.itemDone .text {
+  text-decoration: line-through;
+  color: var(--muted, #64748b);
+}
+
 .why {
-  margin: 0.35rem 0 0;
+  display: block;
   font-size: 0.8rem;
   line-height: 1.45;
   color: var(--muted, #64748b);
