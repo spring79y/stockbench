@@ -4,6 +4,7 @@ import { EventDetailView } from "@/components/EventDetailView";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { findEventById, getEventDetail } from "@/lib/events/catalog";
+import { fetchLiveUpcomingEvents } from "@/lib/events/fetchLiveUpcomingEvents";
 import { fetchEventIndicatorCharts } from "@/lib/market/fetchEventCharts";
 import { probeMarketLive } from "@/lib/market/probeMarketLive";
 import { loadPublishedBoard } from "@/lib/pipeline/loadPublished";
@@ -17,8 +18,8 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
-  const board = await loadPublishedBoard();
-  const event = findEventById(id, board.events);
+  const [, events] = await Promise.all([loadPublishedBoard(), fetchLiveUpcomingEvents()]);
+  const event = findEventById(id, events);
   return {
     title: event ? `${event.title} — StockBench` : "일정 — StockBench",
   };
@@ -27,8 +28,8 @@ export async function generateMetadata({ params }: PageProps) {
 export default async function EventPage({ params, searchParams }: PageProps) {
   const { id } = await params;
   const { from } = await searchParams;
-  const board = await loadPublishedBoard();
-  const event = findEventById(id, board.events);
+  const [, events] = await Promise.all([loadPublishedBoard(), fetchLiveUpcomingEvents()]);
+  const event = findEventById(id, events);
   if (!event) notFound();
 
   const detail = getEventDetail(event);

@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { fetchLiveMarket } from "@/lib/market/fetchLiveMarket";
 import { slimMarketForScope } from "@/lib/market/slimMarketForScope";
 import { parseMarketScope, type MarketScope } from "@/lib/market/scope";
+import { fetchLiveUpcomingEvents } from "@/lib/events/fetchLiveUpcomingEvents";
 import { loadPublishedBoard } from "@/lib/pipeline/loadPublished";
 import { slimBoardForScope } from "@/lib/pipeline/slimBoardForScope";
 
@@ -55,7 +56,7 @@ async function HomePageBody({
 }) {
   // Board (disk) is usually ready first; keep waiting on market in an inner boundary
   // so we can stream a board-ready shell if market is still in flight.
-  const board = await boardPromise;
+  const [board, events] = await Promise.all([boardPromise, fetchLiveUpcomingEvents()]);
 
   return (
     <Suspense
@@ -67,7 +68,7 @@ async function HomePageBody({
     >
       <HomeBoardWithMarket
         initialScope={initialScope}
-        board={board}
+        board={{ ...board, events }}
         marketPromise={marketPromise}
       />
     </Suspense>
