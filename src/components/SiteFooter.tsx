@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const FOOTER_LINKS = [
   { href: "/about", label: "소개" },
   { href: "/terms", label: "이용약관" },
@@ -9,10 +11,10 @@ export function SiteFooter({ live = false }: { live?: boolean }) {
   return (
     <footer className="site-footer">
       <div className="site-footer__top">
-        <div className="site-footer__brand-row">
+        <Link href="/" className="site-footer__brand-row" aria-label="Stock-Bench.com 홈">
           <span className="brand__mark" aria-hidden />
-          <p className="site-footer__brand">Stock-Bench.com</p>
-        </div>
+          <span className="site-footer__brand">Stock-Bench.com</span>
+        </Link>
 
         <nav className="site-footer__nav" aria-label="법적 안내">
           {FOOTER_LINKS.map((link) => (

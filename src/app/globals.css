@@ -1250,6 +1250,11 @@ a {
   align-items: center;
   gap: 0.45rem;
   min-width: 0;
+  color: inherit;
+}
+
+.site-footer__brand-row:hover .site-footer__brand {
+  color: var(--brand);
 }
 
 .site-footer__brand-row .brand__mark {
@@ -1263,6 +1268,67 @@ a {
   font-size: 0.92rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+  transition: color 0.15s ease;
+}
+
+.scroll-top {
+  position: fixed;
+  z-index: 30;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1.15rem, env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+  color: var(--brand);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(0.4rem);
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease,
+    transform 0.2s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.scroll-top--visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.scroll-top:hover {
+  background: var(--brand-soft);
+  border-color: color-mix(in srgb, var(--brand) 28%, var(--line));
+}
+
+.scroll-top:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.scroll-top__icon {
+  display: block;
+}
+
+@media (max-width: 560px) {
+  .scroll-top {
+    width: 2.85rem;
+    height: 2.85rem;
+    right: max(0.85rem, env(safe-area-inset-right));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+  }
 }
 
 .site-footer__nav {

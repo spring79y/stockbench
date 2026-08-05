@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { HomeBoard } from "@/components/HomeBoard";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { fetchLiveMarket } from "@/lib/market/fetchLiveMarket";
@@ -38,6 +39,7 @@ export default async function HomePage({
           boardPromise={boardPromise}
         />
       </Suspense>
+      <ScrollToTop />
     </>
   );
 }
