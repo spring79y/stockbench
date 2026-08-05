@@ -9,12 +9,27 @@ function subKey(endpoint: string): string {
   return `push:sub:${hash}`;
 }
 
-/** Vercel Upstash 연결은 KV_REST_API_* 로, 직접 설정은 UPSTASH_REDIS_REST_* 로 들어온다. */
+/** Vercel Upstash 연결은 KV_REST_API_* 로, 직접 설정은 UPSTASH_REDIS_REST_* 로 들어온다.
+ *  REST URL만 유효 (https://…). redis:// / rediss:// (KV_URL) 는 거부.
+ */
+function pickHttpsUrl(...candidates: Array<string | undefined | null>): string | null {
+  for (const raw of candidates) {
+    const url = raw?.trim();
+    if (url?.startsWith("https://")) return url;
+  }
+  return null;
+}
+
 function redisCredentials(): { url: string; token: string } | null {
-  const url =
-    process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL ?? null;
-  const token =
-    process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN ?? null;
+  const url = pickHttpsUrl(
+    process.env.UPSTASH_REDIS_REST_URL,
+    process.env.KV_REST_API_URL,
+  );
+  const token = (
+    process.env.UPSTASH_REDIS_REST_TOKEN ??
+    process.env.KV_REST_API_TOKEN ??
+    ""
+  ).trim();
   if (!url || !token) return null;
   return { url, token };
 }
@@ -22,7 +37,12 @@ function redisCredentials(): { url: string; token: string } | null {
 function getRedis(): Redis | null {
   const creds = redisCredentials();
   if (!creds) return null;
-  return new Redis(creds);
+  try {
+    return new Redis(creds);
+  } catch (error) {
+    console.warn("[push] invalid Upstash Redis config", error);
+    return null;
+  }
 }
 
 export function pushStoreConfigured(): boolean {
