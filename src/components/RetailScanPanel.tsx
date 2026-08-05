@@ -8,8 +8,6 @@ import type { IndexChartSeries } from "@/lib/market/chartTypes";
 import type { MarketScope } from "@/lib/market/scope";
 import type { FlowLeg, MegaCapQuote, RetailScanBundle } from "@/lib/market/retailScan";
 import type { Ks200NightFuturesQuote } from "@/lib/market/fetchKs200NightFutures";
-import type { StockNewsItem } from "@/lib/market/fetchStockNews";
-import newsStyles from "./MegaNews.module.css";
 
 const NIGHT_POLL_MS = 60_000;
 
@@ -92,63 +90,18 @@ function MegaCapSplit({
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(topCaps[0]?.id ?? "");
   const [rightTab, setRightTab] = useState<"chart" | "flow">("chart");
-  const [news, setNews] = useState<StockNewsItem[]>([]);
-  const [newsLoading, setNewsLoading] = useState(false);
-  const [newsError, setNewsError] = useState(false);
 
   const seriesList = useMemo(
     () =>
       topCaps
         .map((q) => charts[q.id])
-        .filter((s): s is IndexChartSeries => Boolean(s && s.points.length >= 2)),
+        .filter((s): s is IndexChartSeries => Boolean(s && s.points.length >= 1)),
     [topCaps, charts],
   );
 
   const activeQuote = topCaps.find((q) => q.id === selectedId) ?? topCaps[0];
   const activeId = activeQuote?.id ?? "";
   const stockFlowRows = (activeId ? flow.byStock[activeId] : undefined) ?? [];
-
-  useEffect(() => {
-    if (!open || !activeQuote) {
-      setNews([]);
-      return;
-    }
-    let cancelled = false;
-    const params = new URLSearchParams({
-      id: activeQuote.id,
-      name: activeQuote.name,
-      symbol: activeQuote.symbol,
-      region: activeQuote.region,
-      limit: "5",
-    });
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 12_000);
-    setNewsLoading(true);
-    setNewsError(false);
-    fetch(`/api/stock-news?${params.toString()}`, { signal: controller.signal })
-      .then(async (res) => {
-        if (!res.ok) throw new Error("news failed");
-        return res.json() as Promise<{ items: StockNewsItem[] }>;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setNews((data.items ?? []).slice(0, 5));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setNews([]);
-        setNewsError(true);
-      })
-      .finally(() => {
-        window.clearTimeout(timer);
-        if (!cancelled) setNewsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-      controller.abort();
-      window.clearTimeout(timer);
-    };
-  }, [open, activeQuote?.id, activeQuote?.name, activeQuote?.symbol, activeQuote?.region]);
 
   return (
     <article className="retail-card retail-card--wide mega-split">
@@ -176,141 +129,84 @@ function MegaCapSplit({
           {topCaps.length > 3 ? " 외" : ""}
         </p>
       ) : (
-        <>
-          <div className="mega-split__body">
-            <div className="mega-split__table">
-              <div className="mega-table">
-                {topCaps.map((q, i) => {
-                  const selected = q.id === activeId;
-                  return (
-                    <button
-                      key={q.id}
-                      type="button"
-                      className={`mega-row mega-row--btn ${selected ? "mega-row--selected" : ""}`}
-                      onClick={() => setSelectedId(q.id)}
-                      aria-pressed={selected}
+        <div className="mega-split__body">
+          <div className="mega-split__table">
+            <div className="mega-table">
+              {topCaps.map((q, i) => {
+                const selected = q.id === activeId;
+                return (
+                  <button
+                    key={q.id}
+                    type="button"
+                    className={`mega-row mega-row--btn ${selected ? "mega-row--selected" : ""}`}
+                    onClick={() => setSelectedId(q.id)}
+                    aria-pressed={selected}
+                  >
+                    <span className="mega-row__rank">{i + 1}</span>
+                    <span className="mega-row__name">
+                      {q.name}
+                      <small>{q.marketCapLabel}</small>
+                    </span>
+                    <span
+                      className={`mega-row__px ${changeToneClass(directionFromChange(q.changePercent))}`}
                     >
-                      <span className="mega-row__rank">{i + 1}</span>
-                      <span className="mega-row__name">
-                        {q.name}
-                        <small>{q.marketCapLabel}</small>
-                      </span>
-                      <span
-                        className={`mega-row__px ${changeToneClass(directionFromChange(q.changePercent))}`}
-                      >
-                        {q.region === "US"
-                          ? q.value.toLocaleString("en-US", { maximumFractionDigits: 2 })
-                          : q.value.toLocaleString("ko-KR")}
-                      </span>
-                      <span
-                        className={`mega-row__chg ${changeToneClass(directionFromChange(q.changePercent))}`}
-                      >
-                        {formatSigned(q.changePercent)}%
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="mega-split__side">
-              {showFlow ? (
-                <div className="mega-split__tabs" role="tablist" aria-label="시총 상위 보조 보기">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={rightTab === "chart"}
-                    className={`mega-split__tab ${rightTab === "chart" ? "is-on" : ""}`}
-                    onClick={() => setRightTab("chart")}
-                  >
-                    차트
+                      {q.region === "US"
+                        ? q.value.toLocaleString("en-US", { maximumFractionDigits: 2 })
+                        : q.value.toLocaleString("ko-KR")}
+                    </span>
+                    <span
+                      className={`mega-row__chg ${changeToneClass(directionFromChange(q.changePercent))}`}
+                    >
+                      {formatSigned(q.changePercent)}%
+                    </span>
                   </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={rightTab === "flow"}
-                    className={`mega-split__tab ${rightTab === "flow" ? "is-on" : ""}`}
-                    onClick={() => setRightTab("flow")}
-                  >
-                    수급 1주
-                  </button>
-                </div>
-              ) : null}
-
-              <div className="mega-split__panel">
-                {rightTab === "chart" || !showFlow ? (
-                  <IndexMiniChart
-                    seriesList={seriesList}
-                    activeId={activeId}
-                    onActiveChange={setSelectedId}
-                    hideSelector
-                    quoteChangePercent={activeQuote?.changePercent}
-                  />
-                ) : (
-                  <StockFlowHistoryTable
-                    stockName={activeQuote?.name ?? "종목"}
-                    rows={stockFlowRows}
-                  />
-                )}
-              </div>
+                );
+              })}
             </div>
           </div>
 
-          <div className={`flow-sheet ${newsStyles.wrap}`} aria-live="polite">
-            <div className="flow-sheet__head">
-              <h4 className="flow-sheet__title">{activeQuote?.name ?? "종목"} · 관련 뉴스</h4>
-              <span className="flow-sheet__unit">최신순 · 참고용</span>
-            </div>
-
-            {newsLoading ? (
-              <p className="retail-card__note">뉴스를 불러오는 중…</p>
-            ) : newsError ? (
-              <p className="retail-card__note">관련 뉴스를 불러오지 못했습니다.</p>
-            ) : news.length === 0 ? (
-              <p className="retail-card__note">최근 관련 뉴스가 없습니다.</p>
-            ) : (
-              <div className="flow-sheet__table-wrap">
-                <table className="flow-sheet__table">
-                  <thead>
-                    <tr>
-                      <th scope="col">시간</th>
-                      <th scope="col">출처</th>
-                      <th scope="col" className={newsStyles.thTitle}>
-                        헤드라인
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {news.map((n, i) => (
-                      <tr key={n.id} className={i === 0 ? newsStyles.latest : undefined}>
-                        <th scope="row">
-                          <time dateTime={n.publishedAt || undefined}>{n.publishedLabel}</time>
-                        </th>
-                        <td className={newsStyles.tdSource}>
-                          <span title={n.publisher}>{n.publisher}</span>
-                        </td>
-                        <td className={newsStyles.tdTitle}>
-                          {n.link ? (
-                            <a
-                              href={n.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={newsStyles.link}
-                            >
-                              {n.title}
-                            </a>
-                          ) : (
-                            <span className={newsStyles.link}>{n.title}</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <div className="mega-split__side">
+            {showFlow ? (
+              <div className="mega-split__tabs" role="tablist" aria-label="시총 상위 보조 보기">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={rightTab === "chart"}
+                  className={`mega-split__tab ${rightTab === "chart" ? "is-on" : ""}`}
+                  onClick={() => setRightTab("chart")}
+                >
+                  차트
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={rightTab === "flow"}
+                  className={`mega-split__tab ${rightTab === "flow" ? "is-on" : ""}`}
+                  onClick={() => setRightTab("flow")}
+                >
+                  수급 1주
+                </button>
               </div>
-            )}
+            ) : null}
+
+            <div className="mega-split__panel">
+              {rightTab === "chart" || !showFlow ? (
+                <IndexMiniChart
+                  seriesList={seriesList}
+                  activeId={activeId}
+                  onActiveChange={setSelectedId}
+                  hideSelector
+                  quoteChangePercent={activeQuote?.changePercent}
+                />
+              ) : (
+                <StockFlowHistoryTable
+                  stockName={activeQuote?.name ?? "종목"}
+                  rows={stockFlowRows}
+                />
+              )}
+            </div>
           </div>
-        </>
+        </div>
       )}
     </article>
   );

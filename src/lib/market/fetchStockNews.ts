@@ -2,6 +2,7 @@ import { resolveNewsIdentity } from "@/lib/market/retailScan";
 import {
   fetchPublisherPublishedAt,
   isWithinMaxAge,
+  mergePublisherTime,
   resolveGoogleNewsUrl,
 } from "@/lib/market/newsDate";
 
@@ -140,14 +141,15 @@ async function confirmFreshArticles(
       if (!realAt) {
         return { ...item, link: publisherUrl };
       }
-      if (!isWithinMaxAge(realAt, maxAgeDays)) return null;
+      if (!isWithinMaxAge(realAt.iso, maxAgeDays)) return null;
 
+      const publishedAt = mergePublisherTime(item.publishedAt, realAt);
       return {
         ...item,
         link: publisherUrl,
-        publishedAt: realAt,
-        publishedLabel: formatNewsWhen(realAt) || item.publishedLabel,
-        id: `${realAt}-${item.title.slice(0, 40)}`,
+        publishedAt,
+        publishedLabel: formatNewsWhen(publishedAt) || item.publishedLabel,
+        id: `${publishedAt}-${item.title.slice(0, 40)}`,
       };
     }),
   );

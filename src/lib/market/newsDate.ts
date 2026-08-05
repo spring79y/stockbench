@@ -122,7 +122,13 @@ export async function resolveGoogleNewsUrl(
   }
 }
 
-function toIsoDate(y: number, m: number, d: number, hh = 0, mm = 0): string | null {
+function toIsoDate(
+  y: number,
+  m: number,
+  d: number,
+  hh: number,
+  mm: number,
+): string | null {
   if (m < 1 || m > 12 || d < 1 || d > 31) return null;
   const dt = new Date(Date.UTC(y, m - 1, d, hh, mm));
   // 한국 표기 시각을 KST로 해석 → UTC 저장
@@ -131,10 +137,16 @@ function toIsoDate(y: number, m: number, d: number, hh = 0, mm = 0): string | nu
   return asKst.toISOString();
 }
 
+export type ArticlePublishedAt = {
+  iso: string;
+  /** 시·분이 원문에 있었는지 (없으면 RSS 시각 유지용) */
+  hasTime: boolean;
+};
+
 /**
  * 본문 상단의 바이라인 날짜를 우선 (meta datePublished는 재게시·페이지생성 시각인 경우가 많음).
  */
-export function extractArticlePublishedAt(html: string): string | null {
+export function extractArticlePublishedAt(html: string): ArticlePublishedAt | null {
   if (!html) return null;
   const text = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -152,24 +164,27 @@ export function extractArticlePublishedAt(html: string): string | null {
     d: string,
     hh?: string,
     mm?: string,
-  ): string | null =>
-    toIsoDate(
+  ): ArticlePublishedAt | null => {
+    const hasTime = hh != null && mm != null && hh !== "" && mm !== "";
+    const iso = toIsoDate(
       Number(y),
       Number(mo),
       Number(d),
-      hh != null ? Number(hh) : 12,
-      mm != null ? Number(mm) : 0,
+      hasTime ? Number(hh) : 0,
+      hasTime ? Number(mm) : 0,
     );
+    return iso ? { iso, hasTime } : null;
+  };
 
   // 1) 상단에 처음 등장하는 바이라인 날짜 (재수집 meta보다 신뢰)
   const bylineRe =
     /(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?|(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일(?:\s*(\d{1,2}):(\d{2}))?/;
   const byline = head.match(bylineRe);
   if (byline) {
-    const iso = byline[1]
+    const parsed = byline[1]
       ? tryParse(byline[1], byline[2], byline[3], byline[4], byline[5])
       : tryParse(byline[6]!, byline[7]!, byline[8]!, byline[9], byline[10]);
-    if (iso) return iso;
+    if (parsed) return parsed;
   }
 
   // 2) 이미지·경로에 박힌 YYYYMMDDHHMM
@@ -177,14 +192,14 @@ export function extractArticlePublishedAt(html: string): string | null {
     /(?:^|[^\d])(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])([01]\d|2[0-3])([0-5]\d)/,
   );
   if (embedded) {
-    const iso = tryParse(
+    const parsed = tryParse(
       embedded[1],
       embedded[2],
       embedded[3],
       embedded[4],
       embedded[5],
     );
-    if (iso) return iso;
+    if (parsed) return parsed;
   }
 
   // 3) meta (최후 수단 — 재게시 시각일 수 있음)
@@ -198,7 +213,11 @@ export function extractArticlePublishedAt(html: string): string | null {
     html.match(/"datePublished"\s*:\s*"([^"]+)"/i)?.[1];
   if (meta) {
     const t = new Date(meta);
-    if (!Number.isNaN(t.getTime())) return t.toISOString();
+    if (!Number.isNaN(t.getTime())) {
+      // meta에 시분이 있으면 hasTime true
+      const hasTime = /T\d{2}:\d{2}| \d{1,2}:\d{2}/.test(meta);
+      return { iso: t.toISOString(), hasTime };
+    }
   }
   return null;
 }
@@ -206,7 +225,7 @@ export function extractArticlePublishedAt(html: string): string | null {
 export async function fetchPublisherPublishedAt(
   publisherUrl: string,
   timeoutMs = 10_000,
-): Promise<string | null> {
+): Promise<ArticlePublishedAt | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -228,6 +247,26 @@ export async function fetchPublisherPublishedAt(
   } finally {
     clearTimeout(timer);
   }
+}
+
+function seoulYmd(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
+/** 원문이 날짜만 있으면 RSS 시각을 유지(같은 날짜일 때) */
+export function mergePublisherTime(
+  rssIso: string,
+  extracted: ArticlePublishedAt,
+): string {
+  if (extracted.hasTime) return extracted.iso;
+  if (!rssIso) return extracted.iso;
+  if (seoulYmd(rssIso) === seoulYmd(extracted.iso)) return rssIso;
+  return extracted.iso;
 }
 
 export function isWithinMaxAge(iso: string, maxAgeDays: number, now = Date.now()): boolean {

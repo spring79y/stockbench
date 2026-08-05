@@ -45,16 +45,19 @@ function Chevron() {
 export function EventList({
   events,
   scope = "all",
+  stepNo = 4,
 }: {
   events: MarketEvent[];
   scope?: MarketScope;
+  /** 증시개요는 1, 한·미 탭은 4 */
+  stepNo?: number;
 }) {
   const from = homePath(scope);
 
   return (
     <section id="events" className="board-block events" aria-labelledby="events-title">
       <div className="block-head">
-        <span className="step-no">4</span>
+        <span className="step-no">{stepNo}</span>
         <div>
           <h2 id="events-title" className="block-head__title">
             다가오는 일정

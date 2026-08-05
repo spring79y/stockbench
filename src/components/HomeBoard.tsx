@@ -97,7 +97,7 @@ export function HomeBoard({
           <>
             <OverviewMacroStrip macros={market.macros} />
             <OverviewDualBrief kr={board.views.kr} us={board.views.us} />
-            <EventList events={events} scope={activeScope} />
+            <EventList events={events} scope={activeScope} stepNo={1} />
             <MarketFlashNews />
           </>
         ) : (
@@ -112,7 +112,7 @@ export function HomeBoard({
             />
             <ScenarioPanel scenarios={view.scenarios} />
             <CheckList key={`check-${activeScope}`} items={view.checkItems} />
-            <EventList events={events} scope={activeScope} />
+            <EventList events={events} scope={activeScope} stepNo={4} />
           </>
         )}
       </div>

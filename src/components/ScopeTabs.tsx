@@ -9,10 +9,16 @@ function hrefFor(scope: MarketScope): string {
 }
 
 function phaseDotClass(hint: string): string | null {
-  if (hint === "데이마켓" || hint === "정규장" || hint === "주간거래") {
+  // 정규장만 붉은 점. 주간거래·프리·애프터는 녹색. 휴장/장마감은 회색.
+  if (hint === "데이마켓" || hint === "정규장") {
     return "scope-tabs__dot--regular";
   }
-  if (hint === "프리장" || hint === "애프터마켓" || hint === "애프터장") {
+  if (
+    hint === "프리장" ||
+    hint === "애프터마켓" ||
+    hint === "애프터장" ||
+    hint === "주간거래"
+  ) {
     return "scope-tabs__dot--session";
   }
   if (hint === "장마감" || hint === "주말" || hint === "휴장") {

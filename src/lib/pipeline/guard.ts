@@ -97,20 +97,20 @@ export function runGuard(input: {
     });
   }
 
-  if (input.briefing.headline.length > 60) {
+  if (input.briefing.headline.length > 64) {
     findings.push({
       severity: "warn",
       code: "headline-too-long",
-      message: "헤드라인이 깁니다. 52자 안팎으로 줄이세요.",
+      message: "헤드라인이 깁니다. 56자 안팎으로 줄이세요.",
     });
   }
 
   for (const bullet of input.briefing.bullets) {
-    if (bullet.length > 100) {
+    if (bullet.length > 110) {
       findings.push({
         severity: "warn",
         code: "bullet-too-long",
-        message: `불릿이 깁니다(90자 목표): "${bullet.slice(0, 36)}…"`,
+        message: `불릿이 깁니다(100자 목표): "${bullet.slice(0, 36)}…"`,
       });
     }
   }
