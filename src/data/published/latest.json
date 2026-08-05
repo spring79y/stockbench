@@ -1,24 +1,24 @@
 {
   "version": 2,
   "slot": "kr-mid",
-  "publishedAt": "2026-08-05T05:28:25.559Z",
+  "publishedAt": "2026-08-05T10:13:58.848Z",
   "source": "pipeline",
   "mode": "refresh",
   "market": {
     "temperature": "국내 강세 · 미국 강세",
     "mood": "risk-on",
     "moodLabel": "위험선호",
-    "asOfLabel": "2026. 08. 05. 14:28 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 05. 19:13 · Yahoo 참고"
   },
   "views": {
     "all": {
       "briefing": {
-        "headline": "코스피 4.4% 급등 지속, 외국인 1.3조 순매수에 반도체 쌍끌이",
+        "headline": "코스피 3.76% 마감, 외국인 1.4조 순매수에 반도체 쌍끌이 지속",
         "bullets": [
-          "코스피 4.39% 상승 중 외국인 1.3조 순매수, 삼성전자 3.5%·SK하이닉스 7.4% 오르며 반도체가 지수 견인",
-          "원/달러 1,424원(-5원) 강세에 미 10년물 4.63%(-0.06%p) 하락, 금리 부담 완화가 외국인 매수세 뒷받침",
-          "유가 75달러(-0.8%) 하락에도 VIX 16.5(+0.6) 소폭 상승, 호르무즈 재개 기대 속 공급 리스크는 점검 필요",
-          "개인 1.3조 순매도·기관 404억 순매수, 외국인 주도 랠리가 5거래일 연속 이어지며 수급 구도 유지"
+          "코스피 3.76% 상승 마감, 삼성전자 2.5%·SK하이닉스 5.8% 오르며 외국인 1.4조 순매수 5일째",
+          "미 10년물 4.63%(-0.06%p)·원달러 1,425원(-3.56원) 하락에 기술주 선호 이어져, 나스닥 프리장 2.6%·반도체 6.6% 반등",
+          "내일 샌디스크 실적 발표 앞두고 메모리 섹터 온도 점검 포인트, 삼성·하이닉스 등 연관 시총주 흐름 주시",
+          "WTI 76.49달러(+0.95%) 소폭 반등했으나 이란 전쟁 휴전 기대에 유가 변동성 축소, 위험선호 지속"
         ],
         "evidenceIds": [
           "usdkkrw",
@@ -65,23 +65,23 @@
           "why": "달러 강세 전환 시 B(주의), 1,420원대 유지면 A(기본) 지속"
         }
       ],
-      "publishedAt": "2026-08-05T05:28:25.559Z",
+      "publishedAt": "2026-08-05T10:13:58.848Z",
       "slot": "kr-mid",
       "mode": "refresh"
     },
     "kr": {
       "briefing": {
-        "headline": "코스피 4.4% 급등 지속, 외국인 1.3조 순매수에 반도체 7% 상승",
+        "headline": "코스피 3.76% 마감, 외국인 1.4조 순매수에 시총 상위 동반 강세",
         "bullets": [
-          "코스피 4.39% 상승 중 외국인 1.3조 순매수, 코스닥은 2.29% 오르며 개인 3,776억 순매수로 차별화",
-          "SK하이닉스 7.35% 급등하며 시총 상위 평균 3.30% 상승, 미 반도체 6.55% 랠리에 동조하며 수급 견인",
-          "원/달러 1,424원(-5.16원) 강세·미 10년물 4.63%(-0.059%p) 하락으로 외국인 순매수 1일 연속, 주간 누적 6.6조 유입 지속 여부가 관측 포인트",
-          "코스피200 4.65% 상승으로 코스피 대비 0.26%p 초과, VIX 16.50 소폭 상승 속 대형주 중심 강세 유지"
+          "코스피 3.76%·코스닥 2.42% 상승 마감, 외국인 1.4조 순매수에 SK하이닉스 5.77%·삼성전자 2.50% 등 시총 상위 평균 2.90% 올라",
+          "원/달러 1,425원대 하락·VIX 16.33 안정 속 코스피200 3.86% 상승, 대형주 중심 위험선호 지속",
+          "WTI 76달러대 소폭 반등했으나 중동 리스크 완화 기대에 유가 변동성 제한적, 국내 지수 상승 흐름 유지",
+          "08.07 네이버 실적 발표 예정, 가이던스가 IT·플랫폼 섹터 온도에 영향 줄 수 있어 점검 필요"
         ],
         "evidenceIds": [
           "usdkkrw",
-          "us10y",
-          "vix"
+          "vix",
+          "wti"
         ]
       },
       "scenarios": [
@@ -127,7 +127,7 @@
           "why": "고용 서프라이즈로 금리 인하 기대 꺾이면 외국인 이탈 트리거, B(주의) 열림"
         }
       ],
-      "publishedAt": "2026-08-05T05:28:25.559Z",
+      "publishedAt": "2026-08-05T10:13:58.848Z",
       "slot": "kr-mid",
       "mode": "refresh"
     },
@@ -193,12 +193,104 @@
   },
   "events": [
     {
+      "id": "earnings-bridge-sndk",
+      "dateLabel": "08.06 (목)",
+      "region": "US",
+      "title": "샌디스크 실적 발표",
+      "level": "high",
+      "oneLiner": "확정 일정 — 실적·가이던스가 섹터·지수 온도에 미칠 수 있음",
+      "kind": "earnings",
+      "symbol": "SNDK",
+      "bridgeId": "sndk",
+      "dateISO": "2026-08-05T20:00:00.000Z",
+      "sector": "memory",
+      "consensus": {
+        "epsAvg": 34.515,
+        "epsLow": 32.01,
+        "epsHigh": 38.55,
+        "epsLabel": "약 $34.52",
+        "revenueAvg": 8394753330,
+        "revenueLabel": "약 $8.4B",
+        "isEstimate": false
+      }
+    },
+    {
+      "id": "earnings-bridge-sndk-kr",
+      "dateLabel": "08.06 (목)",
+      "region": "GLOBAL",
+      "title": "메모리 섹터 · 샌디스크 실적",
+      "level": "high",
+      "oneLiner": "삼성전자·SK하이닉스 등 연관 시총 맥락 점검 — 종목 추천 아님",
+      "kind": "earnings",
+      "symbol": "SNDK",
+      "bridgeId": "sndk",
+      "dateISO": "2026-08-05T20:00:00.000Z",
+      "sector": "memory",
+      "bridgeOf": "earnings-bridge-sndk",
+      "relatedMegaCapIds": [
+        "samsung",
+        "skhynix"
+      ],
+      "consensus": {
+        "epsAvg": 34.515,
+        "epsLow": 32.01,
+        "epsHigh": 38.55,
+        "epsLabel": "약 $34.52",
+        "revenueAvg": 8394753330,
+        "revenueLabel": "약 $8.4B",
+        "isEstimate": false
+      }
+    },
+    {
+      "id": "earnings-naver",
+      "dateLabel": "08.07 (금)",
+      "region": "KR",
+      "title": "NAVER 실적 발표",
+      "level": "high",
+      "oneLiner": "확정 일정 — 실적·가이던스가 섹터·지수 온도에 미칠 수 있음",
+      "kind": "earnings",
+      "symbol": "035420.KS",
+      "megaCapId": "naver",
+      "dateISO": "2026-08-07T06:00:00.000Z",
+      "consensus": {
+        "epsAvg": 3734.7153,
+        "epsLow": 3734.7153,
+        "epsHigh": 3734.7153,
+        "epsLabel": "약 3,735원",
+        "revenueAvg": 3380004220000,
+        "revenueLabel": "약 3.4조원",
+        "isEstimate": false
+      }
+    },
+    {
+      "id": "earnings-brkb",
+      "dateLabel": "08.09 (일)",
+      "region": "US",
+      "title": "버크셔 실적 발표",
+      "level": "medium",
+      "oneLiner": "시장 컨센서스 대비 실적·가이던스 — 점검용 (매매 신호 아님)",
+      "kind": "earnings",
+      "symbol": "BRK-B",
+      "megaCapId": "brkb",
+      "dateISO": "2026-08-08T20:00:00.000Z",
+      "consensus": {
+        "epsAvg": 5.13264,
+        "epsLow": 4.95,
+        "epsHigh": 5.31528,
+        "epsLabel": "약 $5.13",
+        "revenueAvg": 98784000000,
+        "revenueLabel": "약 $98.8B",
+        "isEstimate": true
+      }
+    },
+    {
       "id": "nfp",
       "dateLabel": "08.07 (금)",
       "region": "US",
       "title": "미국 고용보고서 (NFP)",
       "level": "high",
-      "oneLiner": "일자리 성적표 — 금리 기대와 달러·미 지수에 영향"
+      "oneLiner": "일자리 성적표 — 금리 기대와 달러·미 지수에 영향",
+      "kind": "macro"
     },
     {
       "id": "cpi",
@@ -206,7 +298,8 @@
       "region": "US",
       "title": "미국 소비자물가 (CPI)",
       "level": "high",
-      "oneLiner": "물가 지표 — 금리 인하 기대를 흔드는 핵심 숫자"
+      "oneLiner": "물가 지표 — 금리 인하 기대를 흔드는 핵심 숫자",
+      "kind": "macro"
     },
     {
       "id": "krx-option",
@@ -214,7 +307,8 @@
       "region": "KR",
       "title": "국내 옵션 만기",
       "level": "medium",
-      "oneLiner": "수급·변동성 확대 가능 — 재료보다 흔들림에 주의"
+      "oneLiner": "수급·변동성 확대 가능 — 재료보다 흔들림에 주의",
+      "kind": "macro"
     },
     {
       "id": "fomc-minutes",
@@ -222,7 +316,8 @@
       "region": "US",
       "title": "FOMC 의사록",
       "level": "medium",
-      "oneLiner": "연준 회의 속마음 — 다음 금리 경로 힌트 확인"
+      "oneLiner": "연준 회의 속마음 — 다음 금리 경로 힌트 확인",
+      "kind": "macro"
     }
   ],
   "guard": {
@@ -237,6 +332,16 @@
         "severity": "warn",
         "code": "bullet-too-long",
         "message": "[kr] 불릿이 깁니다(60자 목표): \"지정학·공급 리스크 헤드라인(예: Trump warns Iran …\""
+      },
+      {
+        "severity": "warn",
+        "code": "evidence-unused",
+        "message": "[all] evidenceIds에 usdkkrw(원/달러)가 있으나 본문에 드러나지 않음"
+      },
+      {
+        "severity": "warn",
+        "code": "evidence-unused",
+        "message": "[all] evidenceIds에 vix(VIX)가 있으나 본문에 드러나지 않음"
       }
     ]
   }
