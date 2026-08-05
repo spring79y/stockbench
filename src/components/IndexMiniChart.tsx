@@ -6,15 +6,21 @@ import {
   INDICATOR_CHART_PERIODS,
   STOCK_CHART_PERIODS,
   defaultPeriodFor,
+  formatChartTime,
   type ChartPeriodId,
 } from "@/lib/market/chartPeriods";
 import { changeToneClass, directionFromChange, formatIndexValue } from "@/lib/format";
+
+/** 주식 차트 클라이언트 폴링 (기존 폴링 없음 → 60초) */
+const CHART_POLL_MS = 60_000;
 
 type ChartPayload = {
   points: ChartPoint[];
   periodLabel: string;
   hasVolume: boolean;
   period: ChartPeriodId;
+  sessionStartMs?: number;
+  sessionEndMs?: number;
 };
 
 function buildPricePath(
@@ -22,15 +28,27 @@ function buildPricePath(
   width: number,
   height: number,
   padY = 12,
+  session?: { startMs: number; endMs: number } | null,
 ) {
   const values = points.map((p) => p.v);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
   const usableH = height - padY * 2;
+  const useSession =
+    Boolean(session) &&
+    points.every((p) => typeof p.ms === "number") &&
+    (session?.endMs ?? 0) > (session?.startMs ?? 0);
+  const spanMs = useSession ? session!.endMs - session!.startMs : 0;
 
   const coords = points.map((p, i) => {
-    const x = points.length === 1 ? width / 2 : (i / (points.length - 1)) * width;
+    let x: number;
+    if (useSession && typeof p.ms === "number") {
+      const ratio = Math.min(1, Math.max(0, (p.ms - session!.startMs) / spanMs));
+      x = ratio * width;
+    } else {
+      x = points.length === 1 ? width / 2 : (i / (points.length - 1)) * width;
+    }
     const y = padY + (1 - (p.v - min) / span) * usableH;
     return { x, y, ...p };
   });
@@ -87,6 +105,7 @@ export function IndexMiniChart({
   const cacheRef = useRef<Map<string, ChartPayload>>(new Map());
 
   const selectedId = activeId ?? internalId;
+  const shouldPoll = periodSet === "stock";
 
   useEffect(() => {
     if (!seriesList.some((s) => s.id === selectedId) && seriesList[0]) {
@@ -102,85 +121,105 @@ export function IndexMiniChart({
     if (!active?.symbol) return;
     let cancelled = false;
     const key = cacheKey(active, period);
-    const cached = cacheRef.current.get(key);
 
-    if (cached) {
-      setLive(cached);
+    const applyPayload = (payload: ChartPayload) => {
+      cacheRef.current.set(key, payload);
+      setLive(payload);
       setError(false);
       setLoading(false);
-      return;
-    }
+    };
 
-    const canSeed =
-      active.points.length >= 2 && (!active.period || active.period === period);
-
-    if (canSeed) {
-      const seed: ChartPayload = {
+    const seedIfPossible = () => {
+      const canSeed =
+        active.points.length >= 2 && (!active.period || active.period === period);
+      if (!canSeed) return false;
+      applyPayload({
         points: active.points,
         periodLabel:
           active.periodLabel ?? periods.find((p) => p.id === period)?.label ?? "",
         hasVolume: Boolean(active.hasVolume && period === "1d"),
         period,
-      };
-      cacheRef.current.set(key, seed);
-      setLive(seed);
+        sessionStartMs: active.sessionStartMs,
+        sessionEndMs: active.sessionEndMs,
+      });
+      return true;
+    };
+
+    const load = async (opts?: { background?: boolean }) => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      if (!opts?.background) {
+        const cached = cacheRef.current.get(key);
+        if (cached) {
+          setLive(cached);
+          setError(false);
+          setLoading(false);
+        } else if (!seedIfPossible()) {
+          setLive(null);
+          setLoading(true);
+        }
+      } else {
+        setLoading(true);
+      }
       setError(false);
-      setLoading(false);
-      return;
-    }
 
-    setLive(null);
+      const params = new URLSearchParams({
+        symbol: active.symbol,
+        period,
+        source: active.source ?? "yahoo",
+        transform: active.transform ?? "raw",
+        periodSet,
+        id: active.id,
+        name: active.name,
+      });
 
-    const params = new URLSearchParams({
-      symbol: active.symbol,
-      period,
-      source: active.source ?? "yahoo",
-      transform: active.transform ?? "raw",
-      periodSet,
-      id: active.id,
-      name: active.name,
-    });
-
-    setLoading(true);
-    setError(false);
-
-    fetch(`/api/chart?${params.toString()}`)
-      .then(async (res) => {
+      try {
+        const res = await fetch(`/api/chart?${params.toString()}`, { cache: "no-store" });
         if (!res.ok) throw new Error("chart failed");
-        return res.json() as Promise<{
+        const data = (await res.json()) as {
           points: ChartPoint[];
           periodLabel: string;
           hasVolume: boolean;
           period: ChartPeriodId;
-        }>;
-      })
-      .then((data) => {
+          sessionStartMs?: number;
+          sessionEndMs?: number;
+        };
         if (cancelled) return;
-        if (!data.points || data.points.length < 2) throw new Error("empty");
-        const payload: ChartPayload = {
+        if (!data.points || data.points.length < 1) throw new Error("empty");
+        applyPayload({
           points: data.points,
           periodLabel: data.periodLabel,
           hasVolume: Boolean(data.hasVolume),
           period: data.period,
-        };
-        cacheRef.current.set(key, payload);
-        setLive(payload);
-        setError(false);
-      })
-      .catch(() => {
+          sessionStartMs: data.sessionStartMs,
+          sessionEndMs: data.sessionEndMs,
+        });
+      } catch {
         if (cancelled) return;
-        setError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+        if (!cacheRef.current.get(key)) setError(true);
+        setLoading(false);
+      }
+    };
+
+    void load();
+
+    let intervalId: number | undefined;
+    if (shouldPoll) {
+      intervalId = window.setInterval(() => void load({ background: true }), CHART_POLL_MS);
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && shouldPoll) void load({ background: true });
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelled = true;
+      if (intervalId != null) window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
     // intentionally key off series identity fields, not points array identity
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active?.id, active?.symbol, active?.source, active?.transform, period, periodSet]);
+  }, [active?.id, active?.symbol, active?.source, active?.transform, period, periodSet, shouldPoll]);
 
 
   const points = live?.points ?? active?.points ?? [];
@@ -188,9 +227,25 @@ export function IndexMiniChart({
   const width = 400;
   const priceH = showVolume ? 148 : 188;
   const volH = 52;
+  const sessionStartMs =
+    period === "1d"
+      ? (live?.sessionStartMs ?? active?.sessionStartMs)
+      : undefined;
+  const sessionEndMs =
+    period === "1d"
+      ? (live?.sessionEndMs ?? active?.sessionEndMs)
+      : undefined;
+  const sessionAxis =
+    sessionStartMs != null && sessionEndMs != null
+      ? { startMs: sessionStartMs, endMs: sessionEndMs }
+      : null;
+
   const path = useMemo(
-    () => (points.length >= 2 ? buildPricePath(points, width, priceH) : null),
-    [points, priceH],
+    () =>
+      points.length >= 1
+        ? buildPricePath(points, width, priceH, 12, sessionAxis)
+        : null,
+    [points, priceH, sessionStartMs, sessionEndMs],
   );
 
   const select = (id: string) => {
@@ -202,7 +257,7 @@ export function IndexMiniChart({
     return <p className="mini-chart__empty">차트 데이터를 불러오지 못했습니다.</p>;
   }
 
-  if ((!path || points.length < 2) && (error || !loading)) {
+  if ((!path || points.length < 1) && (error || !loading)) {
     return <p className="mini-chart__empty">차트 데이터를 불러오지 못했습니다.</p>;
   }
 
@@ -220,6 +275,15 @@ export function IndexMiniChart({
   const maxVol = showVolume
     ? Math.max(...points.map((p) => p.vol ?? 0), 1)
     : 1;
+
+  const axisStart =
+    sessionAxis != null
+      ? formatChartTime(sessionAxis.startMs, "1d")
+      : points[0]?.t;
+  const axisEnd =
+    sessionAxis != null
+      ? formatChartTime(sessionAxis.endMs, "1d")
+      : points[points.length - 1]?.t;
 
   return (
     <div className={`mini-chart ${loading ? "mini-chart--loading" : ""}`}>
@@ -318,18 +382,21 @@ export function IndexMiniChart({
                   stroke="#cbd5e1"
                   strokeWidth="1"
                 />
-                {points.map((p, i) => {
-                  const x =
-                    points.length === 1 ? width / 2 : (i / (points.length - 1)) * width;
-                  const vol = p.vol ?? 0;
+                {path.coords.map((c, i) => {
+                  const vol = c.vol ?? 0;
                   const h = Math.max(1, (vol / maxVol) * (volH - 4));
-                  const prev = i > 0 ? points[i - 1].v : p.v;
-                  const up = p.v >= prev;
-                  const barW = Math.max(1.2, width / points.length - 0.8);
+                  const prev = i > 0 ? path.coords[i - 1].v : c.v;
+                  const up = c.v >= prev;
+                  const barW = Math.max(
+                    1.2,
+                    sessionAxis
+                      ? width / Math.max(78, path.coords.length * 2)
+                      : width / points.length - 0.8,
+                  );
                   return (
                     <rect
-                      key={`${p.t}-${i}`}
-                      x={x - barW / 2}
+                      key={`${c.t}-${i}`}
+                      x={c.x - barW / 2}
                       y={volH - h}
                       width={barW}
                       height={h}
@@ -348,8 +415,8 @@ export function IndexMiniChart({
       )}
 
       <div className="mini-chart__axis">
-        <span>{points[0]?.t}</span>
-        <span>{points[points.length - 1]?.t}</span>
+        <span>{axisStart}</span>
+        <span>{axisEnd}</span>
       </div>
 
       <div className="mini-chart__periods" role="tablist" aria-label="차트 기간">

@@ -38,6 +38,7 @@ export async function runBriefingAgent(
     if (json.bullets.length < 2) {
       throw new Error("Briefing bullets too few");
     }
+    json.bullets = json.bullets.slice(0, 5);
     return { data: json, source: "llm" };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

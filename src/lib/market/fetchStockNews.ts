@@ -228,19 +228,17 @@ export async function fetchStockNews(input: {
 }
 
 const FLASH_MARKET_RE =
-  /증시|주식|코스피|코스닥|나스닥|다우|S&P|주가|환율|금리|연준|FOMC|관세|세금|유가|WTI|전쟁|지정학|속보|급등|급락|반도체|실적|인플레이션|CPI|고용|원달러|달러|채권|비트코인|위험|매수|매도|외국인|기관/;
+  /증시|주식|코스피|코스닥|나스닥|다우|S&P|주가|환율|금리|연준|FOMC|유가|WTI|원달러|달러|채권|외국인|기관|반도체|실적|인플레이션|CPI|고용|급등|급락|속보|관세|지정학/;
 
-/** 증시개요용 속보 — 전쟁·정치·세금 포함, 증시 관련 위주 (한글) */
-export async function fetchMarketFlashNews(limit = 8): Promise<StockNewsItem[]> {
-  const take = Math.min(12, Math.max(1, limit));
+/** 증시개요용 속보 — 시장 영향이 분명한 헤드라인만 (최대 3) */
+export async function fetchMarketFlashNews(limit = 3): Promise<StockNewsItem[]> {
+  const take = Math.min(3, Math.max(1, limit));
   const when = `when:${NEWS_MAX_AGE_DAYS}d`;
   const queries = [
     `증시 속보 ${when}`,
-    `주식시장 급등 OR 급락 OR 속보 ${when}`,
-    `전쟁 OR 지정학 증시 OR 유가 속보 ${when}`,
-    `관세 OR 세금 증시 OR 주식 ${when}`,
-    `연준 OR 금리 OR FOMC 증시 ${when}`,
-    `정치 증시 OR 트럼프 관세 주식 ${when}`,
+    `코스피 OR 나스닥 급등 OR 급락 ${when}`,
+    `연준 OR 금리 OR 환율 증시 ${when}`,
+    `유가 OR WTI 증시 ${when}`,
   ];
 
   const bag = await fetchGoogleNewsKo(queries, NEWS_MAX_AGE_DAYS);

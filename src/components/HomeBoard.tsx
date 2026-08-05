@@ -6,6 +6,8 @@ import { CheckList } from "@/components/CheckList";
 import { EventList } from "@/components/EventList";
 import { MarketFlashNews } from "@/components/MarketFlashNews";
 import { MarketPulse } from "@/components/MarketPulse";
+import { OverviewDualBrief } from "@/components/OverviewDualBrief";
+import { OverviewMacroStrip } from "@/components/OverviewMacroStrip";
 import { RetailScanPanel } from "@/components/RetailScanPanel";
 import { ScenarioPanel } from "@/components/ScenarioPanel";
 import { ScopeTabs } from "@/components/ScopeTabs";
@@ -38,6 +40,7 @@ export function HomeBoard({
   const searchParams = useSearchParams();
   const viewParam = searchParams.get("view");
   const activeScope = viewParam != null ? parseMarketScope(viewParam) : initialScope;
+  const isOverview = activeScope === "all";
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -87,20 +90,31 @@ export function HomeBoard({
           moodLabel={market.moodLabel}
           mood={market.mood}
           asOfLabel={market.asOfLabel}
-          flow={market.retailScan.flow}
+          flow={isOverview ? undefined : market.retailScan.flow}
         />
-        <RetailScanPanel scan={market.retailScan} charts={market.charts} scope={activeScope} />
-        <TodayBriefing
-          briefing={briefing}
-          macros={market.macros}
-          updatedLabel={updatedLabel}
-          fromPipeline={board.fromPipeline}
-          refreshLabel={viewMode === "refresh"}
-        />
-        <ScenarioPanel scenarios={view.scenarios} />
-        <CheckList key={`check-${activeScope}`} items={view.checkItems} />
-        <EventList events={events} scope={activeScope} />
-        {activeScope === "all" ? <MarketFlashNews /> : null}
+
+        {isOverview ? (
+          <>
+            <OverviewMacroStrip macros={market.macros} />
+            <OverviewDualBrief kr={board.views.kr} us={board.views.us} />
+            <EventList events={events} scope={activeScope} />
+            <MarketFlashNews />
+          </>
+        ) : (
+          <>
+            <RetailScanPanel scan={market.retailScan} charts={market.charts} scope={activeScope} />
+            <TodayBriefing
+              briefing={briefing}
+              macros={market.macros}
+              updatedLabel={updatedLabel}
+              fromPipeline={board.fromPipeline}
+              refreshLabel={viewMode === "refresh"}
+            />
+            <ScenarioPanel scenarios={view.scenarios} />
+            <CheckList key={`check-${activeScope}`} items={view.checkItems} />
+            <EventList events={events} scope={activeScope} />
+          </>
+        )}
       </div>
     </main>
   );

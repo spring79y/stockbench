@@ -89,28 +89,28 @@ export function runGuard(input: {
     }
   }
 
-  if (input.briefing.bullets.length !== 3) {
+  if (input.briefing.bullets.length < 3 || input.briefing.bullets.length > 5) {
     findings.push({
       severity: "warn",
       code: "bullet-count",
-      message: `불릿 개수 ${input.briefing.bullets.length} — 권장 3개`,
+      message: `불릿 개수 ${input.briefing.bullets.length} — 권장 3~5개`,
     });
   }
 
-  if (input.briefing.headline.length > 48) {
+  if (input.briefing.headline.length > 60) {
     findings.push({
       severity: "warn",
       code: "headline-too-long",
-      message: "헤드라인이 깁니다. 40자 안팎으로 줄이세요.",
+      message: "헤드라인이 깁니다. 52자 안팎으로 줄이세요.",
     });
   }
 
   for (const bullet of input.briefing.bullets) {
-    if (bullet.length > 72) {
+    if (bullet.length > 100) {
       findings.push({
         severity: "warn",
         code: "bullet-too-long",
-        message: `불릿이 깁니다(60자 목표): "${bullet.slice(0, 36)}…"`,
+        message: `불릿이 깁니다(90자 목표): "${bullet.slice(0, 36)}…"`,
       });
     }
   }
@@ -140,11 +140,11 @@ export function runGuard(input: {
     }
   }
 
-  if (input.decision.checkItems.length !== 3) {
+  if (input.decision.checkItems.length < 3 || input.decision.checkItems.length > 5) {
     findings.push({
       severity: "warn",
       code: "checklist-count",
-      message: `오늘 볼 것은 정확히 3개여야 합니다 (현재 ${input.decision.checkItems.length})`,
+      message: `오늘 볼 것은 3~5개여야 합니다 (현재 ${input.decision.checkItems.length})`,
     });
   }
 

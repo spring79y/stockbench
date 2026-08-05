@@ -6,6 +6,8 @@ export type ChartPoint = {
   v: number;
   /** 거래량 (1일 차트용) */
   vol?: number;
+  /** epoch ms — 1일 차트 시간축용 */
+  ms?: number;
 };
 
 export type IndexChartSeries = {
@@ -19,6 +21,9 @@ export type IndexChartSeries = {
   source?: "yahoo" | "fred";
   transform?: "raw" | "mom" | "yoy";
   hasVolume?: boolean;
+  /** 1일 정규장 시작·종료 (축 고정용) */
+  sessionStartMs?: number;
+  sessionEndMs?: number;
 };
 
 export function chartsForQuotes(
@@ -27,5 +32,5 @@ export function chartsForQuotes(
 ): IndexChartSeries[] {
   return quotes
     .map((q) => charts[q.id])
-    .filter((s): s is IndexChartSeries => Boolean(s && s.points.length >= 2));
+    .filter((s): s is IndexChartSeries => Boolean(s && s.points.length >= 1));
 }

@@ -33,8 +33,7 @@ export async function runDecisionAgent(
     if (json.checkItems.length < 3) {
       throw new Error("Decision checklist too short");
     }
-    // 정확히 3개만 사용 (초과분 버림)
-    json.checkItems = json.checkItems.slice(0, 3);
+    json.checkItems = json.checkItems.slice(0, 5);
     return { data: json, source: "llm" };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

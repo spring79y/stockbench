@@ -17,14 +17,14 @@ export function MarketFlashNews() {
     const timer = window.setTimeout(() => controller.abort(), NEWS_TIMEOUT_MS);
     setLoading(true);
     setError(false);
-    fetch("/api/market-news?limit=8", { signal: controller.signal })
+    fetch("/api/market-news?limit=3", { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error("news failed");
         return res.json() as Promise<{ items: StockNewsItem[] }>;
       })
       .then((data) => {
         if (cancelled) return;
-        setNews((data.items ?? []).slice(0, 8));
+        setNews((data.items ?? []).slice(0, 3));
       })
       .catch(() => {
         if (cancelled) return;
@@ -45,12 +45,12 @@ export function MarketFlashNews() {
   return (
     <section className="board-block market-flash" aria-labelledby="market-flash-title">
       <div className="block-head">
-        <span className="step-no">5</span>
+        <span className="step-no">2</span>
         <div>
           <h2 id="market-flash-title" className="block-head__title">
             증시 속보
           </h2>
-          <p className="block-head__sub">전쟁·정치·세금 포함 · 증시 관련 위주 · 매매 추천 아님</p>
+          <p className="block-head__sub">시장 영향이 분명한 헤드라인만 · 매매 추천 아님</p>
         </div>
       </div>
 

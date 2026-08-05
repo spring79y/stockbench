@@ -314,7 +314,7 @@ export function MarketPulse({
             label="국내"
             quotes={kr}
             chartSeries={krCharts}
-            showFlow
+            showFlow={false}
             flow={flow}
           />
           <ScopedPulse label="미국" quotes={us} chartSeries={usCharts} />

@@ -1,9 +1,9 @@
 import type { CheckItem } from "@/lib/types";
 import styles from "./CheckList.module.css";
 
-/** 「오늘 볼 것 3」 — 시나리오 A/B를 가르는 관측 포인트 */
+/** 「오늘 볼 것」 — 시나리오 A/B를 가르는 관측 포인트 (최대 5) */
 export function CheckList({ items }: { items: CheckItem[] }) {
-  const shown = items.slice(0, 3);
+  const shown = items.slice(0, 5);
 
   return (
     <section id="checklist" className="board-block focus-points" aria-labelledby="focus-title">
@@ -11,7 +11,7 @@ export function CheckList({ items }: { items: CheckItem[] }) {
         <span className="step-no">3</span>
         <div>
           <h2 id="focus-title" className="block-head__title">
-            오늘 볼 것 3
+            오늘 볼 것
           </h2>
           <p className="block-head__sub">시나리오 A(기본) 유지 vs B(주의) — 눈으로 확인할 신호만</p>
         </div>

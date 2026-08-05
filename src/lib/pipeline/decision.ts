@@ -6,16 +6,16 @@ import type {
 } from "@/lib/pipeline/types";
 import { renderEvidencePackForPrompt } from "@/lib/pipeline/evidencePack";
 
-/** Decision Agent — 짧은 시나리오 A/B + 오늘 볼 것 3 */
+/** Decision Agent — 짧은 시나리오 A/B + 오늘 볼 것(최대 5) */
 export const DECISION_SYSTEM_PROMPT = `당신은 증시 브리핑의 Decision Agent다.
-브리핑과 증거 팩으로 시나리오 A/B와 「오늘 볼 것 3」을 만든다.
+브리핑과 증거 팩으로 시나리오 A/B와 「오늘 볼 것」을 만든다.
 독자는 30초에 훑는다.
 
 길이 한도(반드시):
 - scenario title: 24자 이내
 - summary: 50자 이내, 한 문장
 - implication: 40자 이내 — **관측 기준 1~2개만** (번호 목록 금지)
-- checkItems: **정확히 3개**
+- checkItems: **3~5개** (최대 5)
 - text: 28자 이내 — 관측 가능한 트리거 (예: "VIX 20 상회", "NFP 발표 후")
 - why: 40자 이내 — "A(기본) 유지 / B(주의)에 가깝다"처럼 시나리오 분기만
   - "B 열기" 같은 은어 금지. 반드시 A(기본)·B(주의)라고 쓸 것
@@ -30,7 +30,7 @@ export const DECISION_SYSTEM_PROMPT = `당신은 증시 브리핑의 Decision Ag
 
 반드시 할 것:
 - scenarios 정확히 2개 (base / risk)
-- checkItems 정확히 3개 = 「오늘 볼 것 3」
+- checkItems 3~5개 = 「오늘 볼 것」
   - text: 오늘 눈으로 확인할 신호
   - why: 그 신호가 A(기본) vs B(주의)를 가르는 이유 한 줄
 - 브리핑과 모순 금지 · 탭 scope 존중
