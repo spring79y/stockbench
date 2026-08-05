@@ -103,7 +103,7 @@ function IndexInfluencePanel({
   return (
     <div className={`flow-sheet ${newsStyles.wrap} ${newsStyles.inPanel}`}>
       <div className="flow-sheet__head">
-        <h4 className="flow-sheet__title">{stockName} · 지수 영향</h4>
+        <h4 className="flow-sheet__title">{stockName} · 관련 헤드라인</h4>
       </div>
       <p className="flow-sheet__unit-line">
         오늘 지수·시총5 온도에 왜 중요한지 · 종목 피드 아님
@@ -112,9 +112,9 @@ function IndexInfluencePanel({
       {loading && items.length === 0 ? (
         <p className="retail-card__note">불러오는 중…</p>
       ) : error && items.length === 0 ? (
-        <p className="retail-card__note">지수 영향을 불러오지 못했습니다.</p>
+        <p className="retail-card__note">관련 헤드라인을 불러오지 못했습니다.</p>
       ) : items.length === 0 ? (
-        <p className="retail-card__note">최근 지수 영향 헤드라인이 없습니다.</p>
+        <p className="retail-card__note">최근 관련 헤드라인이 없습니다.</p>
       ) : (
         <div className="flow-sheet__table-wrap">
           <table className="flow-sheet__table">
@@ -244,7 +244,7 @@ function MegaCapSplit({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showFlow, open, rightTab]);
 
-  // 지수 영향: 탭 선택 + 선택 종목일 때만 lazy fetch · 종목별 캐시
+  // 관련 헤드라인: 탭 선택 + 선택 종목일 때만 lazy fetch · 종목별 캐시
   useEffect(() => {
     if (!open || rightTab !== "influence" || !activeQuote || !activeId) return;
     if (activeId in newsById) return;
@@ -396,7 +396,7 @@ function MegaCapSplit({
                 className={`mega-split__tab ${rightTab === "influence" ? "is-on" : ""}`}
                 onClick={() => setRightTab("influence")}
               >
-                지수 영향
+                관련 헤드라인
               </button>
             </div>
 
