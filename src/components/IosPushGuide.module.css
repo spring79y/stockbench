@@ -91,65 +91,6 @@
   background: #fff;
 }
 
-.hotspot {
-  position: absolute;
-  box-sizing: border-box;
-  border: 2.5px solid #e11d48;
-  border-radius: 8px;
-  box-shadow:
-    0 0 0 2px rgba(255, 255, 255, 0.85),
-    0 0 12px rgba(225, 29, 72, 0.45);
-  pointer-events: none;
-  animation: hotspotPulse 1.6s ease-in-out infinite;
-}
-
-.arrow {
-  position: absolute;
-  width: 0;
-  height: 0;
-  transform: translateX(-50%);
-  border-left: 0.5rem solid transparent;
-  border-right: 0.5rem solid transparent;
-  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.9));
-  pointer-events: none;
-  animation: arrowNudge 1.6s ease-in-out infinite;
-}
-
-.arrowDown {
-  border-top: 0.7rem solid #e11d48;
-}
-
-.arrowUp {
-  border-bottom: 0.7rem solid #e11d48;
-}
-
-@keyframes hotspotPulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
-}
-
-@keyframes arrowNudge {
-  0%,
-  100% {
-    transform: translate(-50%, 0);
-  }
-  50% {
-    transform: translate(-50%, -0.18rem);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hotspot,
-  .arrow {
-    animation: none;
-  }
-}
-
 .controls {
   display: grid;
   grid-template-columns: 4.6rem 1fr 4.6rem;
