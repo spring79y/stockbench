@@ -101,6 +101,7 @@ const SLOT_LABEL: Record<PipelineSlot, string> = {
   "us-pre": "미국 장전",
   "us-mid": "미국 장중",
   "us-post": "미국 장후",
+  "us-noon": "미국 점검",
 };
 
 const SLOT_FOCUS: Record<PipelineSlot, string> = {
@@ -110,6 +111,8 @@ const SLOT_FOCUS: Record<PipelineSlot, string> = {
   "us-pre": "전 거래일 미국 요약 + 오늘 미국 관측 틀·신호 · 국내 마감은 최대 한 줄 조건부 브릿지",
   "us-mid": "미 장중 관측 틀·시나리오·점검 갱신 · 매매 신호·방향 예측 금지",
   "us-post": "오늘 미국 세션 결과·메가캡·주요 촉발 요인 리캡 · 다음 국내 장전은 최대 한 줄 점검",
+  "us-noon":
+    "미 정규장 종료 후~장전 전 공백 점검 · 직전 미 세션·오버나잇 맥락 + 저녁 미 장전 관측 틀 · 매매·개장 예측 금지",
 };
 
 function avg(nums: number[]): number | null {

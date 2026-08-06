@@ -13,11 +13,14 @@ export const SLOT_SCHEDULE: Record<
   "us-pre": { hour: 21, minute: 50, label: "미국 장전" },
   "us-mid": { hour: 2, minute: 0, label: "미국 장중" },
   "us-post": { hour: 7, minute: 0, label: "미국 장후" },
+  /** 한국 장중과 동시 — 미국 탭 07:00~21:50 공백 메움 */
+  "us-noon": { hour: 12, minute: 30, label: "미국 점검" },
 };
 
 export const ALL_PIPELINE_SLOTS: PipelineSlot[] = [
   "us-post",
   "kr-pre",
+  "us-noon",
   "kr-mid",
   "kr-post",
   "us-pre",
@@ -60,6 +63,7 @@ export function pipelineScheduleRows(): PipelineScheduleRow[] {
     "us-mid",
     "us-post",
     "kr-pre",
+    "us-noon",
     "kr-mid",
     "kr-post",
     "us-pre",
@@ -82,6 +86,21 @@ export function pipelineScheduleRows(): PipelineScheduleRow[] {
       continue;
     }
     if (slot === "kr-pre") continue; // bundled with us-post
+    if (slot === "us-noon") {
+      // 12:30에 us-noon + kr-mid 연속 (미국 낮 공백 메움 + 한국 장중)
+      const us = SLOT_SCHEDULE["us-noon"];
+      const kr = SLOT_SCHEDULE["kr-mid"];
+      rows.push({
+        kst: `${pad2(us.hour)}:${pad2(us.minute)}`,
+        slot: "us-noon → kr-mid",
+        label: `${us.label} → ${kr.label}`,
+        mode: "full",
+        script: "npm run pipeline -- us-noon && npm run pipeline -- kr-mid",
+        tabs: `${formatScopeTabs("us-noon")} → ${formatScopeTabs("kr-mid")}`,
+      });
+      continue;
+    }
+    if (slot === "kr-mid") continue; // bundled with us-noon
     const s = SLOT_SCHEDULE[slot];
     rows.push({
       kst: `${pad2(s.hour)}:${pad2(s.minute)}`,
@@ -111,7 +130,7 @@ export const PIPELINE_MANUAL_ROWS: PipelineScheduleRow[] = [
     mode: "full",
     script:
       "npm run pipeline -- us-mid && … && npm run pipeline -- us-pre",
-    tabs: "us-mid → us-post → kr-pre → kr-mid → kr-post → us-pre",
+    tabs: "us-mid → us-post → kr-pre → us-noon → kr-mid → kr-post → us-pre",
   },
 ];
 
@@ -174,6 +193,7 @@ export function dueSlots(
     "us-mid",
     "us-post",
     "kr-pre",
+    "us-noon",
     "kr-mid",
     "kr-post",
     "us-pre",
@@ -201,8 +221,8 @@ export function nextSlotForScope(
     scope === "kr"
       ? ["kr-pre", "kr-mid", "kr-post"]
       : scope === "us"
-        ? ["us-mid", "us-post", "us-pre"]
-        : ["us-mid", "us-post", "kr-pre", "kr-mid", "kr-post", "us-pre"];
+        ? ["us-mid", "us-post", "us-noon", "us-pre"]
+        : ["us-mid", "us-post", "kr-pre", "us-noon", "kr-mid", "kr-post", "us-pre"];
 
   const parts = seoulDateParts(now);
 

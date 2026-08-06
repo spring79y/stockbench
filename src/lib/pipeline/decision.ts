@@ -89,13 +89,16 @@ export function buildDecisionUserPrompt(
           "- checkItems는 브리핑의 관측 신호와 같은 구체 트리거(유지 여부·반응·상회/하회·전환)를 사용한다.",
           "- why는 A(기본) 유지 / B(주의)에 가깝다는 조건부 해석만 쓴다.",
         ].join("\n")
-      : snapshot.slot === "kr-mid" || snapshot.slot === "us-mid"
+      : snapshot.slot === "kr-mid" ||
+          snapshot.slot === "us-mid" ||
+          snapshot.slot === "us-noon"
         ? [
-            "## 장중 관측 분기 규칙",
-            "- A/B는 장중 지금까지의 관측 신호가 유지될 때와 깨질 때의 온도·체감으로 나눈다.",
+            "## 장중·점검 관측 분기 규칙",
+            "- A/B는 관측 신호가 유지될 때와 깨질 때의 온도·체감으로 나눈다.",
             "- 매매 타이밍·방향 예측·‘지금 사라/팔라’ 금지. 관측 틀 갱신만.",
-            "- checkItems는 남은 세션에서 눈으로 확인할 구체 트리거로 쓴다.",
-            "- 장전 시나리오를 ‘이미 확정된 결론’처럼 위장하지 말 것.",
+            "- checkItems는 남은 구간에서 눈으로 확인할 구체 트리거로 쓴다.",
+            "- us-noon은 미 정규장 중이 아님. 직전 미 세션·오버나잇과 저녁 장전 관측만.",
+            "- 이전 시나리오를 ‘이미 확정된 결론’처럼 위장하지 말 것.",
           ].join("\n")
       : snapshot.slot === "kr-post" || snapshot.slot === "us-post"
         ? [

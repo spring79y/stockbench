@@ -16,7 +16,9 @@ export type PipelineSlot =
   | "kr-mid"
   | "us-pre"
   | "us-post"
-  | "us-mid";
+  | "us-mid"
+  /** 12:30 KST — 미국 탭 낮 공백 메움 (미 정규장 중 아님) */
+  | "us-noon";
 
 /** full = Briefing+Decision, refresh = Briefing만(시나리오·점검 유지) */
 export type PipelineMode = "full" | "refresh";

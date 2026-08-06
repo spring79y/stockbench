@@ -1,4 +1,4 @@
-# 한·미 장전·장중·장후 풀 브리핑 (하루 최대 6회)
+# 한·미 장전·장중·장후 풀 + 12:30 미국 점검 (하루 최대 7회)
 # Vercel은 push 후 자동 재배포됩니다.
 #
 # GitHub → Settings → Secrets and variables → Actions 에 등록:
@@ -11,7 +11,7 @@ on:
     # 07:00 KST = 22:00 UTC (전날) → Sun–Thu UTC = Mon–Fri KST 아침
     - cron: "0 22 * * 0-4" # us-post + kr-pre (full)
     # 12:30 KST = 03:30 UTC
-    - cron: "30 3 * * 1-5" # kr-mid (full)
+    - cron: "30 3 * * 1-5" # us-noon + kr-mid (full)
     # 15:40 KST = 06:40 UTC
     - cron: "40 6 * * 1-5" # kr-post (full)
     # 21:50 KST = 12:50 UTC
@@ -27,10 +27,12 @@ on:
         options:
           - us-post
           - kr-pre
+          - us-noon
           - kr-mid
           - kr-post
           - us-pre
           - us-mid
+          - noon # us-noon then kr-mid
           - morning # us-post then kr-pre
           - all # 전 슬롯 순차 (us-mid → … → us-pre)
 
@@ -65,9 +67,11 @@ jobs:
             INPUT="${{ inputs.slot }}"
             if [ "$INPUT" = "morning" ]; then
               echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT"
+            elif [ "$INPUT" = "noon" ]; then
+              echo "list=us-noon kr-mid" >> "$GITHUB_OUTPUT"
             elif [ "$INPUT" = "all" ]; then
               # KST 하루 사이클 순 · 마지막이 최종 published 상태
-              echo "list=us-mid us-post kr-pre kr-mid kr-post us-pre" >> "$GITHUB_OUTPUT"
+              echo "list=us-mid us-post kr-pre us-noon kr-mid kr-post us-pre" >> "$GITHUB_OUTPUT"
             else
               echo "list=$INPUT" >> "$GITHUB_OUTPUT"
             fi
@@ -78,14 +82,14 @@ jobs:
           echo "schedule cron=[$CRON]"
           case "$CRON" in
             "0 22 * * 0-4") echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT" ;;
-            "30 3 * * 1-5") echo "list=kr-mid" >> "$GITHUB_OUTPUT" ;;
+            "30 3 * * 1-5") echo "list=us-noon kr-mid" >> "$GITHUB_OUTPUT" ;;
             "40 6 * * 1-5") echo "list=kr-post" >> "$GITHUB_OUTPUT" ;;
             "50 12 * * 1-5") echo "list=us-pre" >> "$GITHUB_OUTPUT" ;;
             "0 17 * * 0-4") echo "list=us-mid" >> "$GITHUB_OUTPUT" ;;
             # legacy morning cron (removed after 07:00 cutover)
             "20 20 * * 0-4") echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT" ;;
-            # legacy kr-mid 11:30 KST
-            "30 2 * * 1-5") echo "list=kr-mid" >> "$GITHUB_OUTPUT" ;;
+            # legacy kr-mid 11:30 / 12:30 alone
+            "30 2 * * 1-5") echo "list=us-noon kr-mid" >> "$GITHUB_OUTPUT" ;;
             *)
               echo "::error::Unknown schedule cron=[$CRON] — refusing default slot"
               exit 1

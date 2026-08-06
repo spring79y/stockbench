@@ -10,7 +10,7 @@ export type PushSubscriptionKeys = {
 /** 시장별 선택 가능한 슬롯 */
 export const PUSH_SLOTS_BY_MARKET: Record<PushMarket, PipelineSlot[]> = {
   kr: ["kr-pre", "kr-mid", "kr-post"],
-  us: ["us-pre", "us-mid", "us-post"],
+  us: ["us-pre", "us-mid", "us-noon", "us-post"],
 };
 
 export const PUSH_SLOT_SHORT_LABEL: Partial<Record<PipelineSlot, string>> = {
@@ -19,6 +19,7 @@ export const PUSH_SLOT_SHORT_LABEL: Partial<Record<PipelineSlot, string>> = {
   "kr-post": "장후",
   "us-pre": "장전",
   "us-mid": "장중",
+  "us-noon": "점검",
   "us-post": "장후",
 };
 

@@ -167,6 +167,7 @@ export const SLOT_LABEL: Record<PipelineSlot, string> = {
   "us-pre": "미국 장전",
   "us-mid": "미국 장중",
   "us-post": "미국 장후",
+  "us-noon": "미국 점검",
 };
 
 /**
