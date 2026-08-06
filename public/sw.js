@@ -27,11 +27,19 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = event.notification.data?.url || "/";
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (list) => {
       for (const client of list) {
         if ("focus" in client) {
-          client.navigate(url);
-          return client.focus();
+          await client.focus();
+          // Prefer hard navigate via page message — focus alone keeps a frozen PWA shell.
+          try {
+            client.postMessage({ type: "stockbench:push-open", url });
+          } catch {
+            if ("navigate" in client) {
+              return client.navigate(url);
+            }
+          }
+          return;
         }
       }
       if (clients.openWindow) return clients.openWindow(url);

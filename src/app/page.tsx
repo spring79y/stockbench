@@ -10,7 +10,8 @@ import { fetchLiveUpcomingEvents } from "@/lib/events/fetchLiveUpcomingEvents";
 import { loadPublishedBoard } from "@/lib/pipeline/loadPublished";
 import { slimBoardForScope } from "@/lib/pipeline/slimBoardForScope";
 
-export const revalidate = 120;
+/** Briefing comes from committed latest.json (redeploy). Keep ISR short so live market stays fresh. */
+export const revalidate = 60;
 
 export default async function HomePage({
   searchParams,

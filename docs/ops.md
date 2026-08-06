@@ -42,3 +42,5 @@
 - `status.json`: 최근 파이프라인 성공/실패·에러 한 줄 (Actions가 커밋)
 
 GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest.json` / `status.json`이 신호다.
+
+웹 푸시 순서: pipeline → `latest.json` 커밋·push → `/api/published`로 프로덕션 반영 대기 → `push:slot`. 로컬 파이프라인 직후 푸시하지 않는다.

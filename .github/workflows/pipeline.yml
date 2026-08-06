@@ -1,5 +1,6 @@
 # 한·미 장전·장중·장후 풀 + 12:30 미국 점검 (하루 최대 7회)
-# Vercel은 push 후 자동 재배포됩니다.
+# Vercel은 git push 후 자동 재배포됩니다.
+# 웹 푸시는 latest.json 커밋·프로덕션 반영 확인 뒤에만 발송합니다.
 #
 # GitHub → Settings → Secrets and variables → Actions 에 등록:
 #   ANTHROPIC_API_KEY
@@ -97,37 +98,46 @@ jobs:
           esac
 
       - name: Run pipeline
+        id: pipeline
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_MODEL: claude-sonnet-4-5
-          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
-          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
-          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
-          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
-          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "::error::ANTHROPIC_API_KEY secret is missing. Add it in repo Settings → Secrets → Actions."
             exit 1
           fi
           FAILED=0
+          SUCCEEDED=""
           for slot in ${{ steps.slots.outputs.list }}; do
             echo "::group::pipeline $slot"
+            BEFORE=""
+            if [ -f src/data/published/latest.json ]; then
+              BEFORE=$(sha256sum src/data/published/latest.json | awk '{print $1}')
+            fi
             if npm run pipeline -- "$slot"; then
-              echo "::group::push $slot"
-              npm run push:slot -- "$slot" || echo "::warning::push $slot failed (non-blocking)"
-              echo "::endgroup::"
+              AFTER=""
+              if [ -f src/data/published/latest.json ]; then
+                AFTER=$(sha256sum src/data/published/latest.json | awk '{print $1}')
+              fi
+              if [ -n "$AFTER" ] && [ "$BEFORE" != "$AFTER" ]; then
+                SUCCEEDED="$SUCCEEDED $slot"
+              else
+                echo "No latest.json change for $slot (keep-previous or unchanged) — skip push for slot"
+              fi
             else
               echo "::error::pipeline $slot failed"
               FAILED=1
             fi
             echo "::endgroup::"
           done
+          echo "succeeded=$(echo $SUCCEEDED | xargs)" >> "$GITHUB_OUTPUT"
           if [ "$FAILED" -ne 0 ]; then
             exit 1
           fi
 
       - name: Commit published bundle
+        id: commit
         if: always()
         run: |
           git config user.name "github-actions[bot]"
@@ -143,9 +153,32 @@ jobs:
           fi
           if git diff --staged --quiet; then
             echo "No changes to publish."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git commit -m "chore: publish briefing ($(date -u +%Y-%m-%dT%H:%MZ))"
           # 실행 중 main에 다른 푸시가 있으면 non-fast-forward 방지
           git pull --rebase origin "${GITHUB_REF_NAME:-main}"
           git push origin "HEAD:${GITHUB_REF_NAME:-main}"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Wait until production serves new publish
+        if: success() && steps.commit.outputs.pushed == 'true' && steps.pipeline.outputs.succeeded != ''
+        run: npm run wait:published-live
+        env:
+          PRODUCTION_URL: https://www.stock-bench.com
+
+      - name: Send slot push
+        if: success() && steps.commit.outputs.pushed == 'true' && steps.pipeline.outputs.succeeded != ''
+        env:
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+        run: |
+          for slot in ${{ steps.pipeline.outputs.succeeded }}; do
+            echo "::group::push $slot"
+            npm run push:slot -- "$slot" || echo "::warning::push $slot failed (non-blocking)"
+            echo "::endgroup::"
+          done

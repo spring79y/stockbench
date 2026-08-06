@@ -96,7 +96,7 @@ Briefing/Decision이 받는 구조화 근거. UI 대시보드가 아님.
 
 LLM: `.env.local` — 품질 우선 시 Anthropic/OpenAI 권장. Ollama는 가능하나 소형 모델은 비권장.  
 실행: `npm run pipeline -- kr-post` (슬롯: kr-pre / kr-mid / kr-post / us-pre / us-mid / us-noon / us-post)  
-스케줄: 풀 `us-post·kr-pre 07:00` · `us-noon·kr-mid 12:30` · `kr-post 15:40` · `us-pre 21:50` · `us-mid 02:00` (주말 스킵). 탭: 한국슬롯→통합+한국, 미국슬롯→통합+미국. 웹 푸시는 KST 00:00–07:00 미발송.  
+스케줄: 풀 `us-post·kr-pre 07:00` · `us-noon·kr-mid 12:30` · `kr-post 15:40` · `us-pre 21:50` · `us-mid 02:00` (주말 스킵). 탭: 한국슬롯→통합+한국, 미국슬롯→통합+미국. 웹 푸시는 KST 00:00–07:00 미발송이며, **latest.json 커밋·프로덕션 반영 후**에만 발송.  
 실패·키 없음 → seed fallback. **Guard block 시 scope당 최대 5회 재생성. 전부 거절이면 latest를 덮지 않고 직전 발행 유지.**
 
 ### 하지 않는 시점 오류

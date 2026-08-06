@@ -74,6 +74,70 @@ export function HomeBoard({
     };
   }, []);
 
+  // PWA / bfcache: reopen or focus may keep a frozen SSR shell — refresh when publish is newer.
+  useEffect(() => {
+    let busy = false;
+    const localPublishedAt = board.publishedAt;
+
+    const refreshIfStale = async () => {
+      if (document.visibilityState === "hidden") return;
+      if (busy) return;
+      busy = true;
+      try {
+        const res = await fetch("/api/published", { cache: "no-store" });
+        if (!res.ok) return;
+        const meta = (await res.json()) as { publishedAt?: string | null };
+        const remote = meta.publishedAt ?? null;
+        if (!remote) return;
+        if (remote !== localPublishedAt) {
+          router.refresh();
+        }
+      } catch {
+        // ignore network errors
+      } finally {
+        busy = false;
+      }
+    };
+
+    const onVisible = () => {
+      void refreshIfStale();
+    };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void refreshIfStale();
+    };
+    const onFocus = () => {
+      void refreshIfStale();
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [board.publishedAt, router]);
+
+  // Notification click: SW posts a message so we hard-navigate (fresh HTML), not just focus.
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; url?: string } | null;
+      if (data?.type !== "stockbench:push-open") return;
+      const target = data.url || "/";
+      try {
+        const next = new URL(target, window.location.origin);
+        if (next.origin !== window.location.origin) return;
+        window.location.assign(`${next.pathname}${next.search}${next.hash}`);
+      } catch {
+        window.location.assign("/");
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, []);
+
   // 마지막 탭 기억 (한·미·개요). URL에 view 없을 때 한·미만 복원.
   useEffect(() => {
     try {

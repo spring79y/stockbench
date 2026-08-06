@@ -1,5 +1,5 @@
 /**
- * Publisher 성공 후 슬롯 푸시 발송.
+ * 슬롯 푸시 발송. CI에서는 latest.json 커밋·프로덕션 반영 대기 뒤에 호출한다.
  * 실행: npm run push:slot -- kr-post
  * 환경: VAPID_* + UPSTASH_REDIS_REST_*
  * 미설정·구독 0·발송 실패는 경고만 (파이프라인 성공 유지)
