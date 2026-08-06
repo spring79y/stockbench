@@ -52,14 +52,31 @@ const PRE_SESSION_FORECAST_PATTERNS = [
   /(?:출발|개장)\s*(?:상승|하락|강세|약세)/,
 ];
 const PRIOR_SESSION_ANCHOR_RE =
-  /전일|전\s*거래일|직전\s*(?:장|거래일)?\s*마감|어제\s*마감|마감\s*기준|전\s*세션/;
+  /전일|전\s*거래일|직전\s*(?:장|거래일|세션)?|어제|마감|전\s*세션|직전\s*정규장/;
+/** 직전 세션 결과처럼 보이는 수치 복창 (관측 임계치는 제외) */
 const PRIOR_SESSION_NUMERIC_RE =
   /(?:(?:코스피|코스닥|나스닥|S&P|다우)[^.!?]{0,24}[+-]?\d+(?:\.\d+)?%|외국인[^.!?]{0,28}\d+(?:\.\d+)?\s*(?:조|억)[^.!?]{0,12}순매(?:수|도)|시총[^.!?]{0,30}(?:평균|상위)[^.!?]{0,20}\d+(?:\.\d+)?%)/;
+const PRIOR_RESULT_VERB_RE =
+  /상승(?:했|한|으로)?|하락(?:했|한|으로)?|올랐|내렸|급등|급락|순매수|순매도|강세|약세/;
 const FORWARD_REFERENCE_RE = /야간선물|오버나잇|프리마켓|애프터마켓/;
 const CONDITIONAL_REFERENCE_RE = /참고|조건|경우|시사|브릿지/;
 const OBSERVABLE_WATCH_RE =
-  /관측|지켜볼|볼\s*(?:것|포인트|틀)|유지\s*(?:여부|되는지)|반응|발표\s*전후|상회|하회|돌파|전환|확인/;
+  /관측|지켜볼|볼\s*(?:것|포인트|틀)|유지\s*(?:여부|되는지)|반응|발표\s*전후|상회|하회|돌파|전환|확인|여부|임계|기준선/;
+const THRESHOLD_WATCH_RE =
+  /이상\s*(?:유지|여부)|이하\s*(?:유지|여부)|하회|상회|유지\s*여부|관측|점검/;
 const SESSION_RECAP_RE = /오늘|금일|장중|마감|세션|정규장/;
+
+function looksLikeUnanchoredPriorResult(text: string): boolean {
+  if (!PRIOR_SESSION_NUMERIC_RE.test(text)) return false;
+  if (PRIOR_SESSION_ANCHOR_RE.test(text)) return false;
+  // 오늘 관측 임계치·유지 여부는 전일 복창이 아님
+  if (OBSERVABLE_WATCH_RE.test(text) || THRESHOLD_WATCH_RE.test(text)) return false;
+  const isConditionalForwardReference =
+    FORWARD_REFERENCE_RE.test(text) && CONDITIONAL_REFERENCE_RE.test(text);
+  if (isConditionalForwardReference) return false;
+  // 결과 서술 동사가 없으면(단순 임계치 나열) 스킵
+  return PRIOR_RESULT_VERB_RE.test(text);
+}
 
 function pushPreSessionTemporalFindings(
   findings: GuardFinding[],
@@ -99,13 +116,7 @@ function pushPreSessionTemporalFindings(
   }
 
   for (const text of priorDataTexts) {
-    const isConditionalForwardReference =
-      FORWARD_REFERENCE_RE.test(text) && CONDITIONAL_REFERENCE_RE.test(text);
-    if (
-      PRIOR_SESSION_NUMERIC_RE.test(text) &&
-      !PRIOR_SESSION_ANCHOR_RE.test(text) &&
-      !isConditionalForwardReference
-    ) {
+    if (looksLikeUnanchoredPriorResult(text)) {
       findings.push({
         severity: "block",
         code: "prior-session-without-anchor",
@@ -405,12 +416,23 @@ export function runGuard(input: {
     if (scope === "kr") return e.region === "KR" || e.region === "GLOBAL";
     return true;
   });
+  const proseLower = prose.toLowerCase();
   for (const ev of imminentEarnings) {
+    const nameCore = ev.title
+      .replace(/\s*실적\s*발표$/, "")
+      .replace(/\([^)]*\)/g, " ")
+      .trim();
+    const nameAliases = nameCore
+      .split(/[\s·/,]+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 2);
     const tokens = [
-      ev.title.replace(/ 실적 발표$/, ""),
-      ev.title.split("·").pop()?.trim() ?? "",
+      nameCore,
+      ...nameAliases,
       ev.symbol ?? "",
       "실적",
+      "어닝",
+      "earnings",
     ].filter((t) => t.length >= 2);
 
     const dateISO = ev.dateISO;
@@ -420,7 +442,11 @@ export function runGuard(input: {
       new Date(dateISO).getTime() <= now;
     const beatWord = ev.actual?.beatLabel;
 
-    const hasCore = tokens.some((t) => prose.includes(t));
+    const hasCore = tokens.some((t) =>
+      t === t.toLowerCase() || /[A-Za-z]/.test(t)
+        ? proseLower.includes(t.toLowerCase())
+        : prose.includes(t),
+    );
     const hasBeat =
       !isPost ||
       !beatWord ||
@@ -431,8 +457,8 @@ export function runGuard(input: {
         severity: "block",
         code: "missed-earnings",
         message: isPost
-          ? `최근 24시간 내 실적 결과(서프라이즈/미스) 미언급: ${ev.title} — bullets에 점검 맥락 1개 포함`
-          : `48시간 내 실적 일정 미언급: ${ev.title} — bullets에 점검 맥락 1개 포함`,
+          ? `최근 24시간 내 실적 결과(서프라이즈/미스) 미언급: ${ev.title} — bullets에 '${nameCore} 실적' 점검 맥락 1개 포함`
+          : `48시간 내 실적 일정 미언급: ${ev.title} — bullets에 '${nameCore} 실적' 점검 맥락 1개 포함 (예측 금지)`,
       });
     }
   }
@@ -457,6 +483,49 @@ export function runGuard(input: {
   return {
     ok: findings.every((f) => f.severity !== "block"),
     findings,
+  };
+}
+
+/** Guard 재시도 후에도 실적이 빠지면 점검 불릿을 최소 보강 */
+export function ensureImminentEarningsMentioned(
+  briefing: BriefingDraft,
+  snapshot: CollectorSnapshot,
+  scope: MarketScope = "all",
+): BriefingDraft {
+  const now = Date.now();
+  const prose = [briefing.headline, ...briefing.bullets].join("\n");
+  const proseLower = prose.toLowerCase();
+  const missing = (snapshot.events ?? []).filter((e) => {
+    if (e.kind !== "earnings" || !e.dateISO) return false;
+    const hours = (new Date(e.dateISO).getTime() - now) / (60 * 60 * 1000);
+    const isPre = hours >= 0 && hours <= 48;
+    const isPost = hours < 0 && hours >= -24 && Boolean(e.actual?.beatLabel);
+    if (!isPre && !isPost) return false;
+    if (scope === "us") {
+      if (!(e.region === "US" || e.region === "GLOBAL")) return false;
+    } else if (scope === "kr") {
+      if (!(e.region === "KR" || e.region === "GLOBAL")) return false;
+    }
+    const nameCore = e.title.replace(/\s*실적\s*발표$/, "").trim();
+    const tokens = [nameCore, e.symbol ?? "", "실적", "어닝"].filter((t) => t.length >= 2);
+    return !tokens.some((t) =>
+      /[A-Za-z]/.test(t) ? proseLower.includes(t.toLowerCase()) : prose.includes(t),
+    );
+  });
+
+  if (missing.length === 0) return briefing;
+
+  const extra = missing.slice(0, 2).map((e) => {
+    const nameCore = e.title.replace(/\s*실적\s*발표$/, "").trim();
+    if (e.actual?.beatLabel) {
+      return `${nameCore} 실적 결과(${e.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
+    }
+    return `${nameCore} 실적 발표 임박 — 가이던스·섹터 반응만 관측 (방향 예측 금지)`;
+  });
+
+  return {
+    ...briefing,
+    bullets: [...briefing.bullets.slice(0, 4), ...extra].slice(0, 5),
   };
 }
 

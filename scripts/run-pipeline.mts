@@ -14,7 +14,7 @@ import {
   collectSnapshot,
   defaultPipelineEvents,
 } from "../src/lib/pipeline/collectSnapshot";
-import { runBriefingOnlyGuard, runGuard } from "../src/lib/pipeline/guard";
+import { ensureImminentEarningsMentioned, runBriefingOnlyGuard, runGuard } from "../src/lib/pipeline/guard";
 import { resolveLlmConfig } from "../src/lib/pipeline/llm";
 import { writePipelineStatus } from "../src/lib/pipeline/pipelineStatus";
 import { runBriefingAgent } from "../src/lib/pipeline/runBriefingAgent";
@@ -101,12 +101,23 @@ async function generateFullView(
       `  decision source=${decisionResult.source}${decisionResult.error ? ` (${decisionResult.error})` : ""}`,
     );
 
-    const guard = runGuard({
+    let briefing = briefingResult.data;
+    let decision = decisionResult.data;
+    let guard = runGuard({
       snapshot,
-      briefing: briefingResult.data,
-      decision: decisionResult.data,
+      briefing,
+      decision,
       scope,
     });
+
+    if (!guard.ok && attempt === 2) {
+      const patched = ensureImminentEarningsMentioned(briefing, snapshot, scope);
+      if (patched !== briefing) {
+        console.log(`  patch: inject imminent earnings mention for ${scope}`);
+        briefing = patched;
+        guard = runGuard({ snapshot, briefing, decision, scope });
+      }
+    }
 
     if (guard.ok || attempt === 2) {
       findings.push(
@@ -115,12 +126,12 @@ async function generateFullView(
       return {
         view: {
           briefing: {
-            headline: briefingResult.data.headline,
-            bullets: briefingResult.data.bullets,
-            evidenceIds: briefingResult.data.evidenceIds,
+            headline: briefing.headline,
+            bullets: briefing.bullets,
+            evidenceIds: briefing.evidenceIds,
           },
-          scenarios: decisionResult.data.scenarios,
-          checkItems: decisionResult.data.checkItems,
+          scenarios: decision.scenarios,
+          checkItems: decision.checkItems,
           publishedAt,
           slot,
           mode: "full",
@@ -164,12 +175,27 @@ async function generateRefreshView(
       `  briefing source=${briefingResult.source}${briefingResult.error ? ` (${briefingResult.error})` : ""}`,
     );
 
-    const guard = runBriefingOnlyGuard({
+    let briefing = briefingResult.data;
+    let guard = runBriefingOnlyGuard({
       snapshot,
-      briefing: briefingResult.data,
+      briefing,
       frozenDecision,
       scope,
     });
+
+    if (!guard.ok && attempt === 2) {
+      const patched = ensureImminentEarningsMentioned(briefing, snapshot, scope);
+      if (patched !== briefing) {
+        console.log(`  patch: inject imminent earnings mention for ${scope}`);
+        briefing = patched;
+        guard = runBriefingOnlyGuard({
+          snapshot,
+          briefing,
+          frozenDecision,
+          scope,
+        });
+      }
+    }
 
     if (guard.ok || attempt === 2) {
       if (!guard.ok) {
@@ -192,9 +218,9 @@ async function generateRefreshView(
       return {
         view: {
           briefing: {
-            headline: briefingResult.data.headline,
-            bullets: briefingResult.data.bullets,
-            evidenceIds: briefingResult.data.evidenceIds,
+            headline: briefing.headline,
+            bullets: briefing.bullets,
+            evidenceIds: briefing.evidenceIds,
           },
           scenarios: previous.scenarios,
           checkItems: previous.checkItems,
