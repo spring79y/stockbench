@@ -45,6 +45,8 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 
 웹 푸시 순서: pipeline → `latest.json` 커밋·push → `/api/published`로 프로덕션 반영 대기 → `push:slot`. 로컬 파이프라인 직후 푸시하지 않는다.
 
+홈(PWA·브라우저)이 백그라운드에서 돌아올 때는 발행 버전 비교 없이 `location.reload()`로 셸을 갱신한다(짧은 탭 blip·자기 reload 루프는 제외). Cache API는 백그라운드에서 비우지 않는다. 알림 클릭 hard navigate는 그대로.
+
 ## 실적 beat/miss (정확성)
 
 - `beatLabel`(서프라이즈/미스)은 **Collector만** 설정한다 (`src/lib/market/earningsBeat.ts` → `fetchEarningsCalendar`).

@@ -74,57 +74,92 @@ export function HomeBoard({
     };
   }, []);
 
-  // PWA / bfcache: reopen or focus may keep a frozen SSR shell — refresh when publish is newer.
+  // Home / PWA: after backgrounding, hard-reload so the shell isn't frozen (always, not version-gated).
   useEffect(() => {
-    let busy = false;
-    const localPublishedAt = board.publishedAt;
+    const HIDDEN_AT_KEY = "sb-bg-hidden-at";
+    const RELOADING_KEY = "sb-bg-resume-reload";
+    const MIN_HIDDEN_MS = 500;
+    let reloadTimer: number | null = null;
 
-    const refreshIfStale = async () => {
-      if (document.visibilityState === "hidden") return;
-      if (busy) return;
-      busy = true;
+    try {
+      if (sessionStorage.getItem(RELOADING_KEY) === "1") {
+        sessionStorage.removeItem(RELOADING_KEY);
+        sessionStorage.removeItem(HIDDEN_AT_KEY);
+      }
+    } catch {
+      // ignore
+    }
+
+    const clearHidden = () => {
       try {
-        const res = await fetch("/api/published", { cache: "no-store" });
-        if (!res.ok) return;
-        const meta = (await res.json()) as { publishedAt?: string | null };
-        const remote = meta.publishedAt ?? null;
-        if (!remote) return;
-        if (remote !== localPublishedAt) {
-          router.refresh();
-        }
+        sessionStorage.removeItem(HIDDEN_AT_KEY);
       } catch {
-        // ignore network errors
-      } finally {
-        busy = false;
+        // ignore
       }
     };
 
-    const onVisible = () => {
-      void refreshIfStale();
+    const markHidden = () => {
+      try {
+        // Skip the hide that precedes our own location.reload() to avoid loops.
+        if (sessionStorage.getItem(RELOADING_KEY) === "1") return;
+        sessionStorage.setItem(HIDDEN_AT_KEY, String(Date.now()));
+      } catch {
+        // ignore
+      }
     };
-    const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) void refreshIfStale();
+
+    const maybeReload = () => {
+      if (document.visibilityState === "hidden") return;
+      if (reloadTimer != null) return;
+      // Defer so notification-click hard-nav can cancel before we reload.
+      reloadTimer = window.setTimeout(() => {
+        reloadTimer = null;
+        try {
+          if (sessionStorage.getItem(RELOADING_KEY) === "1") return;
+          const raw = sessionStorage.getItem(HIDDEN_AT_KEY);
+          if (!raw) return;
+          const elapsed = Date.now() - Number(raw);
+          if (!Number.isFinite(elapsed) || elapsed < MIN_HIDDEN_MS) {
+            clearHidden();
+            return;
+          }
+          sessionStorage.removeItem(HIDDEN_AT_KEY);
+          sessionStorage.setItem(RELOADING_KEY, "1");
+          window.location.reload();
+        } catch {
+          // sessionStorage unavailable — still attempt a one-shot reload
+          window.location.reload();
+        }
+      }, 80);
+    };
+
+    const cancelPendingReload = () => {
+      if (reloadTimer != null) {
+        window.clearTimeout(reloadTimer);
+        reloadTimer = null;
+      }
+      clearHidden();
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") markHidden();
+      else maybeReload();
+    };
+    const onPageHide = () => {
+      markHidden();
+    };
+    const onPageShow = () => {
+      maybeReload();
     };
     const onFocus = () => {
-      void refreshIfStale();
+      maybeReload();
     };
 
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("pageshow", onPageShow);
-    window.addEventListener("focus", onFocus);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("pageshow", onPageShow);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [board.publishedAt, router]);
-
-  // Notification click: SW posts a message so we hard-navigate (fresh HTML), not just focus.
-  useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-    const onMessage = (event: MessageEvent) => {
+    // Notification click: SW posts a message so we hard-navigate (fresh HTML), not just focus.
+    const onPushOpen = (event: MessageEvent) => {
       const data = event.data as { type?: string; url?: string } | null;
       if (data?.type !== "stockbench:push-open") return;
+      cancelPendingReload();
       const target = data.url || "/";
       try {
         const next = new URL(target, window.location.origin);
@@ -134,8 +169,24 @@ export function HomeBoard({
         window.location.assign("/");
       }
     };
-    navigator.serviceWorker.addEventListener("message", onMessage);
-    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("focus", onFocus);
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", onPushOpen);
+    }
+    return () => {
+      if (reloadTimer != null) window.clearTimeout(reloadTimer);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("focus", onFocus);
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", onPushOpen);
+      }
+    };
   }, []);
 
   // 마지막 탭 기억 (한·미·개요). URL에 view 없을 때 한·미만 복원.

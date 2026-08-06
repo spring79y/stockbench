@@ -105,7 +105,7 @@ LLM: `.env.local` — 품질 우선 시 Anthropic/OpenAI 권장. Ollama는 가�
 - Evidence에 없는 전일 수치 창작
 - 장전 브리핑을 개장 방향 예측으로 쓰는 것
 
-홈 UI: 상단 세그먼트(증시개요/한국/미국) + 한·미는 세션 힌트 + 접힌 상대 시장
+홈 UI: 상단 세그먼트(증시개요/한국/미국) + 한·미는 세션 힌트 + 접힌 상대 시장. 백그라운드 복귀 시 홈은 항상 hard reload(신선도 게이트 없음).
 
 Cursor 에이전트: `.cursor/agents/briefing.md`, `decision.md`, `guard.md` (+ `discuss.md`)
 
