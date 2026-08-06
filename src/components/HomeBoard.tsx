@@ -111,7 +111,7 @@ export function HomeBoard({
       : activeScope === "us"
         ? formatBriefingUpdatedAt(board.views.us.publishedAt ?? board.publishedAt)
         : formatBriefingUpdatedAt(board.views.all.publishedAt ?? board.publishedAt);
-  const viewMode = view.mode ?? (view.slot === "kr-mid" || view.slot === "us-mid" ? "refresh" : "full");
+  const viewMode = view.mode ?? "full";
   const events = useMemo(() => {
     const filtered = filterEvents(board.events, activeScope);
     // 개요는 한눈용으로 상위 3개만

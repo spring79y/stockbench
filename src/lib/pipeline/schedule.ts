@@ -8,10 +8,10 @@ export const SLOT_SCHEDULE: Record<
 > = {
   /** 미국 장후와 동일 — 오버나잇 반영 후 국내 장전 브리핑 */
   "kr-pre": { hour: 7, minute: 0, label: "한국 장전" },
-  "kr-mid": { hour: 11, minute: 30, label: "한국 장중 리프레시" },
+  "kr-mid": { hour: 12, minute: 30, label: "한국 장중" },
   "kr-post": { hour: 15, minute: 40, label: "한국 장후" },
   "us-pre": { hour: 21, minute: 50, label: "미국 장전" },
-  "us-mid": { hour: 2, minute: 0, label: "미국 장중 리프레시" },
+  "us-mid": { hour: 2, minute: 0, label: "미국 장중" },
   "us-post": { hour: 7, minute: 0, label: "미국 장후" },
 };
 
@@ -24,8 +24,9 @@ export const ALL_PIPELINE_SLOTS: PipelineSlot[] = [
   "us-mid",
 ];
 
-export function modeForSlot(slot: PipelineSlot): PipelineMode {
-  return slot === "kr-mid" || slot === "us-mid" ? "refresh" : "full";
+/** 한·미 장전·장중·장후 모두 풀 (시나리오·점검 포함). refresh 모드는 레거시 호환용 */
+export function modeForSlot(_slot: PipelineSlot): PipelineMode {
+  return "full";
 }
 
 /** 슬롯이 갱신하는 탭 — 한국 슬롯은 통합+한국, 미국 슬롯은 통합+미국 */

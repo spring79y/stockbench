@@ -1,4 +1,4 @@
-# 한·미 장전·장후 풀 브리핑 + 장중 헤드라인 리프레시
+# 한·미 장전·장중·장후 풀 브리핑 (하루 최대 6회)
 # Vercel은 push 후 자동 재배포됩니다.
 #
 # GitHub → Settings → Secrets and variables → Actions 에 등록:
@@ -10,14 +10,14 @@ on:
     # UTC cron · 평일(KST) 기준
     # 07:00 KST = 22:00 UTC (전날) → Sun–Thu UTC = Mon–Fri KST 아침
     - cron: "0 22 * * 0-4" # us-post + kr-pre (full)
-    # 11:30 KST = 02:30 UTC
-    - cron: "30 2 * * 1-5" # kr-mid (refresh)
+    # 12:30 KST = 03:30 UTC
+    - cron: "30 3 * * 1-5" # kr-mid (full)
     # 15:40 KST = 06:40 UTC
     - cron: "40 6 * * 1-5" # kr-post (full)
     # 21:50 KST = 12:50 UTC
     - cron: "50 12 * * 1-5" # us-pre (full)
     # 02:00 KST = 17:00 UTC (전날) → Sun–Thu UTC
-    - cron: "0 17 * * 0-4" # us-mid (refresh)
+    - cron: "0 17 * * 0-4" # us-mid (full)
   workflow_dispatch:
     inputs:
       slot:
@@ -78,12 +78,14 @@ jobs:
           echo "schedule cron=[$CRON]"
           case "$CRON" in
             "0 22 * * 0-4") echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT" ;;
-            "30 2 * * 1-5") echo "list=kr-mid" >> "$GITHUB_OUTPUT" ;;
+            "30 3 * * 1-5") echo "list=kr-mid" >> "$GITHUB_OUTPUT" ;;
             "40 6 * * 1-5") echo "list=kr-post" >> "$GITHUB_OUTPUT" ;;
             "50 12 * * 1-5") echo "list=us-pre" >> "$GITHUB_OUTPUT" ;;
             "0 17 * * 0-4") echo "list=us-mid" >> "$GITHUB_OUTPUT" ;;
             # legacy morning cron (removed after 07:00 cutover)
             "20 20 * * 0-4") echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT" ;;
+            # legacy kr-mid 11:30 KST
+            "30 2 * * 1-5") echo "list=kr-mid" >> "$GITHUB_OUTPUT" ;;
             *)
               echo "::error::Unknown schedule cron=[$CRON] — refusing default slot"
               exit 1
