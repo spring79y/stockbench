@@ -1,4 +1,9 @@
-import type { IndexChangeBasis, IndexQuote, MacroChip, MarketEvent } from "@/lib/types";
+import type { EarningsConsensus, IndexChangeBasis, IndexQuote, MacroChip, MarketEvent } from "@/lib/types";
+import {
+  epsDisplayLabel,
+  formatEps,
+  revenueDisplayLabel,
+} from "@/lib/market/earningsFormat";
 import type { FlowLeg } from "@/lib/market/retailScan";
 import {
   renderCarryForwardForPrompt,
@@ -88,6 +93,11 @@ export type EvidencePack = {
       beatLabel?: "서프라이즈" | "미스";
       reportedDateISO?: string;
     };
+    /**
+     * Structured consensus (raw + labels). Prompt text must use *Label / formatters —
+     * never dump revenueAvg as raw 원 alongside 조원 UI copy.
+     */
+    consensus?: EarningsConsensus;
     /** Collector 뉴스 Evidence — 가이던스·반응 해석은 이 필드가 있을 때만 */
     contextNews?: Array<{
       title: string;
@@ -351,6 +361,7 @@ export function buildEvidencePack(input: {
       dateISO: e.dateISO,
       symbol: e.symbol,
       actual: e.actual,
+      consensus: e.consensus,
       contextNews: e.contextNews?.slice(0, 3).map((n) => ({
         title: n.title,
         publisher: n.publisher,
@@ -368,6 +379,51 @@ export function buildEvidencePack(input: {
     },
     previous: input.previous,
   };
+}
+
+/** Prompt line for one calendar event — revenue/EPS in Event-UI units (조원·원·$B). */
+function formatEarningsEventLine(e: EvidencePack["events"][number]): string {
+  const tag = e.kind === "earnings" ? "실적" : "매크로";
+  const when = e.dateISO ? ` · ${e.dateISO.slice(0, 10)}` : "";
+  const region = e.region === "KR" || e.region === "US" ? e.region : undefined;
+
+  let consensusHint = "";
+  if (e.kind === "earnings" && e.consensus) {
+    const parts: string[] = [];
+    const rev = revenueDisplayLabel(e.consensus, e.region as "KR" | "US" | "GLOBAL");
+    const eps = epsDisplayLabel(e.consensus, e.region as "KR" | "US" | "GLOBAL");
+    if (rev) parts.push(`시장예상매출=${rev}`);
+    if (eps) parts.push(`주당순이익예상=${eps}`);
+    if (parts.length > 0) consensusHint = ` · Evidence예상: ${parts.join(" · ")}`;
+  }
+
+  let result = "";
+  if (e.kind === "earnings" && e.actual) {
+    const epsActualFmt =
+      e.actual.epsActual != null && region
+        ? formatEps(e.actual.epsActual, region)
+        : e.actual.epsActual != null
+          ? String(e.actual.epsActual)
+          : null;
+    const epsEstFmt =
+      e.actual.epsEstimate != null && region
+        ? formatEps(e.actual.epsEstimate, region)
+        : e.actual.epsEstimate != null
+          ? String(e.actual.epsEstimate)
+          : null;
+    if (e.actual.beatLabel) {
+      result = ` · Evidence결과(EPS): ${e.actual.beatLabel}`;
+      if (epsActualFmt && epsEstFmt) {
+        result += ` actual=${epsActualFmt} est=${epsEstFmt}`;
+      }
+    } else if (epsActualFmt && epsEstFmt) {
+      result = ` · Evidence결과(EPS): 숫자만(라벨없음) actual=${epsActualFmt} est=${epsEstFmt}`;
+    } else {
+      result = " · Evidence결과(EPS): 미확인";
+    }
+  }
+
+  return `- ${e.dateLabel}${when} [${e.region}/${e.level}/${tag}] ${e.title} — ${e.oneLiner}${consensusHint}${result}`;
 }
 
 /** LLM user prompt용 — 섹션화·복창 금지·탭 초점 필터 포함 */
@@ -568,22 +624,7 @@ export function renderEvidencePackForPrompt(
     "## 일정 (이 탭·글로벌 · 실적은 점검용)",
     ...(events.length > 0
       ? events.flatMap((e) => {
-          const tag = e.kind === "earnings" ? "실적" : "매크로";
-          const when = e.dateISO ? ` · ${e.dateISO.slice(0, 10)}` : "";
-          const result =
-            e.kind === "earnings" && e.actual
-              ? e.actual.beatLabel
-                ? ` · Evidence결과(EPS): ${e.actual.beatLabel}` +
-                  (e.actual.epsActual != null && e.actual.epsEstimate != null
-                    ? ` actual=${e.actual.epsActual} est=${e.actual.epsEstimate}`
-                    : "")
-                : e.actual.epsActual != null && e.actual.epsEstimate != null
-                  ? ` · Evidence결과(EPS): 숫자만(라벨없음) actual=${e.actual.epsActual} est=${e.actual.epsEstimate}`
-                  : " · Evidence결과(EPS): 미확인"
-              : "";
-          const lines = [
-            `- ${e.dateLabel}${when} [${e.region}/${e.level}/${tag}] ${e.title} — ${e.oneLiner}${result}`,
-          ];
+          const lines = [formatEarningsEventLine(e)];
           if (e.kind === "earnings" && e.contextNews && e.contextNews.length > 0) {
             lines.push(
               `  ★ Evidence뉴스(가이던스·반응 근거 · Briefing 필수 인용):`,
@@ -607,6 +648,7 @@ export function renderEvidencePackForPrompt(
           "지시: 48시간 이내 실적(kind=earnings)이 있으면 bullets 중 1개에 회사명·섹터 맥락을 ‘점검’으로만 언급. 주당 순이익(EPS)/매출 숫자 과다 복창·매매 신호 금지.",
           "지시: 서프라이즈/미스는 Evidence결과(EPS) beatLabel이 있을 때만 그대로 사용. 라벨 없으면 숫자만 인용·극성(상회/하회/서프라이즈/미스) 단정 금지. 가이던스 실망을 실적 미스로 바꿔 쓰기 금지.",
           "지시: 실적 해설은 일반 개미용. 「컨센서스」→「시장·애널리스트 평균 예상」. EPS는 「주당 순이익(EPS)」. 매출(회사 규모)과 주당 순이익을 같은 지표로 묶지 말 것. 단위(원·조원·$) 명시. 예상 대비 위/아래/비슷만 — 좋다/나쁘다·목표가·매수 암시 금지.",
+          "지시: 예상 vs 실제(또는 가이던스) 매출을 말할 때 Event UI·Evidence예상과 같은 단위(조원·억원·$B/$M)로 맞춰 써라. 서로 다른 자릿수(예: 3380000000000원과 3.4조원)를 나란히 쓰지 말 것. EPS는 원/주당(또는 $) 유지 — 매출 단위로 바꾸지 말 것.",
           "★★ 필수: Evidence뉴스+숫자(또는 가격 반응)가 있으면 Briefing bullets에 **실적 숫자 + 가이던스·시장 반응** 이중 서술을 1불릿으로 넣을 것. 위 「Evidence뉴스」 제목에 가이던스/outlook/실망/하락이 있으면 반드시 반영. 「혼조」「차익 실현」「섹터 밀림」만으로 가이던스 요약을 대체하지 말 것. Collector oneLiner 해석 복창 금지.",
           "지시: Evidence뉴스 없으면 반응·가이던스 풍부 서술 생략. must-cover due 실적이고 한 줄이 필요하면 「반응 근거 부족」만.",
         ]

@@ -10,6 +10,7 @@ import {
   EARNINGS_BRIDGE_SYMBOLS,
   type EarningsBridgeSymbol,
 } from "@/lib/market/earningsBridge";
+import { formatEps, formatRevenue } from "@/lib/market/earningsFormat";
 import {
   MEGA_CAP_CANDIDATES_KR,
   MEGA_CAP_CANDIDATES_US,
@@ -66,22 +67,6 @@ function formatEventDateLabel(iso: string): string {
   const get = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((p) => p.type === type)?.value ?? "";
   return `${get("month")}.${get("day")} (${get("weekday")})`;
-}
-
-function formatRevenue(value: number, region: MarketRegion): string {
-  if (region === "KR") {
-    if (value >= 1e12) return `약 ${(value / 1e12).toFixed(1)}조원`;
-    if (value >= 1e8) return `약 ${Math.round(value / 1e8).toLocaleString()}억원`;
-    return `약 ${value.toLocaleString()}원`;
-  }
-  if (value >= 1e9) return `약 $${(value / 1e9).toFixed(1)}B`;
-  if (value >= 1e6) return `약 $${Math.round(value / 1e6)}M`;
-  return `약 $${value.toLocaleString()}`;
-}
-
-function formatEps(value: number, region: MarketRegion): string {
-  if (region === "KR") return `약 ${Math.round(value).toLocaleString()}원`;
-  return `약 $${value.toFixed(2)}`;
 }
 
 function toConsensus(

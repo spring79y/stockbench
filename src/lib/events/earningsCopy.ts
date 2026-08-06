@@ -1,7 +1,15 @@
 /**
  * Plain-language earnings presentation (UI / oneLiner / briefing).
  * Collector numeric values stay unchanged — labels and fact phrasing only.
+ * Revenue/EPS display units: `@/lib/market/earningsFormat` (Event UI · Evidence pack).
  */
+
+export {
+  formatEps,
+  formatRevenue,
+  epsDisplayLabel,
+  revenueDisplayLabel,
+} from "@/lib/market/earningsFormat";
 
 /** Primary scan: company scale */
 export const LABEL_REVENUE_EXPECTED = "시장 예상 매출";
