@@ -277,6 +277,10 @@ function proseMentionsEarningsIdentity(
   );
 }
 
+function hasEarningsActualNumbers(ev: MarketEvent): boolean {
+  return ev.actual?.epsActual != null && ev.actual?.epsEstimate != null;
+}
+
 function isImminentEarningsWindow(
   ev: MarketEvent,
   now: number,
@@ -284,7 +288,11 @@ function isImminentEarningsWindow(
   if (ev.kind !== "earnings" || !ev.dateISO) return { ok: false, isPost: false };
   const hours = (new Date(ev.dateISO).getTime() - now) / (60 * 60 * 1000);
   const isPre = hours >= 0 && hours <= 48;
-  const isPost = hours < 0 && hours >= -24 && Boolean(ev.actual?.beatLabel);
+  // Post window: matched print (beatLabel or EPS numbers). No quarterlies[0] guess upstream.
+  const isPost =
+    hours < 0 &&
+    hours >= -24 &&
+    (Boolean(ev.actual?.beatLabel) || hasEarningsActualNumbers(ev));
   return { ok: isPre || isPost, isPost };
 }
 
@@ -348,6 +356,12 @@ function pushCarryForwardOmissionFindings(
   }
 }
 
+const RESULT_CLAIM_RE =
+  /서프라이즈|미스|어닝\s*비트|어닝\s*쇼크|컨센서스\s*(상회|하회)|예상\s*(상회|하회)/;
+/** EPS 결과 극성만 — 가이던스·전망 하회와 분리 */
+const BEAT_CLAIM_RE = /서프라이즈|어닝\s*비트/;
+const MISS_CLAIM_RE = /어닝\s*쇼크|(?:어닝\s*)?미스/;
+
 /** Evidence 없는 실적 결과 단정 → hard fail */
 function pushInventedResultFindings(
   findings: GuardFinding[],
@@ -355,7 +369,6 @@ function pushInventedResultFindings(
   scope: MarketScope,
   briefingTexts: string[],
 ) {
-  const RESULT_CLAIM_RE = /서프라이즈|미스|어닝\s*비트|어닝\s*쇼크|컨센서스\s*(상회|하회)|예상\s*(상회|하회)/;
   const claimed = briefingTexts.filter((t) => RESULT_CLAIM_RE.test(t));
   if (claimed.length === 0) return;
 
@@ -363,6 +376,7 @@ function pushInventedResultFindings(
   const now = Date.now();
   for (const text of claimed) {
     const hasEvidenceResult = events.some((ev) => {
+      // Only beatLabel counts as supported result claim — numbers alone ≠ 서프라이즈/미스.
       if (!ev.actual?.beatLabel || !ev.dateISO) return false;
       const hours = (new Date(ev.dateISO).getTime() - now) / (60 * 60 * 1000);
       if (hours >= 0 || hours < -48) return false;
@@ -376,6 +390,66 @@ function pushInventedResultFindings(
           `Evidence에 없는 실적/이벤트 결과 단정: "${text.slice(0, 56)}". ` +
           "결과 없으면 대기/미확인 또는 생략.",
       });
+    }
+  }
+}
+
+/**
+ * LLM이 Evidence beatLabel을 뒤집거나, 미확인 건에 결과 단어를 붙이면 hard fail.
+ * Numbers/beatLabel은 Collector Evidence만 — LLM 창작·극성 반전 금지.
+ */
+function pushBeatPolarityFindings(
+  findings: GuardFinding[],
+  snapshot: CollectorSnapshot,
+  scope: MarketScope,
+  briefingTexts: string[],
+) {
+  const events = (snapshot.events ?? []).filter((e) => earningsInScope(e, scope));
+  const now = Date.now();
+
+  for (const ev of events) {
+    if (ev.kind !== "earnings" || !ev.dateISO) continue;
+    const hours = (new Date(ev.dateISO).getTime() - now) / (60 * 60 * 1000);
+    if (hours >= 0 || hours < -48) continue;
+
+    const related = briefingTexts.filter((t) =>
+      proseMentionsEarningsIdentity(t, t.toLowerCase(), ev),
+    );
+    if (related.length === 0) continue;
+
+    const beat = ev.actual?.beatLabel;
+    for (const text of related) {
+      if (!RESULT_CLAIM_RE.test(text)) continue;
+
+      if (!beat) {
+        findings.push({
+          severity: "block",
+          code: "unsupported-earnings-result",
+          message:
+            `실적 결과 라벨 없이 서프라이즈/미스 단정: "${text.slice(0, 56)}" (${ev.title}). ` +
+            "Evidence beatLabel 없으면 미확인/생략.",
+        });
+        continue;
+      }
+
+      const claimsBeat = BEAT_CLAIM_RE.test(text);
+      const claimsMiss = MISS_CLAIM_RE.test(text);
+      if (beat === "서프라이즈" && claimsMiss && !claimsBeat) {
+        findings.push({
+          severity: "block",
+          code: "earnings-beat-polarity",
+          message:
+            `Evidence는 서프라이즈인데 미스 서술: "${text.slice(0, 56)}" (${ev.title}).`,
+        });
+      }
+      if (beat === "미스" && claimsBeat && !claimsMiss) {
+        findings.push({
+          severity: "block",
+          code: "earnings-beat-polarity",
+          message:
+            `Evidence는 미스인데 서프라이즈 서술: "${text.slice(0, 56)}" (${ev.title}).`,
+        });
+      }
     }
   }
 }
@@ -700,6 +774,7 @@ export function runGuard(input: {
 
   pushCarryForwardOmissionFindings(findings, input.snapshot, scope, prose, proseLower);
   pushInventedResultFindings(findings, input.snapshot, scope, briefingTexts);
+  pushBeatPolarityFindings(findings, input.snapshot, scope, briefingTexts);
   pushPriorParrotFindings(findings, input.snapshot, scope, briefingTexts);
 
   const snapshotEvents = input.snapshot.events ?? [];
@@ -748,7 +823,10 @@ export function ensureImminentEarningsMentioned(
   const extra = missing.slice(0, 2).map((e) => {
     const nameCore = earningsNameCore(e);
     if (e.actual?.beatLabel && isPostEarningsResult(e, now)) {
-      return `${nameCore} 실적 결과(${e.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
+      return `${nameCore} 실적 결과(EPS ${e.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
+    }
+    if (isPostEarningsResult(e, now) && hasEarningsActualNumbers(e)) {
+      return `${nameCore} 실적 발표됨 — 컨센서스 대비 결과 미확인 · 섹터 반응만 관측`;
     }
     return `${nameCore} 실적 발표 임박 — 가이던스·섹터 반응만 관측 (방향 예측 금지)`;
   });

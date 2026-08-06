@@ -44,3 +44,12 @@
 GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest.json` / `status.json`이 신호다.
 
 웹 푸시 순서: pipeline → `latest.json` 커밋·push → `/api/published`로 프로덕션 반영 대기 → `push:slot`. 로컬 파이프라인 직후 푸시하지 않는다.
+
+## 실적 beat/miss (정확성)
+
+- `beatLabel`(서프라이즈/미스)은 **Collector만** 설정한다 (`src/lib/market/earningsBeat.ts` → `fetchEarningsCalendar`).
+- 조건: 같은 분기 `earningsChart.quarterly`에서 `reportedDate`가 발표일과 매칭되고, actual·estimate가 모두 유한수이며 비교가  unambiguous할 때만.
+- **금지:** `quarterlies[0]` 폴백, 동일 시 미스 처리, Yahoo `calendarEvents.earningsAverage`가 다음 분기로 롤된 값을 이번 발표 컨센서스로 붙이기.
+- 애매하면 `beatLabel` 생략 + oneLiner「미확인」. LLM은 Evidence 라벨만 복창·극성 뒤집기 금지.
+- Guard: `invented-event-result` · `unsupported-earnings-result` · `earnings-beat-polarity`.
+- 단위 테스트: `npm run test:unit` (`earningsBeat.test.ts`).

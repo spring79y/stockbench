@@ -45,13 +45,21 @@ export function shouldRetainUpcomingEvent(
 
 /**
  * Result comment from structured fields only — never invent.
- * Prefer existing `oneLiner` when `actual.beatLabel` is present (pipeline already encodes it).
+ * Prefer existing `oneLiner` when Collector already encoded a post-result line.
+ * beatLabel required for 서프라이즈/미스; numbers without label → 미확인 only.
  */
 export function eventResultComment(event: MarketEvent): string | null {
-  if (!event.actual?.beatLabel) return null;
+  const hasNumbers =
+    event.actual?.epsActual != null && event.actual?.epsEstimate != null;
+  if (!event.actual?.beatLabel && !hasNumbers) return null;
   const line = event.oneLiner?.trim();
-  if (line) return line;
-  return `발표 결과: 컨센서스 대비 ${event.actual.beatLabel} — 점검용 (매매 신호 아님)`;
+  if (line && (/발표\s*결과|발표됨|미확인/.test(line) || event.actual?.beatLabel)) {
+    return line;
+  }
+  if (event.actual?.beatLabel) {
+    return `발표 결과: EPS 컨센서스 대비 ${event.actual.beatLabel} — 점검용 (매매 신호 아님)`;
+  }
+  return "발표됨 — 컨센서스 대비 결과는 미확인 (점검용 · 매매 신호 아님)";
 }
 
 /** Display/publish filter: drop past KST days; keep today (with or without result). */

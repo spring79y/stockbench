@@ -81,6 +81,13 @@ export type EvidencePack = {
     kind?: string;
     dateISO?: string;
     symbol?: string;
+    actual?: {
+      epsActual?: number;
+      epsEstimate?: number;
+      surprisePct?: number;
+      beatLabel?: "서프라이즈" | "미스";
+      reportedDateISO?: string;
+    };
   }>;
   /** 유가·VIX·지정학 헤드라인 (숫자 연결 시에만 해석) */
   risk: {
@@ -336,6 +343,7 @@ export function buildEvidencePack(input: {
       kind: e.kind,
       dateISO: e.dateISO,
       symbol: e.symbol,
+      actual: e.actual,
     })),
     risk: input.risk ?? {
       status: "pending",
@@ -549,12 +557,24 @@ export function renderEvidencePackForPrompt(
       ? events.map((e) => {
           const tag = e.kind === "earnings" ? "실적" : "매크로";
           const when = e.dateISO ? ` · ${e.dateISO.slice(0, 10)}` : "";
-          return `- ${e.dateLabel}${when} [${e.region}/${e.level}/${tag}] ${e.title} — ${e.oneLiner}`;
+          const result =
+            e.kind === "earnings" && e.actual
+              ? e.actual.beatLabel
+                ? ` · Evidence결과(EPS): ${e.actual.beatLabel}` +
+                  (e.actual.epsActual != null && e.actual.epsEstimate != null
+                    ? ` actual=${e.actual.epsActual} est=${e.actual.epsEstimate}`
+                    : "")
+                : e.actual.epsActual != null && e.actual.epsEstimate != null
+                  ? ` · Evidence결과(EPS): 미확인 actual=${e.actual.epsActual} est=${e.actual.epsEstimate}`
+                  : ""
+              : "";
+          return `- ${e.dateLabel}${when} [${e.region}/${e.level}/${tag}] ${e.title} — ${e.oneLiner}${result}`;
         })
       : ["- 해당 일정 없음"]),
     ...(events.some((e) => e.kind === "earnings")
       ? [
           "지시: 48시간 이내 실적(kind=earnings)이 있으면 bullets 중 1개에 회사명·섹터 맥락을 ‘점검’으로만 언급. EPS/매출 숫자 복창·매매 신호 금지.",
+          "지시: 서프라이즈/미스는 Evidence결과(EPS) beatLabel이 있을 때만 그대로 사용. 없으면 미확인/생략. 극성 뒤집기·가이던스 실망을 실적 미스로 바꿔 쓰기 금지.",
         ]
       : []),
     "",

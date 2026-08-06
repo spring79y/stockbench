@@ -3,6 +3,7 @@ import {
   SECTOR_CHART_SYMBOLS,
   sectorForMegaCapId,
 } from "@/lib/market/earningsBridge";
+import { resolveEarningsBeat } from "@/lib/market/earningsBeat";
 import {
   MEGA_CAP_CANDIDATES_KR,
   MEGA_CAP_CANDIDATES_US,
@@ -103,16 +104,29 @@ function actualLines(event: MarketEvent): string[] {
     return `$${v.toFixed(2)}`;
   };
 
-  const beat =
-    a.beatLabel ?? (epsActual > epsEstimate ? "서프라이즈" : "미스");
-  const surprise =
+  // Never re-derive beat in UI — only Evidence beatLabel (Collector-resolved).
+  const resolved = resolveEarningsBeat({
+    epsActual,
+    epsEstimate,
+    yahooSurprisePct: a.surprisePct,
+  });
+  const beat = a.beatLabel ?? resolved.beatLabel;
+  const pct =
     a.surprisePct != null && Number.isFinite(a.surprisePct)
-      ? ` (서프라이즈 ${a.surprisePct.toFixed(1)}%)`
+      ? a.surprisePct
+      : resolved.surprisePct;
+  const pctNote =
+    beat && pct != null && Number.isFinite(pct)
+      ? ` (괴리 ${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)`
       : "";
+
+  const resultLine = beat
+    ? `예상 대비(EPS): ${beat}${pctNote} — 점검용 (매매 신호 아님)`
+    : "예상 대비(EPS): 미확인 — 숫자만 참고 (매매 신호 아님)";
 
   return [
     `발표 결과(EPS): 실제 ${formatEps(epsActual)} · 예상 ${formatEps(epsEstimate)}`,
-    `예상 대비: ${beat}${surprise} — 점검용 (매매 신호 아님)`,
+    resultLine,
   ];
 }
 

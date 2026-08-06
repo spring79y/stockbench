@@ -52,7 +52,10 @@ export interface EarningsActual {
   epsActual?: number;
   epsEstimate?: number;
   surprisePct?: number;
-  /** 컨센서스 대비 결과 요약(숫자 없이) */
+  /**
+   * EPS 컨센서스 대비 결과(Collector `resolveEarningsBeat`만 설정).
+   * 애매하면 생략 — LLM이 채우지 않음.
+   */
   beatLabel?: "서프라이즈" | "미스";
   reportedDateISO?: string;
 }

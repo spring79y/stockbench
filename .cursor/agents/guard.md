@@ -14,6 +14,8 @@ Discuss에서 말한 BriefGuard 역할은 **별도 에이전트가 아니라 이
 - `pre-session-forecast` — 개장 방향 예측 표현
 - `carry-forward-omission` — due+Evidence 사실이 있는데 브리핑이 생략
 - `invented-event-result` — Evidence 없이 실적/이벤트 결과 단정
+- `unsupported-earnings-result` — beatLabel 없는 실적에 서프라이즈/미스 단정
+- `earnings-beat-polarity` — Evidence beatLabel 극성 뒤집기
 
 소프트:
 - `prior-phrase-parrot` — 직전 연속성 문구 과도 복창

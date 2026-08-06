@@ -231,7 +231,7 @@
       "region": "US",
       "title": "샌디스크 실적 발표",
       "level": "high",
-      "oneLiner": "발표 결과: 컨센서스 대비 서프라이즈 — 점검용 (매매 신호 아님)",
+      "oneLiner": "발표 결과: EPS 컨센서스 대비 서프라이즈 — 점검용 (매매 신호 아님)",
       "kind": "earnings",
       "symbol": "SNDK",
       "bridgeId": "sndk",
@@ -242,12 +242,8 @@
         "skhynix"
       ],
       "consensus": {
-        "epsAvg": 44.20733,
-        "epsLow": 36.83,
-        "epsHigh": 51.39821,
-        "epsLabel": "약 $44.21",
-        "revenueAvg": 10619398100,
-        "revenueLabel": "약 $10.6B",
+        "epsAvg": 34.515,
+        "epsLabel": "약 $34.52",
         "isEstimate": false
       },
       "actual": {

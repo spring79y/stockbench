@@ -1,6 +1,12 @@
 import type YahooFinance from "yahoo-finance2";
 import { kstCalendarDay } from "@/lib/events/upcomingRetention";
 import {
+  earningsResultOneLiner,
+  isConsensusLikelyRolledForward,
+  parseFiniteNumber,
+  resolveEarningsBeat,
+} from "@/lib/market/earningsBeat";
+import {
   EARNINGS_BRIDGE_SYMBOLS,
   type EarningsBridgeSymbol,
 } from "@/lib/market/earningsBridge";
@@ -21,6 +27,13 @@ type CalendarEarnings = {
   revenueAverage?: number;
   revenueLow?: number;
   revenueHigh?: number;
+};
+
+type QuarterlyHit = {
+  actual?: unknown;
+  estimate?: unknown;
+  surprisePct?: unknown;
+  reportedDate?: unknown;
 };
 
 export type EarningsFetchEntry = {
@@ -89,6 +102,33 @@ function toConsensus(
   };
 }
 
+/** Post-report: consensus must be the same-quarter estimate used for beat — never rolled next-q. */
+function toReportedConsensus(
+  epsEstimate: number,
+  region: MarketRegion,
+): EarningsConsensus {
+  return {
+    epsAvg: epsEstimate,
+    epsLabel: formatEps(epsEstimate, region),
+    isEstimate: false,
+  };
+}
+
+function matchQuarterlyForReport(
+  quarterlies: QuarterlyHit[],
+  entryTime: number,
+): QuarterlyHit | undefined {
+  const reportedWindowMs = 3 * 24 * 60 * 60 * 1000;
+  // Never fall back to quarterlies[0] — wrong quarter silently flips beat/miss.
+  return quarterlies.find((q) => {
+    const rd = q?.reportedDate;
+    if (!rd) return false;
+    const rt = new Date(rd as string | Date).getTime();
+    if (!Number.isFinite(rt)) return false;
+    return Math.abs(rt - entryTime) <= reportedWindowMs;
+  });
+}
+
 async function fetchOne(
   yf: InstanceType<typeof YahooFinance>,
   input: {
@@ -106,7 +146,10 @@ async function fetchOne(
     })) as {
       calendarEvents?: { earnings?: CalendarEarnings };
       earnings?: {
-        earningsChart?: { quarterly?: Array<any> };
+        earningsChart?: {
+          quarterly?: QuarterlyHit[];
+          currentQuarterEstimate?: number;
+        };
       };
     };
     const earnings = result.calendarEvents?.earnings;
@@ -116,33 +159,62 @@ async function fetchOne(
 
     const now = Date.now();
     const entryTime = new Date(dateISO).getTime();
+    const currentQuarterEstimate = parseFiniteNumber(
+      result.earnings?.earningsChart?.currentQuarterEstimate,
+    );
 
-    // 발표 전에는 실제값이 없을 가능성이 높으므로, 이미 지난 이벤트에 대해서만 매칭 시도
     let actual: EarningsFetchEntry["actual"] | undefined = undefined;
+    let consensus: EarningsConsensus | undefined = earnings
+      ? toConsensus(earnings, input.region)
+      : undefined;
+
     if (entryTime <= now) {
       const quarterlies = result.earnings?.earningsChart?.quarterly ?? [];
-      const reportedWindowMs = 3 * 24 * 60 * 60 * 1000;
-      const hit =
-        quarterlies.find((q: any) => {
-          const rd = q?.reportedDate;
-          if (!rd) return false;
-          const rt = new Date(rd).getTime();
-          if (!Number.isFinite(rt)) return false;
-          return Math.abs(rt - entryTime) <= reportedWindowMs;
-        }) ?? quarterlies[0];
+      const hit = matchQuarterlyForReport(quarterlies, entryTime);
 
       if (hit?.actual != null && hit?.estimate != null && hit?.reportedDate) {
-        const epsActual = Number(hit.actual);
-        const epsEstimate = Number(hit.estimate);
-        if (Number.isFinite(epsActual) && Number.isFinite(epsEstimate)) {
-          const surprisePct = hit?.surprisePct != null ? Number(hit.surprisePct) : undefined;
+        const epsActual = parseFiniteNumber(hit.actual);
+        const epsEstimate = parseFiniteNumber(hit.estimate);
+        if (epsActual != null && epsEstimate != null) {
+          const yahooSurprisePct = parseFiniteNumber(hit.surprisePct);
+          const calendarEps = parseFiniteNumber(earnings?.earningsAverage);
+          const rolled = isConsensusLikelyRolledForward({
+            calendarEpsAvg: calendarEps,
+            currentQuarterEstimate,
+            reportedQuarterEstimate: epsEstimate,
+          });
+          // Only cross-check calendar when it still looks like THIS print's estimate.
+          const altEstimate = rolled ? undefined : calendarEps;
+
+          const resolved = resolveEarningsBeat({
+            epsActual,
+            epsEstimate,
+            yahooSurprisePct,
+            altEstimate,
+          });
+
           actual = {
             epsActual,
             epsEstimate,
-            surprisePct: Number.isFinite(surprisePct as number) ? (surprisePct as number) : undefined,
-            beatLabel: epsActual > epsEstimate ? "서프라이즈" : "미스",
-            reportedDateISO: new Date(hit.reportedDate).toISOString(),
+            surprisePct: resolved.surprisePct,
+            beatLabel: resolved.beatLabel,
+            reportedDateISO: new Date(hit.reportedDate as string | Date).toISOString(),
           };
+
+          // Replace rolled-forward calendar consensus with the estimate we compared.
+          consensus = toReportedConsensus(epsEstimate, input.region);
+        }
+      } else if (consensus && currentQuarterEstimate != null) {
+        // Past date but no matched print: drop consensus if it already looks like next quarter.
+        const calendarEps = parseFiniteNumber(earnings?.earningsAverage);
+        if (
+          isConsensusLikelyRolledForward({
+            calendarEpsAvg: calendarEps,
+            currentQuarterEstimate,
+            reportedQuarterEstimate: null,
+          })
+        ) {
+          consensus = undefined;
         }
       }
     }
@@ -155,7 +227,7 @@ async function fetchOne(
       region: input.region,
       dateISO,
       isEstimate: earnings?.isEarningsDateEstimate ?? true,
-      consensus: earnings ? toConsensus(earnings, input.region) : undefined,
+      consensus,
       actual,
       sector: input.sector,
     };
@@ -224,8 +296,10 @@ function entryToEvent(entry: EarningsFetchEntry): MarketEvent {
     ? `earnings-${entry.megaCapId}`
     : `earnings-bridge-${entry.bridgeId ?? entry.symbol.toLowerCase()}`;
 
-  const postLine = entry.actual?.beatLabel
-    ? `발표 결과: 컨센서스 대비 ${entry.actual.beatLabel} — 점검용 (매매 신호 아님)`
+  const hasActualNumbers =
+    entry.actual?.epsActual != null && entry.actual?.epsEstimate != null;
+  const postLine = hasActualNumbers
+    ? earningsResultOneLiner(entry.actual?.beatLabel)
     : null;
 
   const related =
