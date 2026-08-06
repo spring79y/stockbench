@@ -6,10 +6,12 @@ import type {
   CollectorSnapshot,
   DecisionDraft,
 } from "./types";
+import type { EarningsContextNewsItem } from "@/lib/types";
 
 function sndkEvent(opts: {
   hoursAgo: number;
   beatLabel?: "서프라이즈" | "미스";
+  contextNews?: EarningsContextNewsItem[];
 }): CollectorSnapshot["events"] {
   const dateISO = new Date(Date.now() - opts.hoursAgo * 3600_000).toISOString();
   return [
@@ -21,7 +23,7 @@ function sndkEvent(opts: {
       level: "high",
       oneLiner: opts.beatLabel
         ? `발표 결과: EPS 컨센서스 대비 ${opts.beatLabel} — 점검용 (매매 신호 아님)`
-        : "발표됨 · 판정 보류 (점검용 · 매매 신호 아님)",
+        : "발표됨 · EPS $39.25 vs 예상 $34.52 · 판정 보류 (점검용 · 매매 신호 아님)",
       kind: "earnings",
       symbol: "SNDK",
       bridgeId: "sndk",
@@ -32,6 +34,7 @@ function sndkEvent(opts: {
         beatLabel: opts.beatLabel,
         reportedDateISO: dateISO,
       },
+      contextNews: opts.contextNews,
     },
   ];
 }
@@ -161,5 +164,64 @@ describe("guard earnings polarity omit", () => {
           f.code === "earnings-beat-polarity"),
     );
     assert.equal(polarityBlocks.length, 0);
+  });
+
+  it("blocks guidance disappointment claim without contextNews", () => {
+    const briefing: BriefingDraft = {
+      headline: "나스닥 장전 밀림에 반도체 되밀림",
+      bullets: [
+        "나스닥 장전 약세, 반도체 지수 되밀림",
+        "미 10년물·VIX 안정 속 NFP 대기",
+        "샌디스크 가이던스 실망에 반도체 섹터 되밀림",
+      ],
+      evidenceIds: ["vix"],
+    };
+    const report = runGuard({
+      snapshot: baseSnapshot(sndkEvent({ hoursAgo: 12 })),
+      briefing,
+      decision: okDecision,
+      scope: "us",
+    });
+    assert.ok(
+      report.findings.some(
+        (f) => f.severity === "block" && f.code === "unsupported-guidance-claim",
+      ),
+      `expected unsupported-guidance-claim, got: ${report.findings.map((f) => f.code).join(",")}`,
+    );
+    assert.equal(report.ok, false);
+  });
+
+  it("allows short guidance summary when Evidence contextNews present", () => {
+    const briefing: BriefingDraft = {
+      headline: "나스닥 장전 밀림에 반도체 되밀림",
+      bullets: [
+        "나스닥 장전 약세, 반도체 지수 되밀림",
+        "미 10년물·VIX 안정 속 NFP 대기",
+        "샌디스크 실적 발표됨 — Evidence뉴스상 가이던스 하회 언급 · 섹터 온도 점검",
+      ],
+      evidenceIds: ["vix"],
+    };
+    const report = runGuard({
+      snapshot: baseSnapshot(
+        sndkEvent({
+          hoursAgo: 12,
+          contextNews: [
+            {
+              title: "Sandisk shares slip after soft guidance",
+              publisher: "Reuters",
+              publishedAt: new Date().toISOString(),
+              snippet: "Sandisk shares slip after soft guidance",
+            },
+          ],
+        }),
+      ),
+      briefing,
+      decision: okDecision,
+      scope: "us",
+    });
+    const guidanceBlocks = report.findings.filter(
+      (f) => f.severity === "block" && f.code === "unsupported-guidance-claim",
+    );
+    assert.equal(guidanceBlocks.length, 0);
   });
 });

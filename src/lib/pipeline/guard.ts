@@ -262,6 +262,7 @@ function earningsIdentityTokens(ev: MarketEvent): string[] {
         mega?.name,
         ...(mega?.newsTerms ?? []),
         bridge?.name,
+        ...(bridge?.newsTerms ?? []),
       ].filter((t): t is string => Boolean(t && t.length >= 2)),
     ),
   ];
@@ -363,6 +364,13 @@ const BEAT_CLAIM_RE =
   /서프라이즈|어닝\s*비트|컨센서스\s*상회|예상\s*상회/;
 const MISS_CLAIM_RE =
   /어닝\s*쇼크|(?:어닝\s*)?미스|컨센서스\s*하회|예상\s*하회/;
+/** 가이던스·전망 결과 단정 — Evidence contextNews 없이 쓰면 hard fail */
+const GUIDANCE_CLAIM_RE =
+  /가이던스\s*(?:를\s*)?(?:하회|상회|하향|상향|실망|미달|부진|양호|호조|컷|컷트)|가이딩\s*(?:컷|미스)|향후\s*(?:실적\s*)?전망\s*(?:하회|실망|부진|상향|하향)|어닝\s*콜\s*(?:실망|호조|부정|긍정)|guidance\s*(?:cut|miss|beat|soft|weak|raise|lower)|outlook\s*(?:cut|miss|beat|soft|weak)/i;
+
+function hasEarningsContextNews(ev: MarketEvent): boolean {
+  return Array.isArray(ev.contextNews) && ev.contextNews.length > 0;
+}
 
 /** Evidence 없는 실적 결과 단정 → hard fail */
 function pushInventedResultFindings(
@@ -452,6 +460,55 @@ function pushBeatPolarityFindings(
             `Evidence는 미스인데 서프라이즈 서술: "${text.slice(0, 56)}" (${ev.title}).`,
         });
       }
+    }
+  }
+}
+
+/**
+ * 가이던스·전망 결과 단정은 Evidence contextNews가 있을 때만.
+ * 뉴스 없으면 문장 생략이 기본 — 톤 추측 금지.
+ */
+function pushUnsupportedGuidanceFindings(
+  findings: GuardFinding[],
+  snapshot: CollectorSnapshot,
+  scope: MarketScope,
+  briefingTexts: string[],
+) {
+  const claimed = briefingTexts.filter((t) => GUIDANCE_CLAIM_RE.test(t));
+  if (claimed.length === 0) return;
+
+  const events = (snapshot.events ?? []).filter((e) => earningsInScope(e, scope));
+  const now = Date.now();
+
+  for (const text of claimed) {
+    const textLower = text.toLowerCase();
+    const matchedEv = events.find((ev) => {
+      if (ev.kind !== "earnings" || !ev.dateISO) return false;
+      const hours = (new Date(ev.dateISO).getTime() - now) / (60 * 60 * 1000);
+      if (hours > 48 || hours < -48) return false;
+      return proseMentionsEarningsIdentity(text, textLower, ev);
+    });
+
+    if (!matchedEv) {
+      // 회사 매칭 없이 가이던스 결과 단정 — 여전히 위험하면 block
+      findings.push({
+        severity: "block",
+        code: "unsupported-guidance-claim",
+        message:
+          `Evidence 뉴스 없는 가이던스·전망 단정: "${text.slice(0, 56)}". ` +
+          "contextNews 없으면 가이던스/반응 문장 생략.",
+      });
+      continue;
+    }
+
+    if (!hasEarningsContextNews(matchedEv)) {
+      findings.push({
+        severity: "block",
+        code: "unsupported-guidance-claim",
+        message:
+          `가이던스 단정에 Evidence뉴스 없음: "${text.slice(0, 56)}" (${matchedEv.title}). ` +
+          "contextNews 없으면 생략.",
+      });
     }
   }
 }
@@ -780,6 +837,7 @@ export function runGuard(input: {
   // Scan briefing + decision: LLM must not re-assert 서프라이즈/미스 without Evidence beatLabel.
   pushInventedResultFindings(findings, input.snapshot, scope, texts);
   pushBeatPolarityFindings(findings, input.snapshot, scope, texts);
+  pushUnsupportedGuidanceFindings(findings, input.snapshot, scope, texts);
   pushPriorParrotFindings(findings, input.snapshot, scope, briefingTexts);
 
   const snapshotEvents = input.snapshot.events ?? [];
@@ -831,9 +889,17 @@ export function ensureImminentEarningsMentioned(
       return `${nameCore} 실적 결과(EPS ${e.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
     }
     if (isPostEarningsResult(e, now) && hasEarningsActualNumbers(e)) {
-      return `${nameCore} 실적 발표됨 — 판정 보류 · 섹터 반응만 관측 (서프라이즈/미스 단정 금지)`;
+      const a = e.actual!.epsActual!;
+      const est = e.actual!.epsEstimate!;
+      const region = e.region === "KR" ? "KR" : "US";
+      const fmt = (v: number) =>
+        region === "KR" ? `${Math.round(v).toLocaleString("ko-KR")}원` : `$${Number(v.toFixed(2))}`;
+      return `${nameCore} 실적 발표됨 · EPS ${fmt(a)} vs 예상 ${fmt(est)} — 판정 보류 (서프라이즈/미스·가이던스 단정 금지)`;
     }
-    return `${nameCore} 실적 발표 임박 — 가이던스·섹터 반응만 관측 (방향 예측 금지)`;
+    if (hasEarningsContextNews(e)) {
+      return `${nameCore} 실적 임박 — Evidence뉴스 참고해 가이던스·섹터 맥락만 짧게 (방향 예측 금지)`;
+    }
+    return `${nameCore} 실적 발표 임박 — 섹터 온도 점검만 (가이던스 추측·방향 예측 금지)`;
   });
 
   return {
@@ -897,4 +963,5 @@ export function runBriefingOnlyGuard(input: {
 export const GUARD_SYSTEM_PROMPT = `당신은 증시 브리핑의 Guard Agent다.
 숫자 복창, 공허한 브리핑, 추천/예측 톤, 탭 초점 이탈(scope-leakage), 사실 불일치,
 due+Evidence 연속성 누락, Evidence 없는 결과 창작을 차단한다.
-Evidence beatLabel이 없으면 서프라이즈/미스/컨센서스 상회·하회를 단정하지 않는다 (판정 보류).`;
+Evidence beatLabel이 없으면 서프라이즈/미스/컨센서스 상회·하회를 단정하지 않는다 (판정 보류).
+Evidence contextNews가 없으면 가이던스·전망 결과 문장을 쓰지 않는다.`;

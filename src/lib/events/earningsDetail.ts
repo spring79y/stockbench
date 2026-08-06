@@ -125,6 +125,48 @@ function actualLines(event: MarketEvent): string[] {
   ];
 }
 
+function contextNewsWatchPoints(event: MarketEvent): string[] {
+  const news = event.contextNews ?? [];
+  if (news.length === 0) {
+    return ["가이던스(향후 전망) — Evidence 뉴스 없으면 단정·추측 금지"];
+  }
+  return news.slice(0, 3).map(
+    (n) =>
+      `뉴스 참고: ${n.snippet} (${n.publisher}${n.publishedAt ? ` · ${n.publishedAt.slice(0, 10)}` : ""})`,
+  );
+}
+
+function contextNewsItems(event: MarketEvent, name: string): EventDetailContent["news"] {
+  const news = event.contextNews ?? [];
+  if (news.length > 0) {
+    return news.slice(0, 3).map((n, i) => ({
+      id: `earnings-ctx-${i}`,
+      source: n.publisher || "뉴스",
+      title: n.title,
+      summary: n.snippet,
+      publishedLabel: n.publishedAt ? n.publishedAt.slice(0, 10) : event.dateLabel,
+    }));
+  }
+  return [
+    {
+      id: "earnings-1",
+      source: "참고",
+      title: `${name} 실적은 ‘맞히기’보다 ‘점검’`,
+      summary:
+        "컨센서스 대비 높고 낮음을 단정 예측하지 말고, 내가 보는 지수·섹터에 미치는 민감도만 확인하세요. 가이던스·반응은 Evidence 뉴스가 수집된 뒤에만 브리핑에 반영됩니다.",
+      publishedLabel: event.dateLabel,
+    },
+    {
+      id: "earnings-2",
+      source: "참고",
+      title: "실적 발표 전후 변동성 확대 가능",
+      summary:
+        "숫자 공개 직전·직후에는 뉴스 헤드라인이 빠르게 바뀔 수 있습니다. 매매 타이밍 신호로 쓰지 마세요.",
+      publishedLabel: "일정 전 참고",
+    },
+  ];
+}
+
 export function buildEarningsDetail(event: MarketEvent): EventDetailContent {
   const name = resolveName(event);
   const bridgeNote =
@@ -150,27 +192,10 @@ export function buildEarningsDetail(event: MarketEvent): EventDetailContent {
       ...consensusLines(event),
       "발표 직후 해당 종목·소속 지수 반응 (아래 차트)",
       bridgeNote ?? "시총 상위 종목 온도와 함께 볼 것",
-      "가이던스(향후 전망) 문구 변화 여부",
+      ...contextNewsWatchPoints(event),
     ],
     chartDefs: chartDefsFor(event),
     chartNote: "발표 기업 주가와 소속 지수 온도입니다. 매매 신호가 아닙니다.",
-    news: [
-      {
-        id: "earnings-1",
-        source: "참고",
-        title: `${name} 실적은 ‘맞히기’보다 ‘점검’`,
-        summary:
-          "컨센서스 대비 높고 낮음을 단정 예측하지 말고, 내가 보는 지수·섹터에 미치는 민감도만 확인하세요.",
-        publishedLabel: event.dateLabel,
-      },
-      {
-        id: "earnings-2",
-        source: "참고",
-        title: "실적 발표 전후 변동성 확대 가능",
-        summary:
-          "숫자 공개 직전·직후에는 뉴스 헤드라인이 빠르게 바뀔 수 있습니다. 매매 타이밍 신호로 쓰지 마세요.",
-        publishedLabel: "일정 전 참고",
-      },
-    ],
+    news: contextNewsItems(event, name),
   };
 }

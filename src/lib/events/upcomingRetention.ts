@@ -46,7 +46,7 @@ export function shouldRetainUpcomingEvent(
 /**
  * Result comment from structured fields only — never invent.
  * Prefer existing `oneLiner` when Collector already encoded a post-result line.
- * beatLabel required for 서프라이즈/미스; numbers without label → 판정 보류 only.
+ * beatLabel required for 서프라이즈/미스; numbers without label → EPS digits + 판정 보류.
  */
 export function eventResultComment(event: MarketEvent): string | null {
   const hasNumbers =
@@ -55,12 +55,20 @@ export function eventResultComment(event: MarketEvent): string | null {
   const line = event.oneLiner?.trim();
   if (
     line &&
-    (/발표\s*결과|발표됨|미확인|판정\s*보류/.test(line) || event.actual?.beatLabel)
+    (/발표\s*결과|발표됨|미확인|판정\s*보류|EPS/.test(line) || event.actual?.beatLabel)
   ) {
     return line;
   }
   if (event.actual?.beatLabel) {
     return `발표 결과: EPS 컨센서스 대비 ${event.actual.beatLabel} — 점검용 (매매 신호 아님)`;
+  }
+  if (hasNumbers) {
+    const region = event.region === "KR" ? "KR" : "US";
+    const fmt = (v: number) =>
+      region === "KR"
+        ? `${Math.round(v).toLocaleString("ko-KR")}원`
+        : `$${Number(v.toFixed(2))}`;
+    return `발표됨 · EPS ${fmt(event.actual!.epsActual!)} vs 예상 ${fmt(event.actual!.epsEstimate!)} · 판정 보류 (점검용 · 매매 신호 아님)`;
   }
   return "발표됨 · 판정 보류 (점검용 · 매매 신호 아님)";
 }

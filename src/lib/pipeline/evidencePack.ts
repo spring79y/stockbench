@@ -88,6 +88,13 @@ export type EvidencePack = {
       beatLabel?: "서프라이즈" | "미스";
       reportedDateISO?: string;
     };
+    /** Collector 뉴스 Evidence — 가이던스·반응 해석은 이 필드가 있을 때만 */
+    contextNews?: Array<{
+      title: string;
+      publisher: string;
+      publishedAt: string;
+      snippet: string;
+    }>;
   }>;
   /** 유가·VIX·지정학 헤드라인 (숫자 연결 시에만 해석) */
   risk: {
@@ -344,6 +351,12 @@ export function buildEvidencePack(input: {
       dateISO: e.dateISO,
       symbol: e.symbol,
       actual: e.actual,
+      contextNews: e.contextNews?.slice(0, 3).map((n) => ({
+        title: n.title,
+        publisher: n.publisher,
+        publishedAt: n.publishedAt,
+        snippet: n.snippet,
+      })),
     })),
     risk: input.risk ?? {
       status: "pending",
@@ -554,7 +567,7 @@ export function renderEvidencePackForPrompt(
     "",
     "## 일정 (이 탭·글로벌 · 실적은 점검용)",
     ...(events.length > 0
-      ? events.map((e) => {
+      ? events.flatMap((e) => {
           const tag = e.kind === "earnings" ? "실적" : "매크로";
           const when = e.dateISO ? ` · ${e.dateISO.slice(0, 10)}` : "";
           const result =
@@ -568,13 +581,30 @@ export function renderEvidencePackForPrompt(
                   ? ` · Evidence결과(EPS): 판정보류 actual=${e.actual.epsActual} est=${e.actual.epsEstimate}`
                   : ""
               : "";
-          return `- ${e.dateLabel}${when} [${e.region}/${e.level}/${tag}] ${e.title} — ${e.oneLiner}${result}`;
+          const lines = [
+            `- ${e.dateLabel}${when} [${e.region}/${e.level}/${tag}] ${e.title} — ${e.oneLiner}${result}`,
+          ];
+          if (e.kind === "earnings" && e.contextNews && e.contextNews.length > 0) {
+            lines.push(
+              `  Evidence뉴스(가이던스·반응 참고 · 단정 금지):`,
+              ...e.contextNews.map(
+                (n) =>
+                  `  - ${n.snippet} · ${n.publisher}${n.publishedAt ? ` · ${n.publishedAt.slice(0, 10)}` : ""}`,
+              ),
+            );
+          } else if (e.kind === "earnings") {
+            lines.push(
+              `  Evidence뉴스: 없음 — 가이던스·반응 문장 생략(추측 금지)`,
+            );
+          }
+          return lines;
         })
       : ["- 해당 일정 없음"]),
     ...(events.some((e) => e.kind === "earnings")
       ? [
           "지시: 48시간 이내 실적(kind=earnings)이 있으면 bullets 중 1개에 회사명·섹터 맥락을 ‘점검’으로만 언급. EPS/매출 숫자 복창·매매 신호 금지.",
           "지시: 서프라이즈/미스는 Evidence결과(EPS) beatLabel이 있을 때만 그대로 사용. 없으면 판정 보류/생략(숫자만). 극성 뒤집기·가이던스 실망을 실적 미스로 바꿔 쓰기 금지.",
+          "지시: Evidence뉴스가 있을 때만 가이던스·시장 반응을 **최대 1줄**로 요약 가능. 없으면 가이던스/반응 문장 생략. 뉴스 톤만으로 서프라이즈/미스 창작 금지.",
         ]
       : []),
     "",

@@ -1,3 +1,4 @@
+import { EARNINGS_BRIDGE_SYMBOLS } from "@/lib/market/earningsBridge";
 import { marketStateLabel } from "@/lib/market/map";
 import type { YahooQuoteLike } from "@/lib/market/map";
 import type { ChangeDirection, IndexQuote, MacroChip } from "@/lib/types";
@@ -169,6 +170,11 @@ export type StockNewsIdentity = {
   matchTerms: string[];
 };
 
+const BRIDGE_BY_ID = new Map(EARNINGS_BRIDGE_SYMBOLS.map((b) => [b.id, b]));
+const BRIDGE_BY_SYMBOL = new Map(
+  EARNINGS_BRIDGE_SYMBOLS.map((b) => [b.symbol.toUpperCase(), b]),
+);
+
 function uniqueTerms(terms: string[]): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
@@ -191,14 +197,22 @@ export function resolveNewsIdentity(input: {
   symbol: string;
   name: string;
 }): StockNewsIdentity {
-  const hit =
+  const mega =
     (input.id ? MEGA_CAP_BY_ID.get(input.id) : undefined) ??
     MEGA_CAP_BY_SYMBOL.get(input.symbol.toUpperCase());
+  const bridge =
+    (input.id ? BRIDGE_BY_ID.get(input.id) : undefined) ??
+    BRIDGE_BY_SYMBOL.get(input.symbol.toUpperCase());
 
-  const mediaTerms = uniqueTerms(
-    hit?.newsTerms?.length ? [...hit.newsTerms] : [input.name],
+  const catalogTerms = mega?.newsTerms?.length
+    ? [...mega.newsTerms]
+    : bridge?.newsTerms?.length
+      ? [...bridge.newsTerms]
+      : [input.name];
+  const mediaTerms = uniqueTerms(catalogTerms);
+  const tickerTerms = uniqueTerms(
+    tickerVariants(mega?.symbol ?? bridge?.symbol ?? input.symbol),
   );
-  const tickerTerms = uniqueTerms(tickerVariants(hit?.symbol ?? input.symbol));
   return {
     mediaTerms,
     tickerTerms,

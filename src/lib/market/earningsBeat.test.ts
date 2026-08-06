@@ -146,6 +146,18 @@ describe("earningsResultOneLiner", () => {
     assert.doesNotMatch(earningsResultOneLiner(undefined), /서프라이즈|미스/);
   });
 
+  it("includes EPS numbers when provided without beatLabel", () => {
+    const line = earningsResultOneLiner(undefined, {
+      epsActual: 39.25,
+      epsEstimate: 34.515,
+      region: "US",
+    });
+    assert.match(line, /\$39\.25/);
+    assert.match(line, /\$34\.52|\$34\.515/);
+    assert.match(line, /판정 보류/);
+    assert.doesNotMatch(line, /서프라이즈|미스/);
+  });
+
   it("names beatLabel when present", () => {
     assert.match(earningsResultOneLiner("서프라이즈"), /서프라이즈/);
   });

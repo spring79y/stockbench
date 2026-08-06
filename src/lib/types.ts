@@ -60,6 +60,19 @@ export interface EarningsActual {
   reportedDateISO?: string;
 }
 
+/**
+ * Collector가 실적 due/bridge에 붙인 헤드라인 Evidence.
+ * 본문 덤프 금지 — title·publisher·시간·짧은 snippet만.
+ * LLM은 이 필드가 있을 때만 가이던스·반응 1줄을 해석할 수 있음 (창작 금지).
+ */
+export interface EarningsContextNewsItem {
+  title: string;
+  publisher: string;
+  publishedAt: string;
+  /** title 기반 짧은 참고 문구 (원문 전문 아님) */
+  snippet: string;
+}
+
 export interface MarketEvent {
   id: string;
   dateLabel: string;
@@ -77,6 +90,8 @@ export interface MarketEvent {
   relatedMegaCapIds?: string[];
   consensus?: EarningsConsensus;
   actual?: EarningsActual;
+  /** 임박·직후 실적용 추가 뉴스 Evidence (Collector) */
+  contextNews?: EarningsContextNewsItem[];
 }
 
 export interface DailyBriefing {

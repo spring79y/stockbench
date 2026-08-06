@@ -11,7 +11,7 @@
     "pipeline:schedule": "tsx scripts/schedule-pipeline.mts",
     "push:slot": "tsx scripts/send-slot-push.mts",
     "wait:published-live": "tsx scripts/wait-published-live.mts",
-    "test:unit": "node --import tsx --test src/lib/market/earningsBeat.test.ts src/lib/pipeline/guard.earnings.test.ts"
+    "test:unit": "node --import tsx --test src/lib/market/earningsBeat.test.ts src/lib/pipeline/guard.earnings.test.ts src/lib/market/fetchEarningsContextNews.test.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.38.2",

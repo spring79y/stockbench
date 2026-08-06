@@ -49,7 +49,8 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 
 - `beatLabel`(서프라이즈/미스)은 **Collector만** 설정한다 (`src/lib/market/earningsBeat.ts` → `fetchEarningsCalendar`).
 - 조건: 같은 분기 `earningsChart.quarterly`에서 `reportedDate`가 발표일과 매칭되고, actual·estimate가 모두 유한수이며, **같은 분기 calendar 컨센서스가 극성을 이중 확인**할 때만.
-- **이중 출처 필수:** Yahoo quarterly 단독(포스트프린트 calendar가 다음 분기로 롤된 thin path)이면 숫자만 두고 `beatLabel` 생략 + oneLiner「판정 보류」. EPS 비트와 가이던스 하회가 갈릴 때 극성 단정 금지.
+- **이중 출처 필수:** Yahoo quarterly 단독(포스트프린트 calendar가 다음 분기로 롤된 thin path)이면 숫자만 두고 `beatLabel` 생략 + oneLiner에 EPS 숫자·「판정 보류」. EPS 비트와 가이던스 하회가 갈릴 때 극성 단정 금지.
+- **가이던스·반응 Evidence:** Collector가 임박/직후 실적에 Google News RSS(KO·US EN) 헤드라인을 `contextNews`로 붙인다 (`fetchEarningsContextNews.ts`). LLM은 이 필드가 있을 때만 가이던스/반응 1줄 요약. 없으면 문장 생략(추측 금지). 뉴스 톤으로 beat/miss 창작 금지.
 - **금지:** `quarterlies[0]` 폴백, 동일 시 미스 처리, Yahoo `calendarEvents.earningsAverage`가 다음 분기로 롤된 값을 이번 발표 컨센서스로 붙이기, UI/LLM이 beatLabel 재계산.
-- Guard: `invented-event-result` · `unsupported-earnings-result` · `earnings-beat-polarity` (브리핑·시나리오·체크리스트 전부).
+- Guard: `invented-event-result` · `unsupported-earnings-result` · `earnings-beat-polarity` · `unsupported-guidance-claim` (브리핑·시나리오·체크리스트 전부).
 - 단위 테스트: `npm run test:unit` (`earningsBeat.test.ts`, `guard.earnings.test.ts`).

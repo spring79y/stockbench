@@ -301,7 +301,11 @@ function entryToEvent(entry: EarningsFetchEntry): MarketEvent {
   const hasActualNumbers =
     entry.actual?.epsActual != null && entry.actual?.epsEstimate != null;
   const postLine = hasActualNumbers
-    ? earningsResultOneLiner(entry.actual?.beatLabel)
+    ? earningsResultOneLiner(entry.actual?.beatLabel, {
+        epsActual: entry.actual?.epsActual,
+        epsEstimate: entry.actual?.epsEstimate,
+        region: entry.region,
+      })
     : null;
 
   const related =

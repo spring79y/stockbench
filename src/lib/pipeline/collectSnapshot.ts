@@ -38,6 +38,7 @@ import type {
 import type { IndexQuote, MacroChip, MarketEvent } from "@/lib/types";
 import { buildUpcomingEvents } from "@/lib/events/buildUpcomingEvents";
 import { defaultPipelineEvents } from "@/lib/events/defaultEvents";
+import { attachEarningsContextNews } from "@/lib/market/fetchEarningsContextNews";
 
 export { defaultPipelineEvents } from "@/lib/events/defaultEvents";
 
@@ -79,9 +80,13 @@ export async function collectSnapshot(
 ): Promise<CollectorSnapshot> {
   const cwd = options?.cwd ?? process.cwd();
   const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
-  const events =
+  const eventsBase =
     options?.events ??
     (await buildUpcomingEvents(yf).catch(() => defaultPipelineEvents()));
+  const events = await attachEarningsContextNews(eventsBase).catch((error) => {
+    console.error("[collect] earnings context news failed", error);
+    return eventsBase;
+  });
   const symbols = [
     ...INDEX_DEFINITIONS.map((d) => d.symbol),
     ...MACRO_DEFINITIONS.map((d) => d.symbol),

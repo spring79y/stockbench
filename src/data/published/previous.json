@@ -239,7 +239,7 @@
       "region": "US",
       "title": "샌디스크 실적 발표",
       "level": "high",
-      "oneLiner": "발표됨 · 판정 보류 (점검용 · 매매 신호 아님)",
+      "oneLiner": "발표됨 · EPS $39.25 vs 예상 $34.52 · 판정 보류 (점검용 · 매매 신호 아님)",
       "kind": "earnings",
       "symbol": "SNDK",
       "bridgeId": "sndk",
@@ -258,7 +258,27 @@
         "epsActual": 39.25,
         "epsEstimate": 34.515,
         "reportedDateISO": "2026-08-05T20:09:06.000Z"
-      }
+      },
+      "contextNews": [
+        {
+          "title": "NBM으로 3분의 2 확보했다더니…샌디스크 가이던스 한 줄에 코스피 4%대 하락",
+          "publisher": "market-ink.co.kr",
+          "publishedAt": "2026-08-06T07:22:58.000Z",
+          "snippet": "NBM으로 3분의 2 확보했다더니…샌디스크 가이던스 한 줄에 코스피 4%대 하락"
+        },
+        {
+          "title": "\"샌디스크 실적 실망\" SK하닉, 또 10% 털썩…삼전도 6%↓[핫스탁](종합)",
+          "publisher": "파이낸셜뉴스",
+          "publishedAt": "2026-08-06T06:52:44.000Z",
+          "snippet": "\"샌디스크 실적 실망\" SK하닉, 또 10% 털썩…삼전도 6%↓[핫스탁](종합)"
+        },
+        {
+          "title": "샌디스크, 실적 호조에도 ‘8% 털렸다’···애널리스트 “투자자들 ‘신념의 도약’ 필요”",
+          "publisher": "Benzinga",
+          "publishedAt": "2026-08-06T06:41:53.000Z",
+          "snippet": "샌디스크, 실적 호조에도 ‘8% 털렸다’···애널리스트 “투자자들 ‘신념의 도약’ 필요”"
+        }
+      ]
     },
     {
       "id": "earnings-naver",

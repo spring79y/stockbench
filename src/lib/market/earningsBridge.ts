@@ -9,6 +9,8 @@ export type EarningsBridgeSymbol = {
   sector: "memory" | "ai" | "auto";
   /** 연관 시총 상위 megaCap id */
   relatedMegaCapIds: readonly string[];
+  /** Google News / 헤드라인 매칭용 (언론명·티커) */
+  newsTerms: readonly string[];
 };
 
 export const EARNINGS_BRIDGE_SYMBOLS: readonly EarningsBridgeSymbol[] = [
@@ -19,6 +21,7 @@ export const EARNINGS_BRIDGE_SYMBOLS: readonly EarningsBridgeSymbol[] = [
     region: "US",
     sector: "memory",
     relatedMegaCapIds: ["samsung", "skhynix"],
+    newsTerms: ["샌디스크", "Sandisk", "SanDisk", "SNDK"],
   },
   {
     id: "mu-bridge",
@@ -27,6 +30,7 @@ export const EARNINGS_BRIDGE_SYMBOLS: readonly EarningsBridgeSymbol[] = [
     region: "US",
     sector: "memory",
     relatedMegaCapIds: ["samsung", "skhynix"],
+    newsTerms: ["마이크론", "Micron", "MU"],
   },
 ];
 

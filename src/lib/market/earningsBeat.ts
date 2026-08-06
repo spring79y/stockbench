@@ -139,9 +139,32 @@ export function resolveEarningsBeat(input: {
   };
 }
 
-export function earningsResultOneLiner(beatLabel: BeatLabel | undefined): string {
+export function earningsResultOneLiner(
+  beatLabel: BeatLabel | undefined,
+  opts?: {
+    epsActual?: number;
+    epsEstimate?: number;
+    region?: "KR" | "US";
+  },
+): string {
+  const formatEps = (v: number) => {
+    if (opts?.region === "KR") return `${Math.round(v).toLocaleString("ko-KR")}원`;
+    return `$${Number(v.toFixed(2))}`;
+  };
+  const nums =
+    opts?.epsActual != null &&
+    opts?.epsEstimate != null &&
+    Number.isFinite(opts.epsActual) &&
+    Number.isFinite(opts.epsEstimate)
+      ? `EPS ${formatEps(opts.epsActual)} vs 예상 ${formatEps(opts.epsEstimate)}`
+      : null;
+
   if (!beatLabel) {
-    return "발표됨 · 판정 보류 (점검용 · 매매 신호 아님)";
+    return nums
+      ? `발표됨 · ${nums} · 판정 보류 (점검용 · 매매 신호 아님)`
+      : "발표됨 · 판정 보류 (점검용 · 매매 신호 아님)";
   }
-  return `발표 결과: EPS 컨센서스 대비 ${beatLabel} — 점검용 (매매 신호 아님)`;
+  return nums
+    ? `발표 결과: EPS 컨센서스 대비 ${beatLabel} (${nums}) — 점검용 (매매 신호 아님)`
+    : `발표 결과: EPS 컨센서스 대비 ${beatLabel} — 점검용 (매매 신호 아님)`;
 }
