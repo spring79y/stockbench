@@ -153,13 +153,27 @@ function resolveCheckAgainstEvidence(
       return {
         fact: `${name} 실적 결과: ${ev.actual.beatLabel}${ev.oneLiner ? ` — ${ev.oneLiner}` : ""}`,
         status: "resolved",
-        note: "실적 결과·시장 반응이 Evidence에 있음 → 브리핑 필수",
+        note: "실적 결과 Evidence 있음 → Briefing이 요약 (반응은 contextNews 있을 때)",
+      };
+    }
+    if (
+      hours < 0 &&
+      ev.actual?.epsActual != null &&
+      ev.actual?.epsEstimate != null
+    ) {
+      const hasNews = Array.isArray(ev.contextNews) && ev.contextNews.length > 0;
+      return {
+        fact: ev.oneLiner || `${name} 실적 발표됨 · EPS 숫자 Evidence`,
+        status: "resolved",
+        note: hasNews
+          ? "숫자+Evidence뉴스 있음 → Briefing이 결과·시장 반응(이중 서술) 요약. beatLabel 없으면 서프라이즈/미스 단정 금지"
+          : "숫자만 · 반응 근거 부족이면 「반응 근거 부족」1줄 또는 생략. 극성 단정 금지",
       };
     }
     if (hours < 0 && !ev.actual?.beatLabel) {
       return {
         status: "due",
-        note: "실적 시점은 지났으나 Evidence에 결과 없음 — 대기/미확인 또는 생략 (창작 금지)",
+        note: "실적 시점은 지났으나 Evidence에 결과 미확인 — 대기/생략 (창작 금지)",
       };
     }
     if (hours >= 0 && hours <= 72) {
@@ -214,10 +228,24 @@ function resolveUpcomingEvent(
         note: "도래한 실적+결과 Evidence 있음 → mustCover",
       };
     }
+    if (
+      ev.kind === "earnings" &&
+      ev.actual?.epsActual != null &&
+      ev.actual?.epsEstimate != null
+    ) {
+      const hasNews = Array.isArray(ev.contextNews) && ev.contextNews.length > 0;
+      return {
+        fact: ev.oneLiner || `${ev.title}: EPS 숫자 Evidence`,
+        status: "resolved",
+        note: hasNews
+          ? "숫자+뉴스 Evidence → mustCover · Briefing 이중 서술"
+          : "숫자 Evidence → mustCover · 반응은 「반응 근거 부족」또는 생략",
+      };
+    }
     if (ev.kind === "earnings") {
       return {
         status: "due",
-        note: "실적 도래 · Evidence 결과 없음 — 대기/미확인",
+        note: "실적 도래 · Evidence 결과 미확인 — 대기/생략",
       };
     }
     return {
@@ -253,7 +281,10 @@ function hasLiveMustCover(
       return false;
     }
     const hours = hoursUntil(ev.dateISO, now);
-    return hours < 0 && hours >= -24 && Boolean(ev.actual?.beatLabel);
+    const hasResult =
+      Boolean(ev.actual?.beatLabel) ||
+      (ev.actual?.epsActual != null && ev.actual?.epsEstimate != null);
+    return hours < 0 && hours >= -24 && hasResult;
   }) || pack.risk.elevated;
 }
 

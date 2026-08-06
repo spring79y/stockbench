@@ -22,8 +22,8 @@ function sndkEvent(opts: {
       title: "샌디스크 실적 발표",
       level: "high",
       oneLiner: opts.beatLabel
-        ? `발표 결과: EPS 컨센서스 대비 ${opts.beatLabel} — 점검용 (매매 신호 아님)`
-        : "발표됨 · EPS $39.25 vs 예상 $34.52 · 판정 보류 (점검용 · 매매 신호 아님)",
+        ? `발표됨 · EPS $39.25 vs 예상 $34.52 · ${opts.beatLabel}`
+        : "발표됨 · EPS $39.25 vs 예상 $34.52",
       kind: "earnings",
       symbol: "SNDK",
       bridgeId: "sndk",
@@ -140,15 +140,55 @@ describe("guard earnings polarity omit", () => {
     assert.equal(report.ok, false);
   });
 
-  it("allows 판정 보류 phrasing without polarity claim", () => {
+  it("allows numbers + guidance dual narrative when contextNews present (no beatLabel)", () => {
     const briefing: BriefingDraft = {
       headline: "나스닥 장전 밀림에 반도체 되밀림",
       bullets: [
         "나스닥 장전 약세, 반도체 지수 되밀림",
         "미 10년물·VIX 안정 속 NFP 대기",
-        "샌디스크 실적 발표됨 — 판정 보류 · 섹터 반응만 관측",
+        "샌디스크 EPS $39.25 vs 예상 $34.52 발표 후 Evidence뉴스상 가이던스 실망으로 섹터 되밀림",
       ],
-      evidenceIds: ["vix"],
+      evidenceIds: [],
+    };
+    const report = runGuard({
+      snapshot: baseSnapshot(
+        sndkEvent({
+          hoursAgo: 12,
+          contextNews: [
+            {
+              title: "Sandisk shares slip after soft guidance",
+              publisher: "Reuters",
+              publishedAt: new Date().toISOString(),
+              snippet: "Sandisk shares slip after soft guidance",
+            },
+          ],
+        }),
+      ),
+      briefing,
+      decision: okDecision,
+      scope: "us",
+    });
+    const polarityBlocks = report.findings.filter(
+      (f) =>
+        f.severity === "block" &&
+        (f.code === "unsupported-earnings-result" ||
+          f.code === "invented-event-result" ||
+          f.code === "earnings-beat-polarity" ||
+          f.code === "unsupported-guidance-claim"),
+    );
+    assert.equal(polarityBlocks.length, 0, polarityBlocks.map((f) => f.code).join(","));
+    assert.equal(report.ok, true);
+  });
+
+  it("allows facts-only post-print line without polarity claim", () => {
+    const briefing: BriefingDraft = {
+      headline: "나스닥 장전 밀림에 반도체 되밀림",
+      bullets: [
+        "나스닥 장전 약세, 반도체 지수 되밀림",
+        "미 10년물·VIX 안정 속 NFP 대기",
+        "샌디스크 실적 발표됨 · EPS $39.25 vs 예상 $34.52 — 반응 근거 부족",
+      ],
+      evidenceIds: [],
     };
     const report = runGuard({
       snapshot: baseSnapshot(sndkEvent({ hoursAgo: 12 })),

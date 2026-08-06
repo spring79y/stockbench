@@ -321,9 +321,7 @@ function entryToEvent(entry: EarningsFetchEntry): MarketEvent {
     level: levelForDate(entry.dateISO),
     oneLiner:
       postLine ??
-      (entry.isEstimate
-        ? "시장 컨센서스 대비 실적·가이던스 — 점검용 (매매 신호 아님)"
-        : "확정 일정 — 실적·가이던스가 섹터·지수 온도에 미칠 수 있음"),
+      (entry.isEstimate ? "실적 발표 예정 (일정·컨센서스 참고)" : "실적 발표 예정"),
     kind: "earnings",
     symbol: entry.symbol,
     megaCapId: entry.megaCapId,

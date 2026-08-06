@@ -139,6 +139,10 @@ export function resolveEarningsBeat(input: {
   };
 }
 
+/**
+ * EventList oneLiner — Collector facts only (announced?, numbers, dual-source beatLabel).
+ * No 「판정 보류」/호재·악재. Reaction/guidance narrative belongs in Briefing.
+ */
 export function earningsResultOneLiner(
   beatLabel: BeatLabel | undefined,
   opts?: {
@@ -160,11 +164,9 @@ export function earningsResultOneLiner(
       : null;
 
   if (!beatLabel) {
-    return nums
-      ? `발표됨 · ${nums} · 판정 보류 (점검용 · 매매 신호 아님)`
-      : "발표됨 · 판정 보류 (점검용 · 매매 신호 아님)";
+    return nums ? `발표됨 · ${nums}` : "발표됨 · 결과 미확인";
   }
   return nums
-    ? `발표 결과: EPS 컨센서스 대비 ${beatLabel} (${nums}) — 점검용 (매매 신호 아님)`
-    : `발표 결과: EPS 컨센서스 대비 ${beatLabel} — 점검용 (매매 신호 아님)`;
+    ? `발표됨 · ${nums} · ${beatLabel}`
+    : `발표됨 · EPS ${beatLabel}`;
 }

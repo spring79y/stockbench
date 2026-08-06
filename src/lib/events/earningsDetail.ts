@@ -115,14 +115,14 @@ function actualLines(event: MarketEvent): string[] {
       ? ` (괴리 ${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)`
       : "";
 
-  const resultLine = beat
-    ? `예상 대비(EPS): ${beat}${pctNote} — 점검용 (매매 신호 아님)`
-    : "예상 대비(EPS): 판정 보류 — 숫자만 참고 (매매 신호 아님)";
-
-  return [
+  // Thin-source: numbers only — no qualitative Collector judgment in UI.
+  const lines = [
     `발표 결과(EPS): 실제 ${formatEps(epsActual)} · 예상 ${formatEps(epsEstimate)}`,
-    resultLine,
   ];
+  if (beat) {
+    lines.push(`예상 대비(EPS): ${beat}${pctNote}`);
+  }
+  return lines;
 }
 
 function contextNewsWatchPoints(event: MarketEvent): string[] {

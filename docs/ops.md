@@ -49,8 +49,13 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 
 - `beatLabel`(서프라이즈/미스)은 **Collector만** 설정한다 (`src/lib/market/earningsBeat.ts` → `fetchEarningsCalendar`).
 - 조건: 같은 분기 `earningsChart.quarterly`에서 `reportedDate`가 발표일과 매칭되고, actual·estimate가 모두 유한수이며, **같은 분기 calendar 컨센서스가 극성을 이중 확인**할 때만.
-- **이중 출처 필수:** Yahoo quarterly 단독(포스트프린트 calendar가 다음 분기로 롤된 thin path)이면 숫자만 두고 `beatLabel` 생략 + oneLiner에 EPS 숫자·「판정 보류」. EPS 비트와 가이던스 하회가 갈릴 때 극성 단정 금지.
-- **가이던스·반응 Evidence:** Collector가 임박/직후 실적에 Google News RSS(KO·US EN) 헤드라인을 `contextNews`로 붙인다 (`fetchEarningsContextNews.ts`). LLM은 이 필드가 있을 때만 가이던스/반응 1줄 요약. 없으면 문장 생략(추측 금지). 뉴스 톤으로 beat/miss 창작 금지.
+- **이중 출처 필수:** Yahoo quarterly 단독(포스트프린트 calendar가 다음 분기로 롤된 thin path)이면 숫자만 두고 `beatLabel` 생략. EventList `oneLiner`는 EPS 숫자·「결과 미확인」등 **최소 사실만** (「판정 보류」 금지).
+- **역할 분리:** Collector = 숫자·플래그·Evidence. Briefing LLM = 결과+시장 반응 서술. 숫자+`contextNews`면 **이중 서술**(예: EPS 숫자 + 가이던스 실망 → 주가/섹터 반응) 허용. 뉴스 없으면 반응 풍부 서술 생략·must-cover 강제 시 「반응 근거 부족」.
+- **가이던스·반응 Evidence:** Collector가 임박/직후 실적에 Google News RSS(KO·US EN) 헤드라인을 `contextNews`로 붙인다 (`fetchEarningsContextNews.ts`). 최소 근거: ≥1 헤드라인 + 숫자(또는 가격 반응). 뉴스 톤으로 beat/miss 창작 금지.
 - **금지:** `quarterlies[0]` 폴백, 동일 시 미스 처리, Yahoo `calendarEvents.earningsAverage`가 다음 분기로 롤된 값을 이번 발표 컨센서스로 붙이기, UI/LLM이 beatLabel 재계산.
-- Guard: `invented-event-result` · `unsupported-earnings-result` · `earnings-beat-polarity` · `unsupported-guidance-claim` (브리핑·시나리오·체크리스트 전부).
+- Guard: `invented-event-result` · `unsupported-earnings-result` · `earnings-beat-polarity` · `unsupported-guidance-claim` (브리핑·시나리오·체크리스트 전부). 숫자+뉴스 이중 서술은 허용.
 - 단위 테스트: `npm run test:unit` (`earningsBeat.test.ts`, `guard.earnings.test.ts`).
+
+### 발행 노트 (역할 분리 반영)
+
+- EventList oneLiner는 즉시 facts-only로 스크럽 가능. **LLM 이중 서술 브리핑 불릿**은 다음 풀 파이프라인(예: `us-noon` / `kr-mid` 12:30) 재실행 후 반영.

@@ -578,15 +578,15 @@ export function renderEvidencePackForPrompt(
                     ? ` actual=${e.actual.epsActual} est=${e.actual.epsEstimate}`
                     : "")
                 : e.actual.epsActual != null && e.actual.epsEstimate != null
-                  ? ` · Evidence결과(EPS): 판정보류 actual=${e.actual.epsActual} est=${e.actual.epsEstimate}`
-                  : ""
+                  ? ` · Evidence결과(EPS): 숫자만(라벨없음) actual=${e.actual.epsActual} est=${e.actual.epsEstimate}`
+                  : " · Evidence결과(EPS): 미확인"
               : "";
           const lines = [
             `- ${e.dateLabel}${when} [${e.region}/${e.level}/${tag}] ${e.title} — ${e.oneLiner}${result}`,
           ];
           if (e.kind === "earnings" && e.contextNews && e.contextNews.length > 0) {
             lines.push(
-              `  Evidence뉴스(가이던스·반응 참고 · 단정 금지):`,
+              `  Evidence뉴스(가이던스·반응 근거 · Briefing이 요약):`,
               ...e.contextNews.map(
                 (n) =>
                   `  - ${n.snippet} · ${n.publisher}${n.publishedAt ? ` · ${n.publishedAt.slice(0, 10)}` : ""}`,
@@ -594,7 +594,7 @@ export function renderEvidencePackForPrompt(
             );
           } else if (e.kind === "earnings") {
             lines.push(
-              `  Evidence뉴스: 없음 — 가이던스·반응 문장 생략(추측 금지)`,
+              `  Evidence뉴스: 없음 — 반응·가이던스 풍부 서술 생략(강제 인용 시 「반응 근거 부족」1줄만)`,
             );
           }
           return lines;
@@ -602,9 +602,10 @@ export function renderEvidencePackForPrompt(
       : ["- 해당 일정 없음"]),
     ...(events.some((e) => e.kind === "earnings")
       ? [
-          "지시: 48시간 이내 실적(kind=earnings)이 있으면 bullets 중 1개에 회사명·섹터 맥락을 ‘점검’으로만 언급. EPS/매출 숫자 복창·매매 신호 금지.",
-          "지시: 서프라이즈/미스는 Evidence결과(EPS) beatLabel이 있을 때만 그대로 사용. 없으면 판정 보류/생략(숫자만). 극성 뒤집기·가이던스 실망을 실적 미스로 바꿔 쓰기 금지.",
-          "지시: Evidence뉴스가 있을 때만 가이던스·시장 반응을 **최대 1줄**로 요약 가능. 없으면 가이던스/반응 문장 생략. 뉴스 톤만으로 서프라이즈/미스 창작 금지.",
+          "지시: 48시간 이내 실적(kind=earnings)이 있으면 bullets 중 1개에 회사명·섹터 맥락을 ‘점검’으로만 언급. EPS/매출 숫자 과다 복창·매매 신호 금지.",
+          "지시: 서프라이즈/미스는 Evidence결과(EPS) beatLabel이 있을 때만 그대로 사용. 라벨 없으면 숫자만 인용·극성(상회/하회/서프라이즈/미스) 단정 금지. 가이던스 실망을 실적 미스로 바꿔 쓰기 금지.",
+          "지시: Evidence뉴스+숫자(또는 가격 반응)가 있으면 **실적 숫자 + 시장 반응(가이던스 등)** 이중 서술을 Briefing이 1불릿으로 작성. Collector oneLiner는 사실만 — 해석 복창 금지.",
+          "지시: Evidence뉴스 없으면 반응·가이던스 풍부 서술 생략. must-cover due 실적이고 한 줄이 필요하면 「반응 근거 부족」만.",
         ]
       : []),
     "",

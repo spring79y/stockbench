@@ -398,7 +398,7 @@ function pushInventedResultFindings(
         code: "invented-event-result",
         message:
           `Evidence에 없는 실적/이벤트 결과 단정: "${text.slice(0, 56)}". ` +
-          "결과 없으면 대기/미확인 또는 생략.",
+          "beatLabel 없으면 숫자·뉴스만 인용하거나 생략 (서프라이즈/미스 창작 금지).",
       });
     }
   }
@@ -407,6 +407,7 @@ function pushInventedResultFindings(
 /**
  * LLM이 Evidence beatLabel을 뒤집거나, 미확인 건에 결과 단어를 붙이면 hard fail.
  * Numbers/beatLabel은 Collector Evidence만 — LLM 창작·극성 반전 금지.
+ * 숫자+contextNews 이중 서술(가이던스 반응)은 허용하되, beatLabel 없는 서프라이즈/미스 단정은 계속 block.
  */
 function pushBeatPolarityFindings(
   findings: GuardFinding[],
@@ -437,7 +438,7 @@ function pushBeatPolarityFindings(
           code: "unsupported-earnings-result",
           message:
             `실적 결과 라벨 없이 서프라이즈/미스 단정: "${text.slice(0, 56)}" (${ev.title}). ` +
-            "Evidence beatLabel 없으면 판정 보류/생략.",
+            "beatLabel 없으면 숫자 인용 + (contextNews 있을 때) 가이던스·반응만. 극성 단정 금지.",
         });
         continue;
       }
@@ -827,8 +828,32 @@ export function runGuard(input: {
         message: isPost
           ? beatWord
             ? `최근 24시간 내 실적 결과(서프라이즈/미스) 미언급: ${ev.title} — bullets에 '${nameCore} 실적' 점검 맥락 1개 포함`
-            : `최근 24시간 내 실적 발표 점검 미언급: ${ev.title} — bullets에 '${nameCore} 실적' 점검 맥락 1개 포함 (판정 보류·극성 단정 금지)`
+            : `최근 24시간 내 실적 발표 점검 미언급: ${ev.title} — bullets에 '${nameCore} 실적' 숫자·반응 맥락 1개 포함 (극성 단정 금지)`
           : `48시간 내 실적 일정 미언급: ${ev.title} — bullets에 '${nameCore} 실적' 점검 맥락 1개 포함 (예측 금지)`,
+      });
+    }
+  }
+
+  // Soft: due 실적에 숫자+뉴스가 있는데 언급만 하고 반응·가이던스 근거가 전혀 없으면 warn
+  for (const ev of imminentEarnings) {
+    if (!isPostEarningsResult(ev, now)) continue;
+    if (!hasEarningsActualNumbers(ev) || !hasEarningsContextNews(ev)) continue;
+    if (!proseMentionsEarningsIdentity(prose, proseLower, ev)) continue;
+    const related = [input.briefing.headline, ...input.briefing.bullets].filter((t) =>
+      proseMentionsEarningsIdentity(t, t.toLowerCase(), ev),
+    );
+    const hasReactionCue = related.some(
+      (t) =>
+        GUIDANCE_CLAIM_RE.test(t) ||
+        /반응|하락|상승|급락|급등|밀림|되밀림|주가|섹터/.test(t),
+    );
+    if (!hasReactionCue) {
+      findings.push({
+        severity: "warn",
+        code: "earnings-reaction-omission",
+        message:
+          `숫자+Evidence뉴스 있는데 반응·가이던스 요약 약함: ${ev.title}. ` +
+          "Briefing이 숫자+뉴스 이중 서술을 권장.",
       });
     }
   }
@@ -894,7 +919,10 @@ export function ensureImminentEarningsMentioned(
       const region = e.region === "KR" ? "KR" : "US";
       const fmt = (v: number) =>
         region === "KR" ? `${Math.round(v).toLocaleString("ko-KR")}원` : `$${Number(v.toFixed(2))}`;
-      return `${nameCore} 실적 발표됨 · EPS ${fmt(a)} vs 예상 ${fmt(est)} — 판정 보류 (서프라이즈/미스·가이던스 단정 금지)`;
+      if (hasEarningsContextNews(e)) {
+        return `${nameCore} 실적 · EPS ${fmt(a)} vs 예상 ${fmt(est)} — Evidence뉴스 반응·가이던스 참고 (서프라이즈/미스 단정 금지)`;
+      }
+      return `${nameCore} 실적 발표됨 · EPS ${fmt(a)} vs 예상 ${fmt(est)} — 반응 근거 부족`;
     }
     if (hasEarningsContextNews(e)) {
       return `${nameCore} 실적 임박 — Evidence뉴스 참고해 가이던스·섹터 맥락만 짧게 (방향 예측 금지)`;
@@ -963,5 +991,6 @@ export function runBriefingOnlyGuard(input: {
 export const GUARD_SYSTEM_PROMPT = `당신은 증시 브리핑의 Guard Agent다.
 숫자 복창, 공허한 브리핑, 추천/예측 톤, 탭 초점 이탈(scope-leakage), 사실 불일치,
 due+Evidence 연속성 누락, Evidence 없는 결과 창작을 차단한다.
-Evidence beatLabel이 없으면 서프라이즈/미스/컨센서스 상회·하회를 단정하지 않는다 (판정 보류).
+Evidence beatLabel이 없으면 서프라이즈/미스/컨센서스 상회·하회를 단정하지 않는다 (숫자는 인용 가능).
+Evidence contextNews+숫자가 있으면 숫자+가이던스/반응 이중 서술을 허용한다. 뉴스 없으면 반응 풍부 서술 금지.
 Evidence contextNews가 없으면 가이던스·전망 결과 문장을 쓰지 않는다.`;

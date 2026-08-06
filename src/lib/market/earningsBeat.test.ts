@@ -141,12 +141,12 @@ describe("computeSurprisePct", () => {
 });
 
 describe("earningsResultOneLiner", () => {
-  it("uses 판정 보류 when label omitted", () => {
-    assert.match(earningsResultOneLiner(undefined), /판정 보류/);
-    assert.doesNotMatch(earningsResultOneLiner(undefined), /서프라이즈|미스/);
+  it("uses 결과 미확인 when label and numbers omitted", () => {
+    assert.match(earningsResultOneLiner(undefined), /결과 미확인/);
+    assert.doesNotMatch(earningsResultOneLiner(undefined), /서프라이즈|미스|판정\s*보류/);
   });
 
-  it("includes EPS numbers when provided without beatLabel", () => {
+  it("includes EPS numbers when provided without beatLabel (facts only)", () => {
     const line = earningsResultOneLiner(undefined, {
       epsActual: 39.25,
       epsEstimate: 34.515,
@@ -154,11 +154,11 @@ describe("earningsResultOneLiner", () => {
     });
     assert.match(line, /\$39\.25/);
     assert.match(line, /\$34\.52|\$34\.515/);
-    assert.match(line, /판정 보류/);
-    assert.doesNotMatch(line, /서프라이즈|미스/);
+    assert.doesNotMatch(line, /판정\s*보류|서프라이즈|미스/);
   });
 
   it("names beatLabel when present", () => {
     assert.match(earningsResultOneLiner("서프라이즈"), /서프라이즈/);
+    assert.doesNotMatch(earningsResultOneLiner("서프라이즈"), /판정\s*보류/);
   });
 });

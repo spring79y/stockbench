@@ -71,10 +71,10 @@ Discuss 원칙: 사용자가 말한 “예측 지수”는 **기대·경계 신�
 
 | 단계 | 역할 |
 |------|------|
-| Collector | Yahoo·네이버 등 API로 지수·매크로·시총·수급 수집 → **Evidence Pack** 구조화 (비AI) |
-| Briefing | Evidence Pack 섹션 입력 → 헤드라인·불릿·근거 (**탭별**, LLM → seed). **한·미는 해당 시장 1순위·상대 시장 ≤1불릿 브릿지**. 숫자 복창·공허 일반론 금지. **직전 연속성은 체크리스트**(라이브 사실 우선 · 현재 숫자로 재평가) |
-| Decision | 브리핑+Evidence Pack → 시나리오 A/B + 「오늘 볼 것」3~5 (**탭별**, LLM → seed). 직전 A/B·점검을 복창하지 않고 갱신 |
-| Guard | 추천/예측 톤·숫자 복창·공허·**시점 둔갑(전일↔장중)**·사실 불일치·**due+Evidence 연속성 누락**·**결과 창작**·**실적 beat 극성 반전** 차단. 최대 5회 재생성. 전부 거절 시 **직전 발행 유지** |
+| Collector | Yahoo·네이버 등 API로 지수·매크로·시총·수급·실적 숫자·`contextNews` 수집 → **Evidence Pack** 구조화 (비AI). **사실·플래그만** — EventList `oneLiner`에 판정 보류/호재·악재 등 해석 카피 금지 |
+| Briefing | Evidence Pack → 헤드라인·불릿·근거 (**탭별**, LLM). 실적 **결과+시장 반응** 서술(숫자+뉴스 이중 서술 포함)은 Briefing 전담. 뉴스 없으면 반응 풍부 서술 생략·강제 시 「반응 근거 부족」. **한·미는 해당 시장 1순위·상대 시장 ≤1불릿 브릿지** |
+| Decision | 브리핑+Evidence Pack → 시나리오 A/B + 「오늘 볼 것」3~5 (**탭별**, LLM). 해석은 Evidence 사실 기반 · beatLabel/뉴스 없는 극성·가이던스 단정 금지 |
+| Guard | 추천/예측 톤·숫자 복창·공허·**시점 둔갑**·사실 불일치·**due+Evidence 누락**·**결과 창작**·**beat 극성 반전**·**뉴스 없는 가이던스 단정** 차단. 숫자+뉴스면 이중 서술 허용. 최대 5회 재생성. 전부 거절 시 **직전 발행 유지** |
 | Publisher | `src/data/published/latest.json` (version 2, views.all/kr/us) |
 
 ### Evidence Pack (LLM 입력)
@@ -89,7 +89,7 @@ Briefing/Decision이 받는 구조화 근거. UI 대시보드가 아님.
 | 수급 | 전 거래일 수급(장전 요약용) + 수집 기준일 + 5거래일 합 |
 | 시총 상위 | 평균·분산(고−저)·상승/하락 수 |
 | 기대·경계 신호 | KS200·VIX 등 |
-| 일정 | 경제 캘린더 + **시총·섹터 브릿지 실적**(Yahoo 발표일·컨센서스 참고) |
+| 일정 | 경제 캘린더 + **시총·섹터 브릿지 실적**(Yahoo 발표일·컨센서스·EPS 숫자·선택적 beatLabel·`contextNews`). EventList oneLiner는 최소 사실만 |
 | 리스크·지정학 | 유가·VIX·환율 플래그 + Yahoo 지정학 헤드라인(숫자 연결 시에만). 정치 뉴스 올인원 아님 |
 | 직전 발행 | 이전 헤드라인(반복 방지) + **같은 시장 탭 직전 1건**의 구조화 연속성 |
 | 직전 연속성 | `scenarios` A/B 한 줄 · `checkItems` · 미결 `upcoming`. Collector가 due를 Evidence 사실로 해석(`carryForward`/`dueFollowUps`). 본문 덤프·멀티데이 스택 금지. 최대 5 · forceCite ≤3 · 무변화 2슬롯 드롭 |

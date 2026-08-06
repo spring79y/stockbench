@@ -46,7 +46,7 @@ export function shouldRetainUpcomingEvent(
 /**
  * Result comment from structured fields only — never invent.
  * Prefer existing `oneLiner` when Collector already encoded a post-result line.
- * beatLabel required for 서프라이즈/미스; numbers without label → EPS digits + 판정 보류.
+ * Facts only: announced?, EPS digits, dual-source beatLabel. No 「판정 보류」.
  */
 export function eventResultComment(event: MarketEvent): string | null {
   const hasNumbers =
@@ -55,12 +55,26 @@ export function eventResultComment(event: MarketEvent): string | null {
   const line = event.oneLiner?.trim();
   if (
     line &&
-    (/발표\s*결과|발표됨|미확인|판정\s*보류|EPS/.test(line) || event.actual?.beatLabel)
+    (/발표\s*결과|발표됨|미확인|결과\s*미확인|EPS/.test(line) || event.actual?.beatLabel)
   ) {
-    return line;
+    // Strip legacy Collector judgment copy if still present in published JSON.
+    return line
+      .replace(/\s*·\s*판정\s*보류(?:\s*\([^)]*\))?/g, "")
+      .replace(/\s*—\s*점검용(?:\s*\([^)]*\))?/g, "")
+      .replace(/\s*\(점검용(?:\s*·\s*매매\s*신호\s*아님)?\)/g, "")
+      .trim();
   }
   if (event.actual?.beatLabel) {
-    return `발표 결과: EPS 컨센서스 대비 ${event.actual.beatLabel} — 점검용 (매매 신호 아님)`;
+    return hasNumbers
+      ? (() => {
+          const region = event.region === "KR" ? "KR" : "US";
+          const fmt = (v: number) =>
+            region === "KR"
+              ? `${Math.round(v).toLocaleString("ko-KR")}원`
+              : `$${Number(v.toFixed(2))}`;
+          return `발표됨 · EPS ${fmt(event.actual!.epsActual!)} vs 예상 ${fmt(event.actual!.epsEstimate!)} · ${event.actual!.beatLabel}`;
+        })()
+      : `발표됨 · EPS ${event.actual.beatLabel}`;
   }
   if (hasNumbers) {
     const region = event.region === "KR" ? "KR" : "US";
@@ -68,9 +82,9 @@ export function eventResultComment(event: MarketEvent): string | null {
       region === "KR"
         ? `${Math.round(v).toLocaleString("ko-KR")}원`
         : `$${Number(v.toFixed(2))}`;
-    return `발표됨 · EPS ${fmt(event.actual!.epsActual!)} vs 예상 ${fmt(event.actual!.epsEstimate!)} · 판정 보류 (점검용 · 매매 신호 아님)`;
+    return `발표됨 · EPS ${fmt(event.actual!.epsActual!)} vs 예상 ${fmt(event.actual!.epsEstimate!)}`;
   }
-  return "발표됨 · 판정 보류 (점검용 · 매매 신호 아님)";
+  return "발표됨 · 결과 미확인";
 }
 
 /** Display/publish filter: drop past KST days; keep today (with or without result). */
