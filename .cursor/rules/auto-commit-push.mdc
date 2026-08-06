@@ -1,0 +1,13 @@
+---
+description: Always commit and push completed work without asking
+alwaysApply: true
+---
+
+# Git: 자동 커밋·푸시
+
+작업이 완료되면 **묻지 말고** `main`(또는 현재 작업 브랜치)에 커밋 후 `git push`까지 진행한다.
+
+- 커밋 메시지는 저장소 스타일을 따르고, why 중심으로 짧게 쓴다.
+- 시크릿(`.env` 등)은 커밋하지 않는다.
+- force push, amend(조건 미충족), hooks skip은 하지 않는다.
+- Discuss 거절·사용자 중단·미완성 상태면 커밋하지 않는다.
