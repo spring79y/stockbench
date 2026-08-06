@@ -5,6 +5,7 @@ import {
   PIPELINE_MANUAL_ROWS,
   pipelineScheduleRows,
 } from "@/lib/pipeline/schedule";
+import { reaggregatePushOnCount } from "@/lib/push/store";
 
 export const metadata: Metadata = {
   title: "Ops — StockBench",
@@ -22,7 +23,10 @@ function fmtAge(minutes: number | null): string {
 }
 
 export default async function OpsPage() {
-  const ops = await loadOpsSnapshot();
+  const [ops, pushOn] = await Promise.all([
+    loadOpsSnapshot(),
+    reaggregatePushOnCount(),
+  ]);
   const last = ops.lastRun;
   const schedule = pipelineScheduleRows();
 
@@ -31,8 +35,38 @@ export default async function OpsPage() {
       <header className="ops__header">
         <p className="ops__eyebrow">owner only · noindex</p>
         <h1 className="ops__title">Ops</h1>
-        <p className="ops__lede">파이프라인·발행 상태만. 방문 수는 Vercel Analytics.</p>
+        <p className="ops__lede">파이프라인·발행·푸시 ON 수. 방문 수는 Vercel Analytics.</p>
       </header>
+
+      <section className="ops__section" aria-labelledby="ops-push">
+        <h2 id="ops-push" className="ops__h2">
+          Push notifications ON
+        </h2>
+        {pushOn.configured ? (
+          <dl className="ops__dl">
+            <div>
+              <dt>ON</dt>
+              <dd>
+                <span className="ops__metric">{pushOn.count}</span>
+                <span className="ops__meta"> · active endpoints</span>
+              </dd>
+            </div>
+            <div>
+              <dt>재집계</dt>
+              <dd>
+                {pushOn.reaggregatedAt
+                  ? formatBriefingUpdatedAt(pushOn.reaggregatedAt)
+                  : "—"}
+                {pushOn.reaggregatedAt ? (
+                  <span className="ops__meta"> · {pushOn.reaggregatedAt}</span>
+                ) : null}
+              </dd>
+            </div>
+          </dl>
+        ) : (
+          <p className="ops__muted">push store not configured</p>
+        )}
+      </section>
 
       <section className="ops__section" aria-labelledby="ops-schedule">
         <h2 id="ops-schedule" className="ops__h2">

@@ -1669,6 +1669,14 @@ a {
   font-size: 0.75rem;
 }
 
+.ops__metric {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
 .ops__badge {
   display: inline-block;
   margin: 0 0 0.65rem;

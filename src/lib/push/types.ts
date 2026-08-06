@@ -59,6 +59,11 @@ export function recordWantsSlot(
   return slotsForMarket(record, market).includes(slot);
 }
 
+/** ON = 구독 레코드에 시장이 있고, 그중 ≥1 슬롯이 켜져 있음. */
+export function isPushSubscriptionOn(record: PushSubscriptionRecord): boolean {
+  return record.markets.some((m) => slotsForMarket(record, m).length > 0);
+}
+
 export function marketsForSlot(slot: PipelineSlot): PushMarket[] {
   return slot.startsWith("kr-") ? ["kr"] : ["us"];
 }
