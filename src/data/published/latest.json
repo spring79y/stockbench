@@ -1,76 +1,70 @@
 {
   "version": 2,
-  "slot": "kr-post",
-  "publishedAt": "2026-08-06T09:28:36.057Z",
+  "slot": "kr-mid",
+  "publishedAt": "2026-08-06T10:31:33.345Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 약세 · 미국 약세",
     "mood": "risk-off",
     "moodLabel": "위험",
-    "asOfLabel": "2026. 08. 06. 18:28 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 06. 16:40 · Yahoo 참고"
   },
   "views": {
     "all": {
       "briefing": {
-        "headline": "코스피 -4.58% 외국인 3.3조 이탈 마감, 반도체 장전 -1.4% 되밀림 속 NFP 대기",
+        "headline": "코스피 -4.58% 외국인 3.3조 이탈에 반도체 장전 -1.4% 되밀림, NFP 앞두고 금리 4.62% 안정",
         "bullets": [
-          "코스피 -4.58%·코스닥 +0.26% 마감에 외국인 3.3조 순매도, 삼성전자 -6.3%·SK하이닉스 -10.4% 급락으로 KS200 -5.36% 밀림",
-          "미 반도체 장전 -1.4% 되밀리며 전일 +6.55% 반등 일부 반납, 미 10년물 4.62%로 0.01%p 하락해 금리 압박은 제한적",
-          "샌디스크 EPS $39.25(예상 $34.52) 발표 후 가이던스 실망으로 스토리지 섹터 하락, 엣지 매출 증가에도 주가 밀림",
-          "오늘 밤 NFP 발표 앞두고 원/달러 1,423원·VIX 15.93 소폭 상승, 내일 NAVER 실적은 국내 IT 점검 분수령"
+          "코스피 -4.58% 마감에 외국인 3.3조 순매도, 삼성전자 -6.30%·SK하이닉스 -10.37% 급락 속 개인 3.3조 받아냄",
+          "샌디스크 EPS $39.25(예상 $34.52) 상회했으나 AI 메모리 전망 실망에 주가 하락, 반도체 장전 -1.4%로 전날 +6.55% 되밀림",
+          "미 10년물 4.62%(-0.010%p) 안정 속 저녁 NFP 발표 대기, 고용 급증 시 금리·달러 급등으로 국내 IT 압박 관측",
+          "내일 NAVER 실적 발표 앞두고 엔비디아 지분투자·사업 전환 기대, 반도체 거리두기 외국인 이탈 속 분수령 점검"
         ],
         "evidenceIds": [
-          "usdkkrw",
           "us10y",
-          "vix"
+          "usdkkrw"
         ]
       },
       "scenarios": [
         {
           "id": "base",
           "label": "A · 기본",
-          "title": "NFP 통과·반도체 밀림 제한",
-          "summary": "NFP 무난 통과에 금리 4.62% 안정, 반도체 장전 -1.4% 밀림 속 NAVER 실적 대기",
-          "implication": "금리 4.7% 미만·반도체 -2% 미만 유지 시 A(기본) 지속"
+          "title": "NFP 대기·반도체 밀림 제한",
+          "summary": "금리 4.62% 안정 속 저녁 NFP 발표 대기, 반도체 장전 -1.4% 밀림에 NAVER 실적 분수령",
+          "implication": "NFP 무난 통과 시 금리 안정·반도체 밀림 제한"
         },
         {
           "id": "risk",
           "label": "B · 주의",
           "title": "NFP 충격·반도체 추가 하락",
-          "summary": "NFP 고용 급증에 금리·달러 급등, 반도체 장전 -2% 돌파로 국내 IT 압박",
-          "implication": "금리 4.7% 돌파·반도체 -2% 하회 시 B(주의) 전환"
+          "summary": "NFP 고용 급증 시 금리·달러 급등, 반도체 장전 -2% 돌파로 국내 IT 압박 확대",
+          "implication": "금리 4.7% 상회·원/달러 1,430원 돌파 시"
         }
       ],
       "checkItems": [
         {
           "id": "c1",
-          "text": "미 10년물 4.7% 돌파 (현재 4.62%)",
-          "why": "4.7% 돌파 시 금리 압박 재점화로 B(주의) 가능성"
+          "text": "저녁 NFP 발표 후 미 10년물 4.7% 상회 여부",
+          "why": "금리 급등 시 B(주의) — 현재 4.62% 안정은 A(기본) 유지"
         },
         {
           "id": "c2",
-          "text": "미 반도체 장전 -2% 하회 (현재 -1.4%)",
-          "why": "-2% 돌파 시 전일 반등 반납 확대로 B(주의) 전환"
+          "text": "미 반도체 장전 -2% 하회 여부",
+          "why": "추가 밀림 시 B(주의) — 현재 -1.4%는 A(기본) 범위"
         },
         {
           "id": "c3",
-          "text": "저녁 NFP 발표 후 금리·달러 반응",
-          "why": "고용 급증 시 금리·달러 급등으로 B(주의) 열림"
+          "text": "원/달러 1,430원 돌파 여부",
+          "why": "달러 급등 시 B(주의) — 현재 1,428원은 A(기본) 유지"
         },
         {
           "id": "c4",
-          "text": "내일 NAVER 실적 발표",
-          "why": "국내 IT 섹터 점검 분수령으로 A(기본) 유지 여부 판가름"
-        },
-        {
-          "id": "c5",
-          "text": "원/달러 1,430원 돌파 (현재 1,424원)",
-          "why": "1,430원 돌파 시 외국인 이탈 압박 지속으로 B(주의)"
+          "text": "내일 NAVER 실적 발표 후 반응",
+          "why": "엔비디아 지분투자·사업 전환 기대 충족 시 A(기본) 강화"
         }
       ],
-      "publishedAt": "2026-08-06T09:28:36.057Z",
-      "slot": "kr-post",
+      "publishedAt": "2026-08-06T10:31:33.345Z",
+      "slot": "kr-mid",
       "mode": "full",
       "carryStreaks": {
         "미 sox 장전 -# 이하 유지": 0,
@@ -91,68 +85,77 @@
         "미 #년물 # 돌파 (현재 #)": 0,
         "미 반도체 장전 -# 하회 (현재 -#)": 0,
         "저녁 nfp 발표 후 금리·달러 반응": 0,
-        "내일 naver 실적 발표": 0
+        "내일 naver 실적 발표": 0,
+        "미 반도체 장전 -# 하회 여부": 0,
+        "내일 naver 실적 발표 후 반응": 0,
+        "원/달러 #,#원 돌파 여부": 0,
+        "저녁 nfp 발표 후 미 #년물 # 상회 여부": 0
       },
       "changeLines": [
-        "헤드라인 변경 · 코스피 -4.58% 외국인 3.3조 이탈 마감, 반도체 장전 -1…",
+        "헤드라인 변경 · 코스피 -4.58% 외국인 3.3조 이탈에 반도체 장전 -1.4%…",
         "브리핑 불릿 갱신",
         "시나리오 A/B 갱신"
       ]
     },
     "kr": {
       "briefing": {
-        "headline": "코스피 -4.58% 마감에 외국인 3.3조 이탈, 삼성전자·SK하이닉스 급락",
+        "headline": "코스피 -4.58% 마감 후 원/달러 1,428원 돌파, 반도체 장전 -1.4% 지속",
         "bullets": [
-          "코스피 -4.58%, 코스닥 +0.26% 마감. KS200 -5.36% 급락으로 시총 상위 낙폭 집중.",
-          "외국인 3.3조 순매도에 개인 동일 규모 순매수로 추가 낙폭 제한. 기관 1,214억 순매도.",
-          "삼성전자 -6.30%, SK하이닉스 -10.37% 급락. 시총 5종목 평균 -2.68% 마감.",
-          "원/달러 1,423.88원(+2.02원)으로 1,425원 재상회. 미 반도체 장전 -1.4% 되밀림 지속.",
-          "NAVER 실적 발표(08.07) 대기. 플랫폼 섹터 반응과 미 NFP 점검 필요."
+          "코스피 -4.58% 마감 후 원/달러 1,428.31원(+6.45원)으로 직전 1,423.88원 대비 1,430원 돌파 근접, 외국인 3.3조 이탈 여파 지속.",
+          "삼성전자 -6.30%·SK하이닉스 -10.37% 낙폭에 KS200 -5.36% vs 코스피 -4.58% 갭 -0.79%p, 시총 상위 평균 -2.68%.",
+          "미 반도체 장전 -1.4%(전일 +6.55% → 현재 -1.40%)로 되밀림 지속, 나스닥 장전 -0.83%·S&P -0.17%.",
+          "NAVER 실적 발표(08.07) 앞두고 엔비디아 지분투자·사업 전환 맥락 점검, 미 NFP 발표 후 VIX 15.85 상회 여부 관측."
         ],
         "evidenceIds": [
-          "usdkkrw"
+          "usdkkrw",
+          "vix"
         ]
       },
       "scenarios": [
         {
           "id": "base",
           "label": "A · 기본",
-          "title": "개인 3.3조 방어 후 원화 1,424원 안착",
-          "summary": "외국인 3.3조 이탈에도 개인 동일 규모 순매수로 추가 낙폭 제한, 원/달러 1,430원 돌파 없이 1,423.88원 마감",
-          "implication": "NAVER 실적 발표(08.07) 후 플랫폼 섹터 반응과 미 NFP 결과 점검"
+          "title": "원/달러 1,428원 안착 후 반도체 장전 회복 대기",
+          "summary": "원/달러 1,428.31원으로 1,430원 돌파 없이 안정, 미 반도체 장전 -1.4% 되밀림 지속 중 오후 회복 여부 관측",
+          "implication": "원화 1,430원 미만 유지 시 A(기본) 지속"
         },
         {
           "id": "risk",
           "label": "B · 주의",
-          "title": "시총 상위 -2.68% 낙폭에 KS200 갭 지속",
-          "summary": "삼성전자 -6.30%, SK하이닉스 -10.37% 급락으로 KS200 -5.36% vs 코스피 -4.58% 갭 확대",
-          "implication": "미 반도체 장전 -1.4% 되밀림 심화 시 시총 상위 추가 압력"
+          "title": "KS200 갭 -0.79%p 지속에 시총 낙폭 확대",
+          "summary": "KS200 -5.36% vs 코스피 -4.58% 갭 -0.79%p, 시총 상위 평균 -2.68% 낙폭에 외국인 이탈 여파 지속",
+          "implication": "KS200 갭 -1%p 돌파 또는 VIX 16 상회 시 B(주의) 근접"
         }
       ],
       "checkItems": [
         {
           "id": "c1",
-          "text": "원/달러 1,423.88원에서 1,430원 돌파",
-          "why": "돌파 시 B(주의) 환율 압력 확대, 안착 시 A(기본) 유지"
+          "text": "원/달러 1,428.31원에서 1,430원 돌파",
+          "why": "1,430원 상회 시 B(주의) 근접, 미만 유지 시 A(기본) 지속"
         },
         {
           "id": "c2",
-          "text": "미 반도체 장전 -1.4% 되밀림 회복 여부",
-          "why": "회복 시 A(기본) 시총 상위 안정, 심화 시 B(주의) 낙폭 지속"
+          "text": "미 반도체 장전 -1.4% 되밀림 회복",
+          "why": "전일 +6.55%에서 -1.4%로 되밀림, 회복 시 A(기본) 유지"
         },
         {
           "id": "c3",
-          "text": "NAVER 실적 발표(08.07) 후 플랫폼 반응",
-          "why": "긍정 반응 시 A(기본) 섹터 지지, 실망 시 B(주의) 변동성 확대"
+          "text": "KS200 갭 -0.79%p에서 -1%p 돌파",
+          "why": "갭 확대 시 B(주의) 근접, 축소 시 A(기본) 유지"
         },
         {
           "id": "c4",
-          "text": "미 NFP 발표 후 VIX 15.93 상회",
-          "why": "상회 시 B(주의) 변동성 확대, 하회 시 A(기본) 안정 유지"
+          "text": "NAVER 실적 발표(08.07) 후 엔비디아 지분투자 맥락",
+          "why": "플랫폼 사업 전환 점검, 반응에 따라 A/B 분기"
+        },
+        {
+          "id": "c5",
+          "text": "미 NFP 발표 후 VIX 15.85 상회",
+          "why": "16 돌파 시 B(주의) 근접, 15대 유지 시 A(기본) 지속"
         }
       ],
-      "publishedAt": "2026-08-06T09:28:36.057Z",
-      "slot": "kr-post",
+      "publishedAt": "2026-08-06T10:31:33.345Z",
+      "slot": "kr-mid",
       "mode": "full",
       "carryStreaks": {
         "원/달러 #,#원 상회 여부": 0,
@@ -166,69 +169,71 @@
         "원/달러 #,#원에서 #,#원 돌파": 0,
         "미 반도체 장전 -# 되밀림 회복 여부": 0,
         "naver 실적 발표(#) 후 플랫폼 반응": 0,
-        "미 nfp 발표 후 vix # 상회": 0
+        "미 nfp 발표 후 vix # 상회": 0,
+        "미 반도체 장전 -# 되밀림 회복": 0,
+        "ks# 갭 -#p에서 -#p 돌파": 0,
+        "naver 실적 발표(#) 후 엔비디아 지분투자 맥락": 0
       },
       "changeLines": [
-        "헤드라인 변경 · 코스피 -4.58% 마감에 외국인 3.3조 이탈, 삼성전자·SK하…",
+        "헤드라인 변경 · 코스피 -4.58% 마감 후 원/달러 1,428원 돌파, 반도체 …",
         "브리핑 불릿 갱신",
         "시나리오 A/B 갱신"
       ]
     },
     "us": {
       "briefing": {
-        "headline": "나스닥 장전 0.8% 밀림에 반도체 1.4% 되밀려, 금리 4.62% 안정 속 NFP 대기",
+        "headline": "반도체 장전 -1.4% 되밀림에 금리 4.62% 안정, NFP 앞두고 대기",
         "bullets": [
-          "나스닥 장전 -0.83%, 반도체 -1.40%로 전일 급등 되밀림 — S&P -0.17%, 다우 +0.49%",
-          "미 10년물 4.62%로 4.65% 돌파 없이 안정 — 금요일 고용보고서 앞두고 금리 경로 대기",
-          "샌디스크 EPS $39.25(예상 $34.52)에도 Evidence뉴스상 가이던스 실망·주가 하락 — 스토리지·반도체 섹터 되밀림",
-          "금요일 NFP 발표 후 금리 기대 재평가 여부 관측 — VIX 15.81 안정 속 고용 쇼크 시 변동성 확대 가능성",
-          "유가 $75.61 소폭 상승 속 지정학 리스크 점검 — 이란 전쟁 휴전 관측에도 공급 불확실성 잔존"
+          "나스닥 장전 -0.83%, 반도체 -1.4%로 전일 +6.55% 반등 일부 반납. S&P -0.17%, 다우 +0.49% 혼조.",
+          "샌디스크 EPS $39.25(예상 $34.52)였으나 가이던스 실망에 주가 하락, AI 메모리칩 섹터 동반 밀림.",
+          "미 10년물 4.62%로 4.65% 돌파 없이 안정. 금요일 NFP 발표 전 금리 경로 재평가 대기.",
+          "유가 $75.20 보합 속 이란 전쟁 휴전 소화, VIX 15.85 낮은 변동성 유지. NFP 후 금리 기대 흔들림 여부 관측."
         ],
         "evidenceIds": [
           "us10y",
-          "vix",
-          "wti"
+          "wti",
+          "vix"
         ]
       },
       "scenarios": [
         {
           "id": "base",
           "label": "A · 기본",
-          "title": "반도체 -1.4% 되밀림 속 NFP 대기",
-          "summary": "나스닥 -0.83%, 금리 4.62% 안정 속 금요일 고용보고서 대기",
-          "implication": "금리 4.65% 미만·VIX 16 이하 유지 시 A(기본) 유지"
+          "title": "반도체 -1.4% 되밀림 소화",
+          "summary": "금리 4.62% 안정 속 NFP 대기, 변동성 낮은 수준 유지",
+          "implication": "금리 4.65% 미돌파·VIX 16 이하 유지"
         },
         {
           "id": "risk",
           "label": "B · 주의",
-          "title": "NFP 쇼크 시 금리 기대 흔들림",
-          "summary": "고용보고서 컨센서스 크게 이탈 시 금리 경로 재평가·변동성 확대",
-          "implication": "NFP 발표 후 금리 4.65% 상회·VIX 18 돌파 시 B(주의)에 가깝다"
+          "title": "NFP 후 금리 기대 흔들림",
+          "summary": "고용보고서 컨센서스 이탈 시 금리 경로 재평가·변동성 확대",
+          "implication": "금리 4.65% 돌파·VIX 18 상회"
         }
       ],
       "checkItems": [
         {
           "id": "c1",
           "text": "저녁 개장 후 반도체 -1% 이상 유지",
-          "why": "전일 +6.55% 급등 후 차익 실현 지속 시 A(기본) 유지, 반등 시 B(주의)에 가깝다"
+          "why": "전일 +6.55% 반등 일부 반납 지속 시 A(기본) 유지, 추가 밀림 시 B(주의)에 가깝다"
         },
         {
           "id": "c2",
           "text": "미 10년물 4.65% 돌파 여부",
-          "why": "현재 4.62% 안정 유지 시 A(기본), 4.65% 상회 시 B(주의)에 가깝다"
+          "why": "현재 4.62% 안정 유지 시 A(기본), 돌파 시 B(주의) 진입"
         },
         {
           "id": "c3",
           "text": "금요일 NFP 발표 후 VIX 반응",
-          "why": "VIX 16 이하 유지 시 A(기본), 18 돌파 시 B(주의)에 가깝다"
+          "why": "현재 15.85 낮은 수준, 18 상회 시 B(주의)에 가깝다"
         },
         {
           "id": "c4",
           "text": "유가 $75 상회 지속 여부",
-          "why": "이란 휴전 관측에도 공급 불확실성 잔존 시 A(기본), 급등 시 B(주의)에 가깝다"
+          "why": "현재 $75.20 보합, 이란 휴전 소화 속 공급 리스크 재점화 시 B(주의) 신호"
         }
       ],
-      "publishedAt": "2026-08-06T06:56:48.040Z",
+      "publishedAt": "2026-08-06T10:29:49.483Z",
       "slot": "us-noon",
       "mode": "full",
       "carryStreaks": {
@@ -238,9 +243,9 @@
         "유가 $# 상회 지속 여부": 0
       },
       "changeLines": [
+        "헤드라인 변경 · 반도체 장전 -1.4% 되밀림에 금리 4.62% 안정, NFP 앞…",
         "브리핑 불릿 갱신",
-        "시나리오 A/B 갱신",
-        "오늘 볼 것 갱신"
+        "시나리오 A/B 갱신"
       ]
     }
   },
@@ -273,22 +278,22 @@
       },
       "contextNews": [
         {
-          "title": "US Storage Stocks Fall as SanDisk, Western Digital Guidance Disappoints",
-          "publisher": "TradingKey",
-          "publishedAt": "2026-08-06T09:12:05.000Z",
-          "snippet": "US Storage Stocks Fall as SanDisk, Western Digital Guidance Disappoints"
+          "title": "Sandisk is falling after earnings. Here’s what Wall Street says.",
+          "publisher": "MarketWatch",
+          "publishedAt": "2026-08-06T09:56:00.000Z",
+          "snippet": "Sandisk is falling after earnings. Here’s what Wall Street says."
         },
         {
-          "title": "Sandisk (NASDAQ:SNDK) stock falls after earnings as edge delivers the bigger revenue gain",
-          "publisher": "TechStock²",
-          "publishedAt": "2026-08-06T08:45:57.000Z",
-          "snippet": "Sandisk (NASDAQ:SNDK) stock falls after earnings as edge delivers the bigger revenue gain"
+          "title": "AI memory chip stocks fall after Sandisk's mixed outlook",
+          "publisher": "Seeking Alpha",
+          "publishedAt": "2026-08-06T09:35:40.000Z",
+          "snippet": "AI memory chip stocks fall after Sandisk's mixed outlook"
         },
         {
-          "title": "Sandisk unveils underwhelming outlook despite AI demand surge; shares slip By Investing.com",
-          "publisher": "Investing.com Nigeria",
-          "publishedAt": "2026-08-06T08:38:14.000Z",
-          "snippet": "Sandisk unveils underwhelming outlook despite AI demand surge; shares slip By Investing.com"
+          "title": "Market Reaction: Sandisk's AI momentum continues, but forecast leaves Street wanting more",
+          "publisher": "economictimes.indiatimes.com",
+          "publishedAt": "2026-08-06T09:35:35.000Z",
+          "snippet": "Market Reaction: Sandisk's AI momentum continues, but forecast leaves Street wanting more"
         }
       ]
     },
@@ -326,10 +331,10 @@
           "snippet": "엔비디아 발판으로 사업 전환하는 네이버, 주가 전망은?"
         },
         {
-          "title": "高유가 딛고…현대글로비스, 올해도 역대급 실적 기대감 : 네이버 블로그",
-          "publisher": "Naver Blog",
-          "publishedAt": "2026-08-05T14:33:00.000Z",
-          "snippet": "高유가 딛고…현대글로비스, 올해도 역대급 실적 기대감 : 네이버 블로그"
+          "title": "네이버 주가 전망, 엔비디아의 지분투자와 8월 7일 실적발표 이후 상승?",
+          "publisher": "네이버 프리미엄콘텐츠",
+          "publishedAt": "2026-08-05T12:20:00.000Z",
+          "snippet": "네이버 주가 전망, 엔비디아의 지분투자와 8월 7일 실적발표 이후 상승?"
         }
       ]
     },
@@ -437,6 +442,16 @@
         "severity": "warn",
         "code": "evidence-unused",
         "message": "[all] evidenceIds에 usdkkrw(원/달러)가 있으나 본문에 드러나지 않음"
+      },
+      {
+        "severity": "warn",
+        "code": "evidence-unused",
+        "message": "[all] evidenceIds에 usdkkrw(원/달러)가 있으나 본문에 드러나지 않음"
+      },
+      {
+        "severity": "warn",
+        "code": "evidence-unused",
+        "message": "[all] evidenceIds에 vix(VIX)가 있으나 본문에 드러나지 않음"
       },
       {
         "severity": "warn",
