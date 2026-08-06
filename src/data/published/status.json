@@ -1,9 +1,8 @@
 {
-  "updatedAt": "2026-08-06T00:48:24.963Z",
+  "updatedAt": "2026-08-06T01:37:29.657Z",
   "slot": "kr-pre",
-  "ok": false,
+  "ok": true,
   "mode": "full",
-  "error": "blocked: prior-session-without-anchor, missed-earnings",
-  "guardOk": false,
-  "guardSummary": "blocked: prior-session-without-anchor, missed-earnings"
+  "guardOk": true,
+  "guardSummary": "ok · 9 warn"
 }
