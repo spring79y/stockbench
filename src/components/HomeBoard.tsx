@@ -163,7 +163,6 @@ export function HomeBoard({
               scope={activeScope}
               slot={view.slot}
               mode={viewMode}
-              changeLines={view.changeLines}
             />
             <ScenarioPanel scenarios={view.scenarios} />
             <CheckList

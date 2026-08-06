@@ -21,7 +21,6 @@ export function TodayBriefing({
   scope,
   slot,
   mode,
-  changeLines,
 }: {
   briefing: DailyBriefing;
   macros: MacroChip[];
@@ -32,7 +31,6 @@ export function TodayBriefing({
   scope?: MarketScope;
   slot?: PipelineSlot | null;
   mode?: PipelineMode | null;
-  changeLines?: string[];
 }) {
   const evidenceIdSet = new Set(briefing.evidenceIds);
   const chips = [
@@ -44,7 +42,6 @@ export function TodayBriefing({
   const next = marketScope ? nextSlotForScope(marketScope) : null;
   const slotLabel = slot ? (SLOT_LABEL[slot] ?? slot) : null;
   const isRefresh = mode === "refresh" || Boolean(refreshLabel);
-  const lines = (changeLines ?? []).slice(0, 3);
 
   return (
     <section id="briefing" className="board-block briefing" aria-labelledby="briefing-title">
@@ -77,7 +74,7 @@ export function TodayBriefing({
           </p>
           {next ? (
             <p className={styles.nextLine}>
-              다음 발행 · {next.label}{" "}
+              다음 브리핑 · {next.label}{" "}
               <time dateTime={next.whenLabel}>{next.whenLabel}</time>
               {next.mode === "refresh" ? (
                 <span className={styles.tagMuted}>헤드라인만</span>
@@ -86,17 +83,6 @@ export function TodayBriefing({
           ) : null}
         </div>
       </div>
-
-      {lines.length > 0 ? (
-        <div className={styles.delta}>
-          <p className={styles.deltaLabel}>직전 발행 대비</p>
-          <ul className={styles.deltaList}>
-            {lines.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
 
       <h3 className={styles.headline}>{briefing.headline}</h3>
       <ul className={styles.bullets}>
