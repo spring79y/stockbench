@@ -74,7 +74,7 @@ Discuss 원칙: 사용자가 말한 “예측 지수”는 **기대·경계 신�
 | Collector | Yahoo·네이버 등 API로 지수·매크로·시총·수급·실적 숫자·`contextNews` 수집 → **Evidence Pack** 구조화 (비AI). **사실·플래그만** — EventList `oneLiner`에 판정 보류/호재·악재 등 해석 카피 금지 |
 | Briefing | Evidence Pack → 헤드라인·불릿·근거 (**탭별**, LLM). 실적 **결과+시장 반응** 서술(숫자+뉴스 이중 서술 포함)은 Briefing 전담. 뉴스 없으면 반응 풍부 서술 생략·강제 시 「반응 근거 부족」. **한·미는 해당 시장 1순위·상대 시장 ≤1불릿 브릿지** |
 | Decision | 브리핑+Evidence Pack → 시나리오 A/B + 「오늘 볼 것」3~5 (**탭별**, LLM). 해석은 Evidence 사실 기반 · beatLabel/뉴스 없는 극성·가이던스 단정 금지 |
-| Guard | 추천/예측 톤·숫자 복창·공허·**시점 둔갑**·사실 불일치·**due+Evidence 누락**·**결과 창작**·**beat 극성 반전**·**뉴스 없는 가이던스 단정** 차단. 숫자+뉴스면 이중 서술 허용. 최대 5회 재생성. 전부 거절 시 **직전 발행 유지** |
+| Guard | 추천/예측 톤·숫자 복창·공허·**시점 둔갑**·사실 불일치·**due+Evidence 누락**·**결과 창작**·**beat 극성 반전**·**뉴스 없는 가이던스 단정**·**숫자+뉴스인데 가이던스/반응 누락** 차단. 숫자+뉴스면 이중 서술 허용·필수. 최대 5회 재생성. 전부 거절 시 **직전 발행 유지** |
 | Publisher | `src/data/published/latest.json` (version 2, views.all/kr/us) |
 
 ### Evidence Pack (LLM 입력)

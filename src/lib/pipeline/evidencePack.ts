@@ -586,11 +586,13 @@ export function renderEvidencePackForPrompt(
           ];
           if (e.kind === "earnings" && e.contextNews && e.contextNews.length > 0) {
             lines.push(
-              `  Evidence뉴스(가이던스·반응 근거 · Briefing이 요약):`,
-              ...e.contextNews.map(
-                (n) =>
-                  `  - ${n.snippet} · ${n.publisher}${n.publishedAt ? ` · ${n.publishedAt.slice(0, 10)}` : ""}`,
-              ),
+              `  ★ Evidence뉴스(가이던스·반응 근거 · Briefing 필수 인용):`,
+              ...e.contextNews.map((n) => {
+                const title = n.title || n.snippet;
+                const pub = n.publisher ? ` · ${n.publisher}` : "";
+                const day = n.publishedAt ? ` · ${n.publishedAt.slice(0, 10)}` : "";
+                return `  - 「${title}」${pub}${day}`;
+              }),
             );
           } else if (e.kind === "earnings") {
             lines.push(
@@ -604,7 +606,7 @@ export function renderEvidencePackForPrompt(
       ? [
           "지시: 48시간 이내 실적(kind=earnings)이 있으면 bullets 중 1개에 회사명·섹터 맥락을 ‘점검’으로만 언급. EPS/매출 숫자 과다 복창·매매 신호 금지.",
           "지시: 서프라이즈/미스는 Evidence결과(EPS) beatLabel이 있을 때만 그대로 사용. 라벨 없으면 숫자만 인용·극성(상회/하회/서프라이즈/미스) 단정 금지. 가이던스 실망을 실적 미스로 바꿔 쓰기 금지.",
-          "지시: Evidence뉴스+숫자(또는 가격 반응)가 있으면 **실적 숫자 + 시장 반응(가이던스 등)** 이중 서술을 Briefing이 1불릿으로 작성. Collector oneLiner는 사실만 — 해석 복창 금지.",
+          "★★ 필수: Evidence뉴스+숫자(또는 가격 반응)가 있으면 Briefing bullets에 **실적 숫자 + 가이던스·시장 반응** 이중 서술을 1불릿으로 넣을 것. 위 「Evidence뉴스」 제목에 가이던스/outlook/실망/하락이 있으면 반드시 반영. 「혼조」「차익 실현」「섹터 밀림」만으로 가이던스 요약을 대체하지 말 것. Collector oneLiner 해석 복창 금지.",
           "지시: Evidence뉴스 없으면 반응·가이던스 풍부 서술 생략. must-cover due 실적이고 한 줄이 필요하면 「반응 근거 부족」만.",
         ]
       : []),

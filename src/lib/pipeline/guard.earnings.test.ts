@@ -264,4 +264,78 @@ describe("guard earnings polarity omit", () => {
     );
     assert.equal(guidanceBlocks.length, 0);
   });
+
+  it("hard-fails earnings-reaction-omission when contextNews present but no guidance/reaction", () => {
+    const briefing: BriefingDraft = {
+      headline: "나스닥 장전 밀림에 반도체 되밀림",
+      bullets: [
+        "나스닥 장전 약세, 반도체 지수 되밀림",
+        "미 10년물·VIX 안정 속 NFP 대기",
+        "샌디스크 실적 발표됨 · EPS $39.25 vs 예상 $34.52 — 점검만",
+      ],
+      evidenceIds: [],
+    };
+    const report = runGuard({
+      snapshot: baseSnapshot(
+        sndkEvent({
+          hoursAgo: 12,
+          contextNews: [
+            {
+              title: "Sandisk shares slip after soft guidance",
+              publisher: "Reuters",
+              publishedAt: new Date().toISOString(),
+              snippet: "Sandisk shares slip after soft guidance",
+            },
+          ],
+        }),
+      ),
+      briefing,
+      decision: okDecision,
+      scope: "us",
+    });
+    assert.ok(
+      report.findings.some(
+        (f) => f.severity === "block" && f.code === "earnings-reaction-omission",
+      ),
+      `expected earnings-reaction-omission block, got: ${report.findings.map((f) => `${f.severity}:${f.code}`).join(",")}`,
+    );
+    assert.equal(report.ok, false);
+  });
+
+  it("hard-fails when guidance-theme news but bullet only says sector 밀림 (no guidance cue)", () => {
+    const briefing: BriefingDraft = {
+      headline: "나스닥 장전 밀림에 반도체 되밀림",
+      bullets: [
+        "나스닥 장전 약세, 반도체 지수 되밀림",
+        "미 10년물·VIX 안정 속 NFP 대기",
+        "샌디스크 실적 발표 후에도 반도체 섹터 -1% 이상 밀림 — 전일 급등 후 차익 실현",
+      ],
+      evidenceIds: [],
+    };
+    const report = runGuard({
+      snapshot: baseSnapshot(
+        sndkEvent({
+          hoursAgo: 12,
+          contextNews: [
+            {
+              title: "NBM으로 3분의 2 확보했다더니…샌디스크 가이던스 한 줄에 코스피 4%대 하락",
+              publisher: "market-ink.co.kr",
+              publishedAt: new Date().toISOString(),
+              snippet: "NBM으로 3분의 2 확보했다더니…샌디스크 가이던스 한 줄에 코스피 4%대 하락",
+            },
+          ],
+        }),
+      ),
+      briefing,
+      decision: okDecision,
+      scope: "us",
+    });
+    assert.ok(
+      report.findings.some(
+        (f) => f.severity === "block" && f.code === "earnings-reaction-omission",
+      ),
+      `expected earnings-reaction-omission for guidance-theme omission, got: ${report.findings.map((f) => `${f.severity}:${f.code}`).join(",")}`,
+    );
+    assert.equal(report.ok, false);
+  });
 });

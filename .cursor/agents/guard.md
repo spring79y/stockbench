@@ -17,12 +17,12 @@ Discuss에서 말한 BriefGuard 역할은 **별도 에이전트가 아니라 이
 - `unsupported-earnings-result` — beatLabel 없는 실적에 서프라이즈/미스 단정
 - `earnings-beat-polarity` — Evidence beatLabel 극성 뒤집기
 - `unsupported-guidance-claim` — Evidence contextNews 없이 가이던스·전망 결과 단정
+- `earnings-reaction-omission` — 숫자+contextNews인데 가이던스/반응 요약 누락 (forceCite·mustCover·라이브 due면 **hard fail**)
 
 정책 메모: beatLabel은 Collector 이중 출처(분기 quarterly + 같은 분기 calendar)일 때만. thin Yahoo path는 숫자만(라벨 생략) — EventList에 「판정 보류」 쓰지 않음.
-가이던스·반응 문장은 Collector가 붙인 contextNews가 있을 때만 Briefing이 요약(숫자+뉴스 이중 서술 허용).
+가이던스·반응 문장은 Collector가 붙인 contextNews가 있을 때만 Briefing이 요약(숫자+뉴스 이중 서술 허용·필수).
 소프트:
 - `prior-phrase-parrot` — 직전 연속성 문구 과도 복창
-- `earnings-reaction-omission` — 숫자+뉴스인데 반응 요약이 약함
 
 정책:
 - scope당 최대 5회 재생성(repairHints)

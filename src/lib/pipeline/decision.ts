@@ -40,7 +40,7 @@ export const DECISION_SYSTEM_PROMPT = `당신은 증시 브리핑의 Decision Ag
 - 브리핑과 모순 금지 · 탭 scope 존중 (us면 미장 중심, kr면 국내 중심. 상대 시장은 시나리오에서도 보조만)
 - Evidence **직전 연속성**의 시나리오 A/B·checkItems를 현재 숫자로 재평가해 갱신 (복창 금지)
 - due+Evidence 사실이 있으면 시나리오/점검에 반영. 결과 없으면 창작 금지
-- 실적: Collector 사실은 숫자·beatLabel·contextNews. 반응·가이던스 해석은 Evidence뉴스 있을 때만
+- 실적: Collector 사실은 숫자·beatLabel·contextNews. 반응·가이던스 해석은 Evidence뉴스 있을 때만(필수 이중 서술)
 
 출력 JSON만:
 {

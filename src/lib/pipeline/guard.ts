@@ -367,9 +367,61 @@ const MISS_CLAIM_RE =
 /** 가이던스·전망 결과 단정 — Evidence contextNews 없이 쓰면 hard fail */
 const GUIDANCE_CLAIM_RE =
   /가이던스\s*(?:를\s*)?(?:하회|상회|하향|상향|실망|미달|부진|양호|호조|컷|컷트)|가이딩\s*(?:컷|미스)|향후\s*(?:실적\s*)?전망\s*(?:하회|실망|부진|상향|하향)|어닝\s*콜\s*(?:실망|호조|부정|긍정)|guidance\s*(?:cut|miss|beat|soft|weak|raise|lower)|outlook\s*(?:cut|miss|beat|soft|weak)/i;
+/** contextNews 헤드라인·스니펫에 가이던스·실망·가격 반응 테마가 있는지 */
+const NEWS_GUIDANCE_THEME_RE =
+  /가이던스|전망|guidance|outlook|disappoint|실망|하회|하향|soft\s*guidance|weak\s*guidance|어닝\s*콜|하락|급락|털렸|slip|fall|drop|slump/i;
+/** 브리핑에 가이던스·전망·실망 요약을 썼는지 (뉴스 테마 있을 때 필수) */
+const GUIDANCE_SUMMARY_CUE_RE =
+  /가이던스|전망|guidance|outlook|실망|하회|하향|상향|어닝\s*콜|soft|weak|cut/i;
+/** 가격·섹터 반응만 (가이던스 테마 없을 때) */
+const PRICE_REACTION_CUE_RE =
+  /반응|하락|상승|급락|급등|밀림|되밀림|주가|섹터/;
 
 function hasEarningsContextNews(ev: MarketEvent): boolean {
   return Array.isArray(ev.contextNews) && ev.contextNews.length > 0;
+}
+
+function contextNewsHasGuidanceTheme(ev: MarketEvent): boolean {
+  if (!hasEarningsContextNews(ev)) return false;
+  return ev.contextNews!.some(
+    (n) => NEWS_GUIDANCE_THEME_RE.test(n.title) || NEWS_GUIDANCE_THEME_RE.test(n.snippet),
+  );
+}
+
+/** forceCite/mustCover 연속성 항목이 이 실적을 가리키는지 */
+function earningsIsForceOrMustCover(
+  snapshot: CollectorSnapshot,
+  scope: MarketScope,
+  ev: MarketEvent,
+): boolean {
+  const items = continuityForScope(snapshot, scope);
+  if (items.length === 0) {
+    // 연속성 없으면 라이브 due(숫자+뉴스)는 must-cover 급으로 취급 → noon 발행 차단
+    return hasEarningsActualNumbers(ev) && hasEarningsContextNews(ev);
+  }
+  return items.some((item) => {
+    if (!item.forceCite && !item.mustCover) return false;
+    const blob = `${item.priorText} ${item.evidenceFact ?? ""} ${item.note ?? ""}`;
+    return proseMentionsEarningsIdentity(blob, blob.toLowerCase(), ev);
+  });
+}
+
+function briefingHasEarningsReactionCue(
+  relatedLines: string[],
+  ev: MarketEvent,
+): boolean {
+  if (contextNewsHasGuidanceTheme(ev)) {
+    // 뉴스에 가이던스·실망·하락 테마 → 「밀림/섹터」만으로는 부족, 가이던스·실망 요약 필요
+    return relatedLines.some(
+      (t) => GUIDANCE_CLAIM_RE.test(t) || GUIDANCE_SUMMARY_CUE_RE.test(t),
+    );
+  }
+  return relatedLines.some(
+    (t) =>
+      GUIDANCE_CLAIM_RE.test(t) ||
+      GUIDANCE_SUMMARY_CUE_RE.test(t) ||
+      PRICE_REACTION_CUE_RE.test(t),
+  );
 }
 
 /** Evidence 없는 실적 결과 단정 → hard fail */
@@ -834,7 +886,8 @@ export function runGuard(input: {
     }
   }
 
-  // Soft: due 실적에 숫자+뉴스가 있는데 언급만 하고 반응·가이던스 근거가 전혀 없으면 warn
+  // due 실적에 숫자+뉴스가 있는데 반응·가이던스 요약이 없으면
+  // forceCite/mustCover(또는 연속성 없는 라이브 due) → hard fail / regenerate
   for (const ev of imminentEarnings) {
     if (!isPostEarningsResult(ev, now)) continue;
     if (!hasEarningsActualNumbers(ev) || !hasEarningsContextNews(ev)) continue;
@@ -842,20 +895,18 @@ export function runGuard(input: {
     const related = [input.briefing.headline, ...input.briefing.bullets].filter((t) =>
       proseMentionsEarningsIdentity(t, t.toLowerCase(), ev),
     );
-    const hasReactionCue = related.some(
-      (t) =>
-        GUIDANCE_CLAIM_RE.test(t) ||
-        /반응|하락|상승|급락|급등|밀림|되밀림|주가|섹터/.test(t),
-    );
-    if (!hasReactionCue) {
-      findings.push({
-        severity: "warn",
-        code: "earnings-reaction-omission",
-        message:
-          `숫자+Evidence뉴스 있는데 반응·가이던스 요약 약함: ${ev.title}. ` +
-          "Briefing이 숫자+뉴스 이중 서술을 권장.",
-      });
-    }
+    if (briefingHasEarningsReactionCue(related, ev)) continue;
+    const hard = earningsIsForceOrMustCover(input.snapshot, scope, ev);
+    const needsGuidance = contextNewsHasGuidanceTheme(ev);
+    findings.push({
+      severity: hard ? "block" : "warn",
+      code: "earnings-reaction-omission",
+      message: needsGuidance
+        ? `숫자+Evidence뉴스(가이던스·반응) 있는데 가이던스/실망 요약 누락: ${ev.title}. ` +
+          "Briefing이 숫자+가이던스·시장 반응 이중 서술을 1불릿에 넣을 것."
+        : `숫자+Evidence뉴스 있는데 반응·가이던스 요약 누락: ${ev.title}. ` +
+          "Briefing이 숫자+뉴스 이중 서술을 1불릿에 넣을 것.",
+    });
   }
 
   pushCarryForwardOmissionFindings(findings, input.snapshot, scope, prose, proseLower);
@@ -992,5 +1043,6 @@ export const GUARD_SYSTEM_PROMPT = `당신은 증시 브리핑의 Guard Agent다
 숫자 복창, 공허한 브리핑, 추천/예측 톤, 탭 초점 이탈(scope-leakage), 사실 불일치,
 due+Evidence 연속성 누락, Evidence 없는 결과 창작을 차단한다.
 Evidence beatLabel이 없으면 서프라이즈/미스/컨센서스 상회·하회를 단정하지 않는다 (숫자는 인용 가능).
-Evidence contextNews+숫자가 있으면 숫자+가이던스/반응 이중 서술을 허용한다. 뉴스 없으면 반응 풍부 서술 금지.
-Evidence contextNews가 없으면 가이던스·전망 결과 문장을 쓰지 않는다.`;
+Evidence contextNews+숫자가 있으면 숫자+가이던스/반응 이중 서술을 **필수**로 허용·요구한다. 뉴스 없으면 반응 풍부 서술 금지.
+Evidence contextNews가 없으면 가이던스·전망 결과 문장을 쓰지 않는다.
+숫자+뉴스인데 가이던스/실망/반응 요약을 빼면 earnings-reaction-omission(forceCite/mustCover 시 hard fail).`;
