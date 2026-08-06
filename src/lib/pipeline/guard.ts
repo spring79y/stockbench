@@ -52,7 +52,31 @@ const EMPTY_BRIEFING_PATTERNS = [
   /신중히\s*접근/,
   /지켜볼\s*필요/,
   /관심이\s*쏠/,
+  /투자자\s*주의/,
+  /신중한\s*(대응|접근)/,
+  /방향성\s*(을\s*)?지켜/,
+  /불확실성\s*(이\s*)?(커|확대)/,
+  /전반적으로\s*(혼조|관망|약세|강세)/,
 ];
+
+/** 애널리스트 은어 — soft warn (설명 없이 나열할 때) */
+const JARGON_WALL_PATTERNS = [
+  /컨센서스(?!\s*(상회|하회|평균|예상))/,
+  /리스크\s*온\b|리스크\s*오프\b|risk[\s-]?on|risk[\s-]?off/i,
+  /포지셔닝/,
+  /리레이팅/,
+  /\b베타\b|\b알파\b/,
+  /매크로\s*헤드라인/,
+  /듀레이션/,
+];
+
+/** 재평가 문장 단서 — forceCite에 Evidence 사실이 있을 때 (막연한 「오늘」「관측」제외) */
+const REEVAL_CUE_RE =
+  /유지\s*(?:여부|되는지|됨|될)|깨졌|깨지|상회|하회|돌파|전환|발표됨|재평가|여전히|완화|확대|되밀|반등|현재\s*[+-]?\d|지금\s*[+-]?\d|대비\s*(?:위|아래|비슷)|vs\s*[\$₩]?\d/i;
+
+/** 장중·점검 슬롯에서 장후/개장 예측 톤 */
+const MID_SLOT_WRONG_TONE_RE =
+  /(?:마감\s*정리|세션\s*리캡|오늘\s*장을\s*마감)|(?:개장\s*(?:예상|전망)|강세\s*출발|약세\s*출발)/;
 
 const KR_LEAK_RE = /코스피|코스닥|KS200|코스피200|국내\s*(증시|시장|수급)|외국인\s*순매/;
 const US_LEAK_RE = /나스닥|S&P|다우|미\s*증시|미\s*장|뉴욕\s*증시/;
@@ -330,13 +354,14 @@ function continuityForScope(
   return block?.items ?? [];
 }
 
-/** due+Evidence 사실(forceCite) 누락 → hard fail */
+/** due+Evidence 사실(forceCite) 누락 → hard fail · 키워드만 넣기(재평가 없음)도 hard fail */
 function pushCarryForwardOmissionFindings(
   findings: GuardFinding[],
   snapshot: CollectorSnapshot,
   scope: MarketScope,
   prose: string,
   proseLower: string,
+  briefingTexts: string[],
 ) {
   const items = continuityForScope(snapshot, scope).filter((i) => i.forceCite);
   for (const item of items) {
@@ -353,6 +378,47 @@ function pushCarryForwardOmissionFindings(
           `(${item.evidenceFact?.slice(0, 48) ?? item.status}). ` +
           "현재 Evidence 사실로 재평가해 브리핑에 반영.",
       });
+      continue;
+    }
+
+    // Token hit alone is not enough when we have an Evidence fact — need re-eval cue
+    if (item.evidenceFact && item.evidenceFact.length >= 8) {
+      const related = briefingTexts.filter((t) =>
+        tokens.some((tok) =>
+          /[A-Za-z0-9]/.test(tok)
+            ? t.toLowerCase().includes(tok.toLowerCase())
+            : t.includes(tok),
+        ),
+      );
+      const factNums = [
+        ...(item.evidenceFact.match(/[+-]?\d+\.\d+%?/g) ?? []),
+        ...(item.evidenceFact.match(/\b\d{2,}%/g) ?? []),
+      ].filter((n) => n.replace(/[+-]/, "").replace(/%$/, "").length >= 2);
+      const hasFactNumber =
+        factNums.length > 0 &&
+        related.some((t) => factNums.some((n) => t.includes(n)));
+      const hasStrongCue = related.some((t) => REEVAL_CUE_RE.test(t));
+      const hasReeval =
+        hasFactNumber ||
+        (factNums.length === 0 && hasStrongCue);
+      const parrotCore = item.priorText.replace(/\s+/g, " ").trim().slice(0, 20);
+      const isParrot =
+        parrotCore.length >= 12 &&
+        related.some(
+          (t) =>
+            t.includes(parrotCore) &&
+            !hasFactNumber &&
+            !/현재|지금|여전히|깨졌|발표됨|재평가/.test(t),
+        );
+      if (!hasReeval || isParrot) {
+        findings.push({
+          severity: "block",
+          code: "carry-forward-no-reeval",
+          message:
+            `forceCite를 키워드만 넣거나 복창함: "${item.priorText.slice(0, 36)}". ` +
+            `Evidence「${item.evidenceFact.slice(0, 40)}」로 유지/깨짐/숫자 갱신 등 재평가 문장을 쓰세요.`,
+        });
+      }
     }
   }
 }
@@ -669,6 +735,39 @@ export function runGuard(input: {
     }
   }
 
+  // Soft: jargon wall without plain-Korean gloss
+  let jargonHits = 0;
+  for (const text of briefingTexts) {
+    for (const pattern of JARGON_WALL_PATTERNS) {
+      if (pattern.test(text)) jargonHits += 1;
+    }
+  }
+  if (jargonHits >= 2) {
+    findings.push({
+      severity: "warn",
+      code: "jargon-wall",
+      message:
+        `애널리스트 은어가 ${jargonHits}회 감지. ` +
+        "쉬운 한국어로 바꾸거나(예: 컨센서스→시장 평균 예상) 한 줄로 풀어서 쓰세요.",
+    });
+  }
+
+  // Slot-wrong tone (mid/noon sounding like close-recap or open-forecast)
+  const slot = input.snapshot.slot;
+  if (slot === "kr-mid" || slot === "us-mid" || slot === "us-noon") {
+    for (const text of briefingTexts) {
+      if (MID_SLOT_WRONG_TONE_RE.test(text)) {
+        findings.push({
+          severity: "block",
+          code: "slot-tone-mismatch",
+          message:
+            `장중·점검 슬롯에 장후 리캡/개장 예측 톤: "${text.slice(0, 48)}". ` +
+            "관측 틀 갱신(지금까지 사실 + 남은 구간 신호)으로 다시 쓰세요.",
+        });
+      }
+    }
+  }
+
   if (scope === "us") {
     const krHits = countMatches(briefingTexts, KR_LEAK_RE);
     if (KR_LEAK_RE.test(input.briefing.headline)) {
@@ -909,7 +1008,14 @@ export function runGuard(input: {
     });
   }
 
-  pushCarryForwardOmissionFindings(findings, input.snapshot, scope, prose, proseLower);
+  pushCarryForwardOmissionFindings(
+    findings,
+    input.snapshot,
+    scope,
+    prose,
+    proseLower,
+    briefingTexts,
+  );
   // Scan briefing + decision: LLM must not re-assert 서프라이즈/미스 without Evidence beatLabel.
   pushInventedResultFindings(findings, input.snapshot, scope, texts);
   pushBeatPolarityFindings(findings, input.snapshot, scope, texts);
@@ -1041,8 +1147,86 @@ export function runBriefingOnlyGuard(input: {
 
 export const GUARD_SYSTEM_PROMPT = `당신은 증시 브리핑의 Guard Agent다.
 숫자 복창, 공허한 브리핑, 추천/예측 톤, 탭 초점 이탈(scope-leakage), 사실 불일치,
-due+Evidence 연속성 누락, Evidence 없는 결과 창작을 차단한다.
+due+Evidence 연속성 누락·재평가 없는 키워드만 넣기, Evidence 없는 결과 창작, 슬롯 톤 불일치를 차단한다.
 Evidence beatLabel이 없으면 서프라이즈/미스/컨센서스 상회·하회를 단정하지 않는다 (숫자는 인용 가능).
 Evidence contextNews+숫자가 있으면 숫자+가이던스/반응 이중 서술을 **필수**로 허용·요구한다. 뉴스 없으면 반응 풍부 서술 금지.
 Evidence contextNews가 없으면 가이던스·전망 결과 문장을 쓰지 않는다.
-숫자+뉴스인데 가이던스/실망/반응 요약을 빼면 earnings-reaction-omission(forceCite/mustCover 시 hard fail).`;
+숫자+뉴스인데 가이던스/실망/반응 요약을 빼면 earnings-reaction-omission(forceCite/mustCover 시 hard fail).
+거절 사유는 findingsToRepairHints로 구체 수정 지시가 되어 다음 초안에 들어간다.`;
+
+/**
+ * Guard findings → 다음 LLM 초안용 구체 수정 지시.
+ * 코드별 fix instruction을 앞에 두고 원문 메시지를 붙여, 재생성 시 무엇을 고칠지 명확히 한다.
+ */
+export function findingsToRepairHints(findings: GuardFinding[]): string[] {
+  const FIX: Record<string, string> = {
+    "recommendation-or-prediction":
+      "추천·예측 톤 제거. 관측·조건부 해석만 (사라/팔라/반드시 오를 금지).",
+    "empty-briefing":
+      "공허 문장 삭제. 사실→왜→체감→관찰 패턴으로, 누가·무엇이·왜가 보이게 다시 쓰기.",
+    "empty-checklist":
+      "「확인한다」류 삭제. text=구체 트리거, why=A(기본)/B(주의) 분기 한 줄.",
+    "number-restatement":
+      "등락률 나열만으로 끝내지 말 것. 왜·체감·관찰을 한 문장에.",
+    "scope-leakage":
+      "탭 초점 이탈 수정. 해당 scope 시장이 헤드라인·불릿 과반. 상대 시장 ≤1불릿 브릿지.",
+    "prior-label-mismatch":
+      "전일 라벨에는 전일세션마감 숫자만. 장중/현재 수치를 전일로 쓰지 말 것.",
+    "prior-session-fact-mismatch":
+      "전일 세션 수치를 Evidence 전일세션마감과 맞출 것.",
+    "pre-session-forecast":
+      "개장·출발 예측 표현 삭제. 전일 사실 + 오늘 관측 신호로.",
+    "pre-missing-prior-recap":
+      "장전: 전일/전 거래일/직전 마감 앵커로 직전 세션 요약 1줄 추가.",
+    "pre-missing-observable-watch":
+      "장전: 유지 여부·반응·상회/하회·전환 등 오늘 관측 신호 불릿 추가.",
+    "prior-session-without-anchor":
+      "지수·수급·시총 숫자에 전일/직전 마감 시점 표시를 같은 문장에.",
+    "post-missing-session-recap":
+      "장후: 오늘 마감·장중·세션 결과와 촉발 요인 1개를 헤드라인/불릿에.",
+    "carry-forward-omission":
+      "forceCite due를 Evidence 사실로 브리핑에 반영 (생략 금지).",
+    "carry-forward-no-reeval":
+      "forceCite는 키워드만 넣지 말고 Evidence 숫자로 재평가 문장(유지/깨짐/발표됨 등).",
+    "invented-event-result":
+      "Evidence beatLabel 없는 서프라이즈/미스 창작 삭제. 숫자·뉴스만 또는 생략.",
+    "unsupported-earnings-result":
+      "beatLabel 없으면 극성 단정 금지. 숫자 인용 + (뉴스 있으면) 가이던스/반응만.",
+    "earnings-beat-polarity":
+      "Evidence beatLabel 극성을 뒤집어 쓰지 말 것. 라벨 그대로.",
+    "unsupported-guidance-claim":
+      "contextNews 없으면 가이던스·전망 결과 문장 생략.",
+    "earnings-reaction-omission":
+      "숫자+Evidence뉴스면 1불릿에 매출/주당순이익+예상대비 + 가이던스·반응 이중 서술.",
+    "missed-earnings":
+      "임박/직후 실적을 bullets에 회사명으로 1줄 점검 포함.",
+    "slot-tone-mismatch":
+      "이 슬롯 JOB에 맞는 톤으로. 장중·점검은 관측 틀 갱신(장후 리캡·개장 예측 금지).",
+    "fact-mismatch":
+      "지수 방향 서술을 Evidence 등락과 맞출 것.",
+    "fx-mismatch":
+      "환율 방향 서술을 Evidence dir과 맞출 것.",
+    "evidence-missing":
+      "없는 evidenceId 제거. 본문에 쓴 매크로 id만.",
+    "scenario-count":
+      "시나리오 A/B 정확히 2개.",
+    "prior-phrase-parrot":
+      "직전 연속성 문구 복창 금지. 현재 Evidence로 재평가한 새 문장.",
+    "jargon-wall":
+      "애널리스트 은어를 쉬운 한국어로(컨센서스→시장 평균 예상 등).",
+  };
+
+  const seen = new Set<string>();
+  const hints: string[] = [];
+  for (const f of findings) {
+    if (f.severity !== "block" && f.code !== "prior-phrase-parrot" && f.code !== "jargon-wall") {
+      continue;
+    }
+    const key = `${f.code}:${f.message.slice(0, 48)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const fix = FIX[f.code] ?? "아래 거절 사유를 반영해 다시 작성.";
+    hints.push(`[${f.code}] ${fix} | 상세: ${f.message}`);
+  }
+  return hints.slice(0, 12);
+}

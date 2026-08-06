@@ -139,14 +139,38 @@ const SLOT_LABEL: Record<PipelineSlot, string> = {
 };
 
 const SLOT_FOCUS: Record<PipelineSlot, string> = {
-  "kr-pre": "전 거래일 국내 요약 + 오늘 국내 관측 틀·신호 · 미국 오버나잇은 최대 한 줄 조건부 브릿지",
-  "kr-mid": "오전 소화 + 오후 관측 틀 갱신 · 장중 매매 신호·개장 예측 금지",
-  "kr-post": "오늘 국내 세션 결과·수급·시총·주요 촉발 요인 리캡 · 밤 미장은 최대 한 줄 점검",
-  "us-pre": "전 거래일 미국 요약 + 오늘 미국 관측 틀·신호 · 국내 마감은 최대 한 줄 조건부 브릿지",
-  "us-mid": "미 장중 관측 틀·시나리오·점검 갱신 · 매매 신호·방향 예측 금지",
-  "us-post": "오늘 미국 세션 결과·메가캡·주요 촉발 요인 리캡 · 다음 국내 장전은 최대 한 줄 점검",
+  "kr-pre":
+    "JOB=장전 관측 틀 · 전 거래일 국내 요약(전일세션마감만) + 오늘 국내 신호 · 미 오버나잇 ≤1줄 브릿지 · 개장 방향 예측 금지",
+  "kr-mid":
+    "JOB=장중 관측 틀 갱신 · 오전 소화 사실 + 오후 볼 신호 · 매매·개장 예측·장후 리캡 톤 금지",
+  "kr-post":
+    "JOB=장후 세션 리캡 · 오늘 국내 결과·수급·시총·촉발 요인 · 밤 미장 ≤1줄 점검 · 내일 개장 예측 금지",
+  "us-pre":
+    "JOB=장전 관측 틀 · 전 거래일 미국 요약(전일세션마감만) + 오늘 미 신호 · 국내 마감 ≤1줄 브릿지 · 개장 방향 예측 금지",
+  "us-mid":
+    "JOB=장중 관측 틀 갱신 · 미 장중 사실 + 남은 구간 신호 · 매매·방향 예측·장후 리캡 톤 금지",
+  "us-post":
+    "JOB=장후 세션 리캡 · 오늘 미 결과·메가캡·촉발 요인 · 다음 국내 장전 ≤1줄 · 개장 예측 금지",
   "us-noon":
-    "미 정규장 종료 후~장전 전 공백 점검 · 직전 미 세션·오버나잇 맥락 + 저녁 미 장전 관측 틀 · 매매·개장 예측 금지",
+    "JOB=낮 공백 점검(미 정규장 중 아님) · 직전 미 세션·오버나잇 + 저녁 장전 관측 · 매매·개장·장중 매매톤 금지",
+};
+
+/** 슬롯별 LLM이 골라야 할 1순위 재료 (Evidence 섹션 안내) */
+const SLOT_PRIORITY_PICK: Record<PipelineSlot, string> = {
+  "kr-pre":
+    "1) 전일세션마감 지수·수급·시총 2) forceCite due 사실 3) 오늘 관측 신호 4) 임박 일정/실적 5) 미 브릿지≤1",
+  "kr-mid":
+    "1) 장중(당일) 사실 변화 2) forceCite 재평가 3) 오후 관측 신호 4) 임박 일정/실적 5) 미 브릿지≤1",
+  "kr-post":
+    "1) 오늘 세션 결과·촉발 1개 2) 수급·시총 체감 3) forceCite 재평가 4) 밤 미장 점검≤1",
+  "us-pre":
+    "1) 전일세션마감 미 지수·메가캡 2) forceCite due 사실 3) 오늘 관측 신호 4) 임박 일정/실적 5) 국내 브릿지≤1",
+  "us-mid":
+    "1) 미 장중 사실 변화 2) forceCite 재평가 3) 남은 구간 신호 4) 임박 일정/실적 5) 국내 브릿지≤1",
+  "us-post":
+    "1) 오늘 미 세션 결과·촉발 1개 2) 메가캡 체감 3) forceCite 재평가 4) 국내 장전 연결≤1",
+  "us-noon":
+    "1) 직전 미 세션·오버나잇 사실 2) forceCite(실적·매크로 due) 재평가 3) 저녁 장전 관측 신호 4) 임박 일정",
 };
 
 function avg(nums: number[]): number | null {
@@ -386,6 +410,15 @@ function formatEarningsEventLine(e: EvidencePack["events"][number]): string {
   const tag = e.kind === "earnings" ? "실적" : "매크로";
   const when = e.dateISO ? ` · ${e.dateISO.slice(0, 10)}` : "";
   const region = e.region === "KR" || e.region === "US" ? e.region : undefined;
+  const hasNews = Boolean(e.contextNews && e.contextNews.length > 0);
+  const hasNums =
+    e.actual?.epsActual != null && e.actual?.epsEstimate != null;
+  const dualFlag =
+    e.kind === "earnings" && hasNums && hasNews
+      ? " · ★이중서술필수(숫자+뉴스)"
+      : e.kind === "earnings" && hasNums && !hasNews
+        ? " · 반응뉴스없음(풍부서술금지)"
+        : "";
 
   let consensusHint = "";
   if (e.kind === "earnings" && e.consensus) {
@@ -423,7 +456,7 @@ function formatEarningsEventLine(e: EvidencePack["events"][number]): string {
     }
   }
 
-  return `- ${e.dateLabel}${when} [${e.region}/${e.level}/${tag}] ${e.title} — ${e.oneLiner}${consensusHint}${result}`;
+  return `- ${e.dateLabel}${when} [${e.region}/${e.level}/${tag}] ${e.title} — ${e.oneLiner}${consensusHint}${result}${dualFlag}`;
 }
 
 /** LLM user prompt용 — 섹션화·복창 금지·탭 초점 필터 포함 */
@@ -595,13 +628,16 @@ export function renderEvidencePackForPrompt(
       : [];
 
   return [
-    "## 세션",
+    "## 세션 · 슬롯 JOB (슬롯마다 다른 일 — 톤 혼용 금지)",
     `탭 초점(scope): ${scope}`,
     scopeRule,
     `슬롯: ${pack.session.slot} (${pack.session.slotLabel})`,
-    `슬롯 초점: ${pack.session.focusHint}`,
+    `슬롯 JOB: ${pack.session.focusHint}`,
+    `재료 고르기 순서: ${SLOT_PRIORITY_PICK[pack.session.slot]}`,
     `수집: ${pack.session.collectedAt}`,
     `시세 기준: ${pack.session.asOfLabel}`,
+    "품질 바: 헤드라인+불릿만으로 비전문가가 「오늘은 ○○을 보면 된다」고 말할 수 있어야 함.",
+    "숫자=Evidence 복창 금지 · LLM 역할=왜/그래서/무엇을 볼지. 공허·애널리스트 은어·슬롯 틀린 톤 금지.",
     ...preSessionRule,
     "",
     ...tempBlock,
@@ -621,13 +657,13 @@ export function renderEvidencePackForPrompt(
     "",
     ...signalsBlock,
     "",
-    "## 일정 (이 탭·글로벌 · 실적은 점검용)",
+    "## 일정 (이 탭·글로벌 · 실적=점검 · contextNews=가이던스/반응 근거)",
     ...(events.length > 0
       ? events.flatMap((e) => {
           const lines = [formatEarningsEventLine(e)];
           if (e.kind === "earnings" && e.contextNews && e.contextNews.length > 0) {
             lines.push(
-              `  ★ Evidence뉴스(가이던스·반응 근거 · Briefing 필수 인용):`,
+              `  ★ Evidence뉴스(contextNews · 가이던스·반응 근거 · Briefing 필수 인용):`,
               ...e.contextNews.map((n) => {
                 const title = n.title || n.snippet;
                 const pub = n.publisher ? ` · ${n.publisher}` : "";
@@ -637,7 +673,7 @@ export function renderEvidencePackForPrompt(
             );
           } else if (e.kind === "earnings") {
             lines.push(
-              `  Evidence뉴스: 없음 — 반응·가이던스 풍부 서술 생략(강제 인용 시 「반응 근거 부족」1줄만)`,
+              `  Evidence뉴스(contextNews): 없음 — 반응·가이던스 풍부 서술 생략(강제 시 「반응 근거 부족」1줄만)`,
             );
           }
           return lines;
@@ -649,8 +685,8 @@ export function renderEvidencePackForPrompt(
           "지시: 서프라이즈/미스는 Evidence결과(EPS) beatLabel이 있을 때만 그대로 사용. 라벨 없으면 숫자만 인용·극성(상회/하회/서프라이즈/미스) 단정 금지. 가이던스 실망을 실적 미스로 바꿔 쓰기 금지.",
           "지시: 실적 해설은 일반 개미용. 「컨센서스」→「시장·애널리스트 평균 예상」. EPS는 「주당 순이익(EPS)」. 매출(회사 규모)과 주당 순이익을 같은 지표로 묶지 말 것. 단위(원·조원·$) 명시. 예상 대비 위/아래/비슷만 — 좋다/나쁘다·목표가·매수 암시 금지.",
           "지시: 예상 vs 실제(또는 가이던스) 매출을 말할 때 Event UI·Evidence예상과 같은 단위(조원·억원·$B/$M)로 맞춰 써라. 서로 다른 자릿수(예: 3380000000000원과 3.4조원)를 나란히 쓰지 말 것. EPS는 원/주당(또는 $) 유지 — 매출 단위로 바꾸지 말 것.",
-          "★★ 필수: Evidence뉴스+숫자(또는 가격 반응)가 있으면 Briefing bullets에 **실적 숫자 + 가이던스·시장 반응** 이중 서술을 1불릿으로 넣을 것. 위 「Evidence뉴스」 제목에 가이던스/outlook/실망/하락이 있으면 반드시 반영. 「혼조」「차익 실현」「섹터 밀림」만으로 가이던스 요약을 대체하지 말 것. Collector oneLiner 해석 복창 금지.",
-          "지시: Evidence뉴스 없으면 반응·가이던스 풍부 서술 생략. must-cover due 실적이고 한 줄이 필요하면 「반응 근거 부족」만.",
+          "★★ 이중서술(★이중서술필수 표시 시): 개미용 1불릿에 (1)매출·주당순이익(있으면) 숫자와 예상 대비 (2)Evidence뉴스의 가이던스/outlook/실망·주가·섹터 반응. 예: 「○사 주당순이익 $a vs 예상 $b — 뉴스상 가이던스 실망에 섹터 반응」.",
+          "지시: 「혼조」「차익 실현」「섹터 밀림」만으로 가이던스 요약을 대체하지 말 것. Collector oneLiner 해석 복창 금지. 뉴스 없으면 풍부 반응 생략·must-cover면 「반응 근거 부족」만.",
         ]
       : []),
     "",

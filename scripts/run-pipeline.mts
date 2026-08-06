@@ -15,7 +15,12 @@ import {
   defaultPipelineEvents,
 } from "../src/lib/pipeline/collectSnapshot";
 import { nextCarryStreaks } from "../src/lib/pipeline/carryForward";
-import { patchBriefingForGuardRetry, runBriefingOnlyGuard, runGuard } from "../src/lib/pipeline/guard";
+import {
+  findingsToRepairHints,
+  patchBriefingForGuardRetry,
+  runBriefingOnlyGuard,
+  runGuard,
+} from "../src/lib/pipeline/guard";
 import { resolveLlmConfig } from "../src/lib/pipeline/llm";
 import { writePipelineStatus } from "../src/lib/pipeline/pipelineStatus";
 import { runBriefingAgent } from "../src/lib/pipeline/runBriefingAgent";
@@ -154,7 +159,7 @@ async function generateFullView(
       };
     }
 
-    repairHints = guard.findings.map((f) => f.message);
+    repairHints = findingsToRepairHints(guard.findings);
     console.log(
       `  guard blocked → ${attempt < MAX_GUARD_ATTEMPTS ? "retry" : "give up"}: ${repairHints.join("; ")}`,
     );
@@ -245,7 +250,7 @@ async function generateRefreshView(
       };
     }
 
-    repairHints = guard.findings.map((f) => f.message);
+    repairHints = findingsToRepairHints(guard.findings);
     console.log(
       `  guard blocked → ${attempt < MAX_GUARD_ATTEMPTS ? "retry" : "keep previous"}: ${repairHints.join("; ")}`,
     );

@@ -6,10 +6,15 @@ import type {
 } from "@/lib/pipeline/types";
 import { renderEvidencePackForPrompt } from "@/lib/pipeline/evidencePack";
 
-/** Decision Agent — 짧은 시나리오 A/B + 오늘 볼 것(최대 5) */
+/** Decision Agent — 짧은 시나리오 A/B + 오늘 볼 것(최대 5). Briefing과 같은 「30초·그래서 오늘은」 바 */
 export const DECISION_SYSTEM_PROMPT = `당신은 증시 브리핑의 Decision Agent다.
 브리핑과 증거 팩으로 시나리오 A/B와 「오늘 볼 것」을 만든다.
-독자는 30초에 훑는다.
+독자는 30초에 훑는다. Briefing과 **같은 우선순위** — 시나리오·점검을 미루거나 약하게 쓰지 말 것.
+
+품질 바(30초·그래서 오늘은):
+- A/B만 읽어도 「유지되면 / 깨지면」이 갈린다
+- checkItems만 읽어도 「오늘은 ○○을 보면 된다」가 나온다
+- 직전 시나리오·점검은 현재 Evidence로 **재평가** (복창·키워드 끼워넣기 금지)
 
 길이 한도(반드시):
 - scenario title: 24자 이내
@@ -31,15 +36,19 @@ export const DECISION_SYSTEM_PROMPT = `당신은 증시 브리핑의 Decision Ag
 - why에 "도움이 됩니다" 같은 빈말
 - Evidence beatLabel 없이 서프라이즈/미스/상회·하회 단정 (숫자는 Evidence에 있을 때만)
 - Evidence뉴스 없이 가이던스·반응 결과 단정
+- 애널리스트 은어만 나열(컨센서스·리스크오프·포지셔닝) — 쉬운 한국어로
 
 반드시 할 것:
 - scenarios 정확히 2개 (base / risk)
+  - A=기본 관측이 유지될 때 온도·체감 / B=깨질 때. 개장·종가 방향 예측 금지
+  - summary·implication에 **구체 신호**(임계·발표·유지 여부)가 드러나게
 - checkItems 3~5개 = 「오늘 볼 것」
-  - text: 오늘 눈으로 확인할 신호
+  - text: 오늘 눈으로 확인할 신호 (누가·무엇을)
   - why: 그 신호가 A(기본) vs B(주의)를 가르는 이유 한 줄 — 해석은 Evidence 사실 기반
 - 브리핑과 모순 금지 · 탭 scope 존중 (us면 미장 중심, kr면 국내 중심. 상대 시장은 시나리오에서도 보조만)
 - Evidence **직전 연속성**의 시나리오 A/B·checkItems를 현재 숫자로 재평가해 갱신 (복창 금지)
 - due+Evidence 사실이 있으면 시나리오/점검에 반영. 결과 없으면 창작 금지
+- 슬롯 JOB 존중: 장중·점검은 관측 틀 갱신, 장후는 세션 결과 기준점, 장전은 전일 사실+오늘 신호
 - 실적: Collector 사실은 숫자·beatLabel·contextNews. 반응·가이던스 해석은 Evidence뉴스 있을 때만(필수 이중 서술)
 
 출력 JSON만:
@@ -63,7 +72,12 @@ export function buildDecisionUserPrompt(
 ): string {
   const repair =
     repairHints && repairHints.length > 0
-      ? ["", "## Guard 수정 요청(반드시 반영)", ...repairHints.map((h) => `- ${h}`)]
+      ? [
+          "",
+          "## Guard 재생성 지시(반드시 반영 · 이전 초안의 결함 수정)",
+          "시나리오 A/B와 checkItems를 아래 지시에 맞게 다시 쓰세요. 공허·복창·슬롯 틀린 톤 반복 금지.",
+          ...repairHints.map((h) => `- ${h}`),
+        ]
       : [];
 
   const evidenceBlock = snapshot.evidence
@@ -89,34 +103,36 @@ export function buildDecisionUserPrompt(
   const slotDecisionRule =
     snapshot.slot === "kr-pre" || snapshot.slot === "us-pre"
       ? [
-          "## 장전 관측 분기 규칙",
+          "## 장전 관측 분기 규칙 (그래서 오늘은)",
           "- A/B는 같은 관측 신호가 유지될 때와 깨질 때의 온도·체감으로 나눈다. 개장 방향 예측 금지.",
           "- checkItems는 브리핑의 관측 신호와 같은 구체 트리거(유지 여부·반응·상회/하회·전환)를 사용한다.",
           "- why는 A(기본) 유지 / B(주의)에 가깝다는 조건부 해석만 쓴다.",
+          "- 직전 A/B·점검은 현재 Evidence로 재평가 — 어제 문장 복창 금지.",
         ].join("\n")
       : snapshot.slot === "kr-mid" ||
           snapshot.slot === "us-mid" ||
           snapshot.slot === "us-noon"
         ? [
-            "## 장중·점검 관측 분기 규칙",
+            "## 장중·점검 관측 분기 규칙 (그래서 오늘은)",
             "- A/B는 관측 신호가 유지될 때와 깨질 때의 온도·체감으로 나눈다.",
             "- 매매 타이밍·방향 예측·‘지금 사라/팔라’ 금지. 관측 틀 갱신만.",
             "- checkItems는 남은 구간에서 눈으로 확인할 구체 트리거로 쓴다.",
             "- us-noon은 미 정규장 중이 아님. 직전 미 세션·오버나잇과 저녁 장전 관측만.",
-            "- 이전 시나리오를 ‘이미 확정된 결론’처럼 위장하지 말 것.",
+            "- 이전 시나리오를 ‘이미 확정된 결론’처럼 위장하지 말 것. forceCite는 재평가 문장으로.",
           ].join("\n")
       : snapshot.slot === "kr-post" || snapshot.slot === "us-post"
         ? [
-            "## 장후 분기 규칙",
+            "## 장후 분기 규칙 (그래서 오늘은)",
             "- 오늘 세션 결과와 촉발 요인을 기준점으로 삼는다.",
             "- 다음 세션은 방향 단정 없이 남은 일정·금리·환율·변동성 반응을 관측 신호로 둔다.",
+            "- checkItems는 ‘내일/밤에 볼 것’이 아니라 지금 연결되는 구체 신호로.",
           ].join("\n")
         : "";
 
   return [
     temporalHard,
     slotDecisionRule,
-    "## 오늘 브리핑 (이미 확정된 해석 — 모순 금지)",
+    "## 오늘 브리핑 (이미 확정된 해석 — 모순 금지 · Decision도 같은 30초 바)",
     `헤드라인: ${briefing.headline}`,
     "불릿:",
     ...briefing.bullets.map((b) => `- ${b}`),

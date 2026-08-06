@@ -74,7 +74,7 @@ Discuss 원칙: 사용자가 말한 “예측 지수”는 **기대·경계 신�
 | Collector | Yahoo·네이버 등 API로 지수·매크로·시총·수급·실적 숫자·`contextNews` 수집 → **Evidence Pack** 구조화 (비AI). **사실·플래그만** — EventList `oneLiner`에 판정 보류/호재·악재 등 해석 카피 금지 |
 | Briefing | Evidence Pack → 헤드라인·불릿·근거 (**탭별**, LLM). 실적 **결과+시장 반응** 서술(숫자+뉴스 이중 서술 포함)은 Briefing 전담. 뉴스 없으면 반응 풍부 서술 생략·강제 시 「반응 근거 부족」. **한·미는 해당 시장 1순위·상대 시장 ≤1불릿 브릿지** |
 | Decision | 브리핑+Evidence Pack → 시나리오 A/B + 「오늘 볼 것」3~5 (**탭별**, LLM). 해석은 Evidence 사실 기반 · beatLabel/뉴스 없는 극성·가이던스 단정 금지 |
-| Guard | 추천/예측 톤·숫자 복창·공허·**시점 둔갑**·사실 불일치·**due+Evidence 누락**·**결과 창작**·**beat 극성 반전**·**뉴스 없는 가이던스 단정**·**숫자+뉴스인데 가이던스/반응 누락** 차단. 숫자+뉴스면 이중 서술 허용·필수. 최대 5회 재생성. 전부 거절 시 **직전 발행 유지** |
+| Guard | 추천/예측 톤·숫자 복창·공허·**시점 둔갑**·사실 불일치·**due+Evidence 누락·재평가 없는 키워드만**·**결과 창작**·**beat 극성 반전**·**뉴스 없는 가이던스 단정**·**숫자+뉴스인데 가이던스/반응 누락**·**슬롯 톤 불일치** 차단. 숫자+뉴스면 이중 서술 허용·필수. 거절 사유→`findingsToRepairHints` 구체 수정 지시로 재생성. 최대 5회. 전부 거절 시 **직전 발행 유지** |
 | Publisher | `src/data/published/latest.json` (version 2, views.all/kr/us) |
 
 ### Evidence Pack (LLM 입력)
@@ -92,7 +92,7 @@ Briefing/Decision이 받는 구조화 근거. UI 대시보드가 아님.
 | 일정 | 경제 캘린더 + **시총·섹터 브릿지 실적**(Yahoo 발표일·시장 예상 매출·주당순이익(EPS)·선택적 beatLabel·`contextNews`). UI는 쉬운 라벨·매출 우선. EventList oneLiner는 최소 사실+단위만 |
 | 리스크·지정학 | 유가·VIX·환율 플래그 + Yahoo 지정학 헤드라인(숫자 연결 시에만). 정치 뉴스 올인원 아님 |
 | 직전 발행 | 이전 헤드라인(반복 방지) + **같은 시장 탭 직전 1건**의 구조화 연속성 |
-| 직전 연속성 | `scenarios` A/B 한 줄 · `checkItems` · 미결 `upcoming`. Collector가 due를 Evidence 사실로 해석(`carryForward`/`dueFollowUps`). 본문 덤프·멀티데이 스택 금지. 최대 5 · forceCite ≤3 · 무변화 2슬롯 드롭 |
+| 직전 연속성 | `scenarios` A/B 한 줄 · `checkItems` · 미결 `upcoming`. Collector가 due를 Evidence 사실로 해석(`carryForward`/`dueFollowUps`). **forceCite는 재평가 문장 필수**(키워드만 금지). 무관 due 드롭. 본문 덤프·멀티데이 스택 금지. 최대 5 · forceCite ≤3 · 무변화 2슬롯 드롭 |
 
 LLM: `.env.local` — 품질 우선 시 Anthropic/OpenAI 권장. Ollama는 가능하나 소형 모델은 비권장.  
 실행: `npm run pipeline -- kr-post` (슬롯: kr-pre / kr-mid / kr-post / us-pre / us-mid / us-noon / us-post)  

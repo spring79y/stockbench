@@ -262,6 +262,38 @@ function resolveUpcomingEvent(
   return null;
 }
 
+function isIrrelevantDue(
+  item: CarryForwardItem,
+  scope: MarketScope,
+  pack: EvidencePack,
+): boolean {
+  if (item.status !== "due" && item.status !== "upcoming") return false;
+  const blob = `${item.priorText} ${item.note}`;
+  // Cross-market dues that don't belong in this tab
+  if (scope === "us" && /코스피|코스닥|KS200|외국인\s*순매/.test(blob) && !/브릿지|참고/.test(blob)) {
+    return true;
+  }
+  if (scope === "kr" && /나스닥|S&P|다우|NFP|CPI/.test(blob) && !/브릿지|참고|환율|금리|VIX/.test(blob)) {
+    // Keep US macro that KR ants still watch; drop pure US equity session dues without bridge
+    if (/나스닥|S&P|다우/.test(blob) && !/환율|금리|VIX|원\/달러/.test(blob)) {
+      return true;
+    }
+  }
+  // Stale open-forecast language after the pre slot
+  const slot = pack.session.slot;
+  if (
+    (slot === "kr-mid" ||
+      slot === "us-mid" ||
+      slot === "us-noon" ||
+      slot === "kr-post" ||
+      slot === "us-post") &&
+    /개장\s*(예상|전망)|출발\s*(예고|예상)/.test(blob)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function priority(item: CarryForwardItem): number {
   if (item.mustCover && item.status === "resolved") return 0;
   if (item.status === "resolved") return 1;
@@ -407,7 +439,9 @@ export function buildCarryForward(input: {
 
   raw.sort((a, b) => priority(a) - priority(b));
 
-  let capped = raw.slice(0, MAX_CARRY);
+  let capped = raw
+    .filter((i) => !isIrrelevantDue(i, input.scope, input.pack))
+    .slice(0, MAX_CARRY);
   let shrunkForLive = false;
   if (liveMust) {
     shrunkForLive = true;
@@ -432,8 +466,10 @@ export function buildCarryForward(input: {
   const rules = [
     "우선순위: 현재 세션 라이브 사실 > due 연속성(Evidence 사실 있을 때) > 미도래 캘린더 프리뷰",
     "연속성은 체크리스트일 뿐 분량 할당이 아님. 라이브 must-cover가 있으면 1불릿·시나리오/점검 갱신만",
-    "직전 checkItems는 현재 Evidence 숫자로 재평가 — 어제 문장 복창 금지",
+    "직전 checkItems·시나리오 A/B는 현재 Evidence 숫자로 **재평가 문장** — 어제 문장·키워드 복창 금지",
+    "forceCite: 토큰만 넣지 말고 Evidence 사실을 반영한 재평가 한 줄(유지/깨짐/발표됨/숫자 갱신 등)",
     "이벤트/실적이 이미 발생했고 Evidence에 결과+반응이 있으면 반드시 포함. 결과 없으면 대기/미확인 또는 생략(창작 금지)",
+    "오늘 슬롯·탭과 무관한 due는 드롭됨. 억지 연결 금지",
     `최대 ${MAX_CARRY}개 · forceCite ≤${MAX_FORCE_CITE} · 무변화 2연속 슬롯 드롭 · 체인 깊이=직전 1건`,
   ];
 
@@ -508,7 +544,7 @@ export function renderCarryForwardForPrompt(
 
   const force = block.items.filter((i) => i.forceCite);
   const lines = [
-    "## 직전 연속성 (carry-forward · 본문 덤프 아님)",
+    "## 직전 연속성 (carry-forward · 본문 덤프 아님 · 재평가 필수)",
     block.priorSlot
       ? `직전 같은 시장 발행: ${block.priorSlot} @ ${block.priorPublishedAt ?? "n/a"}`
       : "직전 슬롯 메타 없음",
@@ -516,17 +552,17 @@ export function renderCarryForwardForPrompt(
       ? "축소: 라이브 must-cover 존재 → 연속성은 1불릿·시나리오/점검 갱신 위주"
       : "연속성 정상 캡 적용",
     "",
-    "직전 시나리오 A/B (한 줄만 · 복창 말고 현재 Evidence로 재작성):",
+    "직전 시나리오 A/B (한 줄만 · 복창 말고 현재 Evidence로 분기 재작성):",
     ...block.seed.scenarios.map(
       (s) => `- ${s.label} ${s.title}: ${s.summary}`,
     ),
     "",
-    "직전 오늘 볼 것 (숫자·문장 재평가 필수):",
+    "직전 오늘 볼 것 (숫자·문장 재평가 필수 · 키워드만 끼워넣기 금지):",
     ...block.seed.checkItems.map((c) => `- ${c.text}`),
     "",
-    "dueFollowUps / carryForward (우선순위 정렬 · 최대 5):",
+    "dueFollowUps / carryForward (우선순위 정렬 · 최대 5 · 무관 due는 이미 드롭):",
     ...block.items.map((i) => {
-      const cite = i.forceCite ? " [forceCite]" : "";
+      const cite = i.forceCite ? " [forceCite·재평가문장필수]" : "";
       const fact = i.evidenceFact ? ` | Evidence: ${i.evidenceFact}` : "";
       return `- [${i.status}/${i.kind}]${cite} ${i.priorText}${fact} — ${i.note}`;
     }),
@@ -538,8 +574,11 @@ export function renderCarryForwardForPrompt(
   if (force.length > 0) {
     lines.push(
       "",
-      "forceCite (생략 시 Guard hard-fail):",
-      ...force.map((i) => `- ${i.priorText}${i.evidenceFact ? ` → ${i.evidenceFact}` : ""}`),
+      "forceCite (생략·키워드만 넣기 = Guard hard-fail · Evidence 사실로 재평가한 문장 필요):",
+      ...force.map(
+        (i) =>
+          `- 직전「${i.priorText}」→ 지금「${i.evidenceFact ?? "(사실 대기·창작 금지)"}」로 한 줄 재평가`,
+      ),
     );
   }
 
