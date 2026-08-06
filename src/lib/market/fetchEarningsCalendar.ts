@@ -1,4 +1,5 @@
 import type YahooFinance from "yahoo-finance2";
+import { kstCalendarDay } from "@/lib/events/upcomingRetention";
 import {
   EARNINGS_BRIDGE_SYMBOLS,
   type EarningsBridgeSymbol,
@@ -197,13 +198,16 @@ export async function fetchEarningsEntries(
   ];
 
   const now = Date.now();
+  const todayKst = kstCalendarDay(new Date(now));
   const horizonMs = horizonDays * 24 * 60 * 60 * 1000;
   const results = await Promise.all(targets.map((t) => fetchOne(yf, t)));
   return results
     .filter((r): r is EarningsFetchEntry => Boolean(r))
     .filter((r) => {
       const t = new Date(r.dateISO).getTime();
-      return t >= now - 12 * 60 * 60 * 1000 && t <= now + horizonMs;
+      // Keep same KST calendar day (even if clock already passed) until next KST day.
+      const day = kstCalendarDay(new Date(r.dateISO));
+      return day >= todayKst && t <= now + horizonMs;
     })
     .sort((a, b) => new Date(a.dateISO).getTime() - new Date(b.dateISO).getTime());
 }

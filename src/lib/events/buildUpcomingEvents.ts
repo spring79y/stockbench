@@ -1,5 +1,6 @@
 import type YahooFinance from "yahoo-finance2";
 import { defaultPipelineEvents } from "@/lib/events/defaultEvents";
+import { filterRetainedUpcomingEvents } from "@/lib/events/upcomingRetention";
 import {
   earningsEntriesToEvents,
   fetchEarningsEntries,
@@ -41,7 +42,7 @@ export async function buildUpcomingEvents(
     ...earnings.filter((e) => !macroIds.has(e.id)),
   ];
 
-  return merged
+  return filterRetainedUpcomingEvents(merged)
     .filter((e) => !e.bridgeOf)
     .sort((a, b) => {
       const ta = eventSortTime(a);

@@ -1,6 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import {
+  eventResultComment,
+  filterRetainedUpcomingEvents,
+} from "@/lib/events/upcomingRetention";
 import type { MarketEvent } from "@/lib/types";
 import type { MarketScope } from "@/lib/market/scope";
 import styles from "./EventList.module.css";
@@ -53,6 +57,8 @@ export function EventList({
   stepNo?: number;
 }) {
   const from = homePath(scope);
+  // Same KST day keeps (with/without result); prior KST days drop.
+  const retained = filterRetainedUpcomingEvents(events);
 
   return (
     <section id="events" className="board-block events" aria-labelledby="events-title">
@@ -67,32 +73,36 @@ export function EventList({
       </div>
 
       <ul className={styles.list}>
-        {events.map((event) => (
-          <li key={event.id}>
-            <Link
-              href={`/events/${event.id}?from=${encodeURIComponent(from)}`}
-              className={styles.row}
-            >
-              <div className={styles.main}>
-                <div className={styles.meta}>
-                  <time>{event.dateLabel}</time>
-                  <span>{regionLabel[event.region]}</span>
-                  <span className={`${styles.level} ${levelClass[event.level]}`}>
-                    {levelLabel[event.level]}
-                  </span>
-                  {event.kind === "earnings" ? (
-                    <span className={styles.kindEarnings}>실적</span>
-                  ) : null}
+        {retained.map((event) => {
+          const resultComment = eventResultComment(event);
+          const bodyLine = resultComment ?? event.oneLiner;
+          return (
+            <li key={event.id}>
+              <Link
+                href={`/events/${event.id}?from=${encodeURIComponent(from)}`}
+                className={styles.row}
+              >
+                <div className={styles.main}>
+                  <div className={styles.meta}>
+                    <time>{event.dateLabel}</time>
+                    <span>{regionLabel[event.region]}</span>
+                    <span className={`${styles.level} ${levelClass[event.level]}`}>
+                      {levelLabel[event.level]}
+                    </span>
+                    {event.kind === "earnings" ? (
+                      <span className={styles.kindEarnings}>실적</span>
+                    ) : null}
+                  </div>
+                  <div className={styles.body}>
+                    <strong>{event.title}</strong>
+                    <p className={resultComment ? styles.resultLine : undefined}>{bodyLine}</p>
+                  </div>
                 </div>
-                <div className={styles.body}>
-                  <strong>{event.title}</strong>
-                  <p>{event.oneLiner}</p>
-                </div>
-              </div>
-              <Chevron />
-            </Link>
-          </li>
-        ))}
+                <Chevron />
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
