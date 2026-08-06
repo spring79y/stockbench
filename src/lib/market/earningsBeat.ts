@@ -8,6 +8,8 @@
  * Guidance soft ≠ EPS miss — we never invent polarity from market narrative.
  */
 
+import { epsFactPhrase } from "@/lib/events/earningsCopy";
+
 export type BeatLabel = "서프라이즈" | "미스";
 
 export type BeatResolutionReason =
@@ -160,7 +162,7 @@ export function earningsResultOneLiner(
     opts?.epsEstimate != null &&
     Number.isFinite(opts.epsActual) &&
     Number.isFinite(opts.epsEstimate)
-      ? `EPS ${formatEps(opts.epsActual)} vs 예상 ${formatEps(opts.epsEstimate)}`
+      ? epsFactPhrase(formatEps(opts.epsActual), formatEps(opts.epsEstimate))
       : null;
 
   if (!beatLabel) {
@@ -168,5 +170,5 @@ export function earningsResultOneLiner(
   }
   return nums
     ? `발표됨 · ${nums} · ${beatLabel}`
-    : `발표됨 · EPS ${beatLabel}`;
+    : `발표됨 · 주당순이익(EPS) ${beatLabel}`;
 }

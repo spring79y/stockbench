@@ -4,6 +4,11 @@ import Link from "next/link";
 import { IndexMiniChart } from "@/components/IndexMiniChart";
 import type { IndexChartSeries } from "@/lib/market/chartTypes";
 import type { EventDetailContent } from "@/lib/events/catalog";
+import {
+  LABEL_EPS_EXPECTED,
+  LABEL_REVENUE_EXPECTED,
+  NOTE_CONSENSUS_UI,
+} from "@/lib/events/earningsCopy";
 import type { MarketEvent } from "@/lib/types";
 import styles from "./EventDetailView.module.css";
 
@@ -67,19 +72,25 @@ export function EventDetailView({
         <p className={styles.oneliner}>{event.oneLiner}</p>
         {event.kind === "earnings" && event.consensus ? (
           <div className={styles.consensus}>
-            {event.consensus.epsLabel ? (
-              <p>
-                <strong>EPS 컨센서스</strong> {event.consensus.epsLabel}
-              </p>
-            ) : null}
             {event.consensus.revenueLabel ? (
-              <p>
-                <strong>매출 컨센서스</strong> {event.consensus.revenueLabel}
+              <p className={styles.consensusPrimary}>
+                <strong>{LABEL_REVENUE_EXPECTED}</strong>
+                <span className={styles.consensusValue}>
+                  {event.consensus.revenueLabel}
+                </span>
+                <span className={styles.consensusHint}>회사 규모</span>
               </p>
             ) : null}
-            <p className={styles.consensusNote}>
-              Yahoo 참고 · 발표 전 추정치 · 매매 신호 아님
-            </p>
+            {event.consensus.epsLabel ? (
+              <p className={styles.consensusSecondary}>
+                <strong>{LABEL_EPS_EXPECTED}</strong>
+                <span className={styles.consensusValue}>
+                  {event.consensus.epsLabel}
+                </span>
+                <span className={styles.consensusHint}>주당</span>
+              </p>
+            ) : null}
+            <p className={styles.consensusNote}>{NOTE_CONSENSUS_UI}</p>
           </div>
         ) : null}
       </article>

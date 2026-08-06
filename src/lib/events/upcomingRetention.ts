@@ -1,4 +1,5 @@
 import type { MarketEvent } from "@/lib/types";
+import { epsFactPhrase } from "@/lib/events/earningsCopy";
 
 const KST = "Asia/Seoul";
 
@@ -46,7 +47,7 @@ export function shouldRetainUpcomingEvent(
 /**
  * Result comment from structured fields only — never invent.
  * Prefer existing `oneLiner` when Collector already encoded a post-result line.
- * Facts only: announced?, EPS digits, dual-source beatLabel. No 「판정 보류」.
+ * Facts only: announced?, 주당순이익(EPS) digits, dual-source beatLabel. No 「판정 보류」.
  */
 export function eventResultComment(event: MarketEvent): string | null {
   const hasNumbers =
@@ -55,7 +56,8 @@ export function eventResultComment(event: MarketEvent): string | null {
   const line = event.oneLiner?.trim();
   if (
     line &&
-    (/발표\s*결과|발표됨|미확인|결과\s*미확인|EPS/.test(line) || event.actual?.beatLabel)
+    (/발표\s*결과|발표됨|미확인|결과\s*미확인|EPS|주당/.test(line) ||
+      event.actual?.beatLabel)
   ) {
     // Strip legacy Collector judgment copy if still present in published JSON.
     return line
@@ -72,9 +74,9 @@ export function eventResultComment(event: MarketEvent): string | null {
             region === "KR"
               ? `${Math.round(v).toLocaleString("ko-KR")}원`
               : `$${Number(v.toFixed(2))}`;
-          return `발표됨 · EPS ${fmt(event.actual!.epsActual!)} vs 예상 ${fmt(event.actual!.epsEstimate!)} · ${event.actual!.beatLabel}`;
+          return `발표됨 · ${epsFactPhrase(fmt(event.actual!.epsActual!), fmt(event.actual!.epsEstimate!))} · ${event.actual!.beatLabel}`;
         })()
-      : `발표됨 · EPS ${event.actual.beatLabel}`;
+      : `발표됨 · 주당순이익(EPS) ${event.actual.beatLabel}`;
   }
   if (hasNumbers) {
     const region = event.region === "KR" ? "KR" : "US";
@@ -82,7 +84,7 @@ export function eventResultComment(event: MarketEvent): string | null {
       region === "KR"
         ? `${Math.round(v).toLocaleString("ko-KR")}원`
         : `$${Number(v.toFixed(2))}`;
-    return `발표됨 · EPS ${fmt(event.actual!.epsActual!)} vs 예상 ${fmt(event.actual!.epsEstimate!)}`;
+    return `발표됨 · ${epsFactPhrase(fmt(event.actual!.epsActual!), fmt(event.actual!.epsEstimate!))}`;
   }
   return "발표됨 · 결과 미확인";
 }

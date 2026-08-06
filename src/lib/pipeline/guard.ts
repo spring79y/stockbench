@@ -962,7 +962,7 @@ export function ensureImminentEarningsMentioned(
   const extra = missing.slice(0, 2).map((e) => {
     const nameCore = earningsNameCore(e);
     if (e.actual?.beatLabel && isPostEarningsResult(e, now)) {
-      return `${nameCore} 실적 결과(EPS ${e.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
+      return `${nameCore} 실적 결과(주당순이익 ${e.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
     }
     if (isPostEarningsResult(e, now) && hasEarningsActualNumbers(e)) {
       const a = e.actual!.epsActual!;
@@ -971,9 +971,9 @@ export function ensureImminentEarningsMentioned(
       const fmt = (v: number) =>
         region === "KR" ? `${Math.round(v).toLocaleString("ko-KR")}원` : `$${Number(v.toFixed(2))}`;
       if (hasEarningsContextNews(e)) {
-        return `${nameCore} 실적 · EPS ${fmt(a)} vs 예상 ${fmt(est)} — Evidence뉴스 반응·가이던스 참고 (서프라이즈/미스 단정 금지)`;
+        return `${nameCore} 실적 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — Evidence뉴스 반응·가이던스 참고 (서프라이즈/미스 단정 금지)`;
       }
-      return `${nameCore} 실적 발표됨 · EPS ${fmt(a)} vs 예상 ${fmt(est)} — 반응 근거 부족`;
+      return `${nameCore} 실적 발표됨 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — 반응 근거 부족`;
     }
     if (hasEarningsContextNews(e)) {
       return `${nameCore} 실적 임박 — Evidence뉴스 참고해 가이던스·섹터 맥락만 짧게 (방향 예측 금지)`;

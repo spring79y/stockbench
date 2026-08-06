@@ -163,7 +163,7 @@ function resolveCheckAgainstEvidence(
     ) {
       const hasNews = Array.isArray(ev.contextNews) && ev.contextNews.length > 0;
       return {
-        fact: ev.oneLiner || `${name} 실적 발표됨 · EPS 숫자 Evidence`,
+        fact: ev.oneLiner || `${name} 실적 발표됨 · 주당순이익(EPS) 숫자 Evidence`,
         status: "resolved",
         note: hasNews
           ? "숫자+Evidence뉴스 있음 → Briefing이 결과·시장 반응(이중 서술) 요약. beatLabel 없으면 서프라이즈/미스 단정 금지"
@@ -235,7 +235,7 @@ function resolveUpcomingEvent(
     ) {
       const hasNews = Array.isArray(ev.contextNews) && ev.contextNews.length > 0;
       return {
-        fact: ev.oneLiner || `${ev.title}: EPS 숫자 Evidence`,
+        fact: ev.oneLiner || `${ev.title}: 주당순이익(EPS) 숫자 Evidence`,
         status: "resolved",
         note: hasNews
           ? "숫자+뉴스 Evidence → mustCover · Briefing 이중 서술"

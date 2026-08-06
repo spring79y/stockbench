@@ -8,6 +8,11 @@ import {
   MEGA_CAP_CANDIDATES_US,
 } from "@/lib/market/retailScan";
 import type { EventDetailContent } from "@/lib/events/catalog";
+import {
+  GLOSS_CONSENSUS,
+  LABEL_EPS_EXPECTED,
+  LABEL_REVENUE_EXPECTED,
+} from "@/lib/events/earningsCopy";
 import type { MarketEvent } from "@/lib/types";
 
 function resolveName(event: MarketEvent): string {
@@ -75,19 +80,28 @@ function chartDefsFor(event: MarketEvent) {
 
 function consensusLines(event: MarketEvent): string[] {
   const c = event.consensus;
-  if (!c) return ["컨센서스 숫자는 참고용이며, 발표 전후 변동할 수 있습니다."];
+  if (!c) {
+    return [
+      `${GLOSS_CONSENSUS} 숫자는 참고용이며, 발표 전후 변동할 수 있습니다.`,
+    ];
+  }
   const lines: string[] = [];
+  // KR retail scan: revenue (company scale) first, then per-share EPS — never equate units.
+  if (c.revenueLabel) {
+    lines.push(`${LABEL_REVENUE_EXPECTED} (회사 규모): ${c.revenueLabel}`);
+  }
   if (c.epsLabel) {
     const range =
       c.epsLow != null && c.epsHigh != null
         ? ` (범위 ${event.region === "KR" ? `${Math.round(c.epsLow).toLocaleString()}~${Math.round(c.epsHigh).toLocaleString()}원` : `$${c.epsLow.toFixed(2)}~$${c.epsHigh.toFixed(2)}`})`
         : "";
-    lines.push(`EPS 컨센서스: ${c.epsLabel}${range}`);
+    lines.push(`${LABEL_EPS_EXPECTED}: ${c.epsLabel}${range}`);
   }
-  if (c.revenueLabel) lines.push(`매출 컨센서스: ${c.revenueLabel}`);
   // 실제 발표가 잡혀 있으면 “추정치” 안내는 혼선을 줄이기 위해 생략
   if (c.isEstimate && !event.actual) lines.push("일정·숫자는 추정치일 수 있습니다.");
-  lines.push("예상 대비 서프라이즈 여부는 ‘점검’용이며, 매수·매도 신호가 아닙니다.");
+  lines.push(
+    "시장 예상 대비 위·아래 여부는 ‘점검’용이며, 매수·매도 신호가 아닙니다. 매출(회사 규모)과 주당 순이익은 다른 지표입니다.",
+  );
   return lines;
 }
 
@@ -117,10 +131,10 @@ function actualLines(event: MarketEvent): string[] {
 
   // Thin-source: numbers only — no qualitative Collector judgment in UI.
   const lines = [
-    `발표 결과(EPS): 실제 ${formatEps(epsActual)} · 예상 ${formatEps(epsEstimate)}`,
+    `발표 결과(주당 순이익): 실제 ${formatEps(epsActual)} · 시장 예상 ${formatEps(epsEstimate)}`,
   ];
   if (beat) {
-    lines.push(`예상 대비(EPS): ${beat}${pctNote}`);
+    lines.push(`시장 예상 대비(주당 순이익): ${beat}${pctNote}`);
   }
   return lines;
 }
@@ -153,7 +167,7 @@ function contextNewsItems(event: MarketEvent, name: string): EventDetailContent[
       source: "참고",
       title: `${name} 실적은 ‘맞히기’보다 ‘점검’`,
       summary:
-        "컨센서스 대비 높고 낮음을 단정 예측하지 말고, 내가 보는 지수·섹터에 미치는 민감도만 확인하세요. 가이던스·반응은 Evidence 뉴스가 수집된 뒤에만 브리핑에 반영됩니다.",
+        "시장·애널리스트 평균 예상 대비 높고 낮음을 단정 예측하지 말고, 내가 보는 지수·섹터에 미치는 민감도만 확인하세요. 가이던스·반응은 Evidence 뉴스가 수집된 뒤에만 브리핑에 반영됩니다.",
       publishedLabel: event.dateLabel,
     },
     {
@@ -182,7 +196,7 @@ export function buildEarningsDetail(event: MarketEvent): EventDetailContent {
       : null;
 
   return {
-    meaning: `${name}의 분기 실적 발표 일정입니다. 숫자 자체보다, 시장이 기대한 수준과의 차이(서프라이즈)가 지수·섹터 온도에 영향을 줄 수 있습니다.`,
+    meaning: `${name}의 분기 실적 발표 일정입니다. 먼저 시장 예상 매출(회사 규모)을 보고, 이어서 주당 순이익(EPS)이 시장 예상과 얼마나 다른지 점검합니다. 두 숫자의 단위(조원 vs 원)는 다릅니다.`,
     whyItMatters:
       event.region === "KR" || event.region === "GLOBAL"
         ? "국내 메모리·반도체·성장주 분위기와 연결해 볼 수 있는 체크포인트입니다. 종목 추천이 아니라, 오늘 브리핑·시나리오에서 ‘무엇을 관찰할지’ 잡는 용도입니다."
