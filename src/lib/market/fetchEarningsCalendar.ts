@@ -183,7 +183,8 @@ async function fetchOne(
             currentQuarterEstimate,
             reportedQuarterEstimate: epsEstimate,
           });
-          // Only cross-check calendar when it still looks like THIS print's estimate.
+          // Dual-source: only same-quarter calendar may confirm polarity.
+          // Rolled next-q calendar → thin Yahoo path → omit 서프라이즈/미스.
           const altEstimate = rolled ? undefined : calendarEps;
 
           const resolved = resolveEarningsBeat({
@@ -196,7 +197,8 @@ async function fetchOne(
           actual = {
             epsActual,
             epsEstimate,
-            surprisePct: resolved.surprisePct,
+            // surprisePct only when beatLabel set — avoid implying polarity alone
+            surprisePct: resolved.beatLabel ? resolved.surprisePct : undefined,
             beatLabel: resolved.beatLabel,
             reportedDateISO: new Date(hit.reportedDate as string | Date).toISOString(),
           };

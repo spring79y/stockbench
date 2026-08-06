@@ -565,7 +565,7 @@ export function renderEvidencePackForPrompt(
                     ? ` actual=${e.actual.epsActual} est=${e.actual.epsEstimate}`
                     : "")
                 : e.actual.epsActual != null && e.actual.epsEstimate != null
-                  ? ` · Evidence결과(EPS): 미확인 actual=${e.actual.epsActual} est=${e.actual.epsEstimate}`
+                  ? ` · Evidence결과(EPS): 판정보류 actual=${e.actual.epsActual} est=${e.actual.epsEstimate}`
                   : ""
               : "";
           return `- ${e.dateLabel}${when} [${e.region}/${e.level}/${tag}] ${e.title} — ${e.oneLiner}${result}`;
@@ -574,7 +574,7 @@ export function renderEvidencePackForPrompt(
     ...(events.some((e) => e.kind === "earnings")
       ? [
           "지시: 48시간 이내 실적(kind=earnings)이 있으면 bullets 중 1개에 회사명·섹터 맥락을 ‘점검’으로만 언급. EPS/매출 숫자 복창·매매 신호 금지.",
-          "지시: 서프라이즈/미스는 Evidence결과(EPS) beatLabel이 있을 때만 그대로 사용. 없으면 미확인/생략. 극성 뒤집기·가이던스 실망을 실적 미스로 바꿔 쓰기 금지.",
+          "지시: 서프라이즈/미스는 Evidence결과(EPS) beatLabel이 있을 때만 그대로 사용. 없으면 판정 보류/생략(숫자만). 극성 뒤집기·가이던스 실망을 실적 미스로 바꿔 쓰기 금지.",
         ]
       : []),
     "",

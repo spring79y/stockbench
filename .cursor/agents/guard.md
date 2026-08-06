@@ -17,6 +17,7 @@ Discuss에서 말한 BriefGuard 역할은 **별도 에이전트가 아니라 이
 - `unsupported-earnings-result` — beatLabel 없는 실적에 서프라이즈/미스 단정
 - `earnings-beat-polarity` — Evidence beatLabel 극성 뒤집기
 
+정책 메모: beatLabel은 Collector 이중 출처(분기 quarterly + 같은 분기 calendar)일 때만. thin Yahoo path는 판정 보류.
 소프트:
 - `prior-phrase-parrot` — 직전 연속성 문구 과도 복창
 

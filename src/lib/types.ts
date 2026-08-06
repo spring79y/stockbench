@@ -54,7 +54,7 @@ export interface EarningsActual {
   surprisePct?: number;
   /**
    * EPS 컨센서스 대비 결과(Collector `resolveEarningsBeat`만 설정).
-   * 애매하면 생략 — LLM이 채우지 않음.
+   * 이중 출처 확인 실패·thin Yahoo path면 생략 — LLM/UI가 채우지 않음.
    */
   beatLabel?: "서프라이즈" | "미스";
   reportedDateISO?: string;

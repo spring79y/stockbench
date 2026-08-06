@@ -358,9 +358,11 @@ function pushCarryForwardOmissionFindings(
 
 const RESULT_CLAIM_RE =
   /서프라이즈|미스|어닝\s*비트|어닝\s*쇼크|컨센서스\s*(상회|하회)|예상\s*(상회|하회)/;
-/** EPS 결과 극성만 — 가이던스·전망 하회와 분리 */
-const BEAT_CLAIM_RE = /서프라이즈|어닝\s*비트/;
-const MISS_CLAIM_RE = /어닝\s*쇼크|(?:어닝\s*)?미스/;
+/** EPS 결과 극성 — 가이던스 실망을 실적 미스로 단정하는 표현 포함 */
+const BEAT_CLAIM_RE =
+  /서프라이즈|어닝\s*비트|컨센서스\s*상회|예상\s*상회/;
+const MISS_CLAIM_RE =
+  /어닝\s*쇼크|(?:어닝\s*)?미스|컨센서스\s*하회|예상\s*하회/;
 
 /** Evidence 없는 실적 결과 단정 → hard fail */
 function pushInventedResultFindings(
@@ -427,7 +429,7 @@ function pushBeatPolarityFindings(
           code: "unsupported-earnings-result",
           message:
             `실적 결과 라벨 없이 서프라이즈/미스 단정: "${text.slice(0, 56)}" (${ev.title}). ` +
-            "Evidence beatLabel 없으면 미확인/생략.",
+            "Evidence beatLabel 없으면 판정 보류/생략.",
         });
         continue;
       }
@@ -766,15 +768,18 @@ export function runGuard(input: {
         severity: "block",
         code: "missed-earnings",
         message: isPost
-          ? `최근 24시간 내 실적 결과(서프라이즈/미스) 미언급: ${ev.title} — bullets에 '${nameCore} 실적' 점검 맥락 1개 포함`
+          ? beatWord
+            ? `최근 24시간 내 실적 결과(서프라이즈/미스) 미언급: ${ev.title} — bullets에 '${nameCore} 실적' 점검 맥락 1개 포함`
+            : `최근 24시간 내 실적 발표 점검 미언급: ${ev.title} — bullets에 '${nameCore} 실적' 점검 맥락 1개 포함 (판정 보류·극성 단정 금지)`
           : `48시간 내 실적 일정 미언급: ${ev.title} — bullets에 '${nameCore} 실적' 점검 맥락 1개 포함 (예측 금지)`,
       });
     }
   }
 
   pushCarryForwardOmissionFindings(findings, input.snapshot, scope, prose, proseLower);
-  pushInventedResultFindings(findings, input.snapshot, scope, briefingTexts);
-  pushBeatPolarityFindings(findings, input.snapshot, scope, briefingTexts);
+  // Scan briefing + decision: LLM must not re-assert 서프라이즈/미스 without Evidence beatLabel.
+  pushInventedResultFindings(findings, input.snapshot, scope, texts);
+  pushBeatPolarityFindings(findings, input.snapshot, scope, texts);
   pushPriorParrotFindings(findings, input.snapshot, scope, briefingTexts);
 
   const snapshotEvents = input.snapshot.events ?? [];
@@ -826,7 +831,7 @@ export function ensureImminentEarningsMentioned(
       return `${nameCore} 실적 결과(EPS ${e.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
     }
     if (isPostEarningsResult(e, now) && hasEarningsActualNumbers(e)) {
-      return `${nameCore} 실적 발표됨 — 컨센서스 대비 결과 미확인 · 섹터 반응만 관측`;
+      return `${nameCore} 실적 발표됨 — 판정 보류 · 섹터 반응만 관측 (서프라이즈/미스 단정 금지)`;
     }
     return `${nameCore} 실적 발표 임박 — 가이던스·섹터 반응만 관측 (방향 예측 금지)`;
   });
@@ -891,4 +896,5 @@ export function runBriefingOnlyGuard(input: {
 
 export const GUARD_SYSTEM_PROMPT = `당신은 증시 브리핑의 Guard Agent다.
 숫자 복창, 공허한 브리핑, 추천/예측 톤, 탭 초점 이탈(scope-leakage), 사실 불일치,
-due+Evidence 연속성 누락, Evidence 없는 결과 창작을 차단한다.`;
+due+Evidence 연속성 누락, Evidence 없는 결과 창작을 차단한다.
+Evidence beatLabel이 없으면 서프라이즈/미스/컨센서스 상회·하회를 단정하지 않는다 (판정 보류).`;

@@ -1,6 +1,11 @@
 /**
  * Non-LLM beat/miss resolution for earnings.
  * Prefer omit / 미확인 over a wrong 서프라이즈·미스 label.
+ *
+ * Product rule: qualitative 서프라이즈/미스 only when dual-source agrees
+ * (matched quarterly print + same-quarter calendar estimate). Thin Yahoo-only
+ * path (post-print rolled calendar, missing calendar) → numbers only, no label.
+ * Guidance soft ≠ EPS miss — we never invent polarity from market narrative.
  */
 
 export type BeatLabel = "서프라이즈" | "미스";
@@ -10,11 +15,12 @@ export type BeatResolutionReason =
   | "missing"
   | "inline"
   | "sign-conflict"
-  | "estimate-conflict";
+  | "estimate-conflict"
+  | "thin-source";
 
 export type BeatResolution = {
   beatLabel?: BeatLabel;
-  /** Signed % vs estimate; only set when comparison is unambiguous */
+  /** Signed % vs estimate; only set when comparison is unambiguous AND labeled */
   surprisePct?: number;
   reason: BeatResolutionReason;
 };
@@ -67,17 +73,21 @@ function labelFromDiff(actual: number, estimate: number): BeatLabel | "inline" |
 }
 
 /**
- * Resolve EPS beat/miss only when unambiguous.
+ * Resolve EPS beat/miss only when unambiguous AND dual-sourced.
  * - Both actual + estimate required
  * - Near-equality → no label (inline)
  * - Yahoo surprisePct sign must agree when provided
- * - Optional altEstimate (same-quarter calendar) must not flip polarity
+ * - Same-quarter altEstimate (calendar) required — thin Yahoo quarterly-only → omit
+ * - altEstimate must not flip polarity vs primary
  */
 export function resolveEarningsBeat(input: {
   epsActual: number | null | undefined;
   epsEstimate: number | null | undefined;
   yahooSurprisePct?: number | null | undefined;
-  /** Same-quarter alternate estimate; omit if known rolled-forward */
+  /**
+   * Same-quarter calendar estimate. Omit when rolled to next quarter.
+   * Required for a qualitative beatLabel (dual-source rule).
+   */
   altEstimate?: number | null | undefined;
 }): BeatResolution {
   const actual = parseFiniteNumber(input.epsActual);
@@ -101,7 +111,13 @@ export function resolveEarningsBeat(input: {
   }
 
   const alt = parseFiniteNumber(input.altEstimate);
-  if (alt != null && !nearlyEqual(alt, estimate, 0.05, 0.05)) {
+  // Dual-source: without a same-quarter calendar cross-check, omit polarity.
+  // Post-print Yahoo often rolls calendar to next-q; EPS-beat vs guidance-soft diverge.
+  if (alt == null) {
+    return { reason: "thin-source" };
+  }
+
+  if (!nearlyEqual(alt, estimate, 0.05, 0.05)) {
     const altLabel = labelFromDiff(actual, alt);
     if (altLabel === "inline") {
       return { reason: "estimate-conflict" };
@@ -125,7 +141,7 @@ export function resolveEarningsBeat(input: {
 
 export function earningsResultOneLiner(beatLabel: BeatLabel | undefined): string {
   if (!beatLabel) {
-    return "발표됨 — 컨센서스 대비 결과는 미확인 (점검용 · 매매 신호 아님)";
+    return "발표됨 · 판정 보류 (점검용 · 매매 신호 아님)";
   }
   return `발표 결과: EPS 컨센서스 대비 ${beatLabel} — 점검용 (매매 신호 아님)`;
 }

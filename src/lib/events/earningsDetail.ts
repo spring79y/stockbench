@@ -3,7 +3,6 @@ import {
   SECTOR_CHART_SYMBOLS,
   sectorForMegaCapId,
 } from "@/lib/market/earningsBridge";
-import { resolveEarningsBeat } from "@/lib/market/earningsBeat";
 import {
   MEGA_CAP_CANDIDATES_KR,
   MEGA_CAP_CANDIDATES_US,
@@ -105,16 +104,12 @@ function actualLines(event: MarketEvent): string[] {
   };
 
   // Never re-derive beat in UI — only Evidence beatLabel (Collector-resolved).
-  const resolved = resolveEarningsBeat({
-    epsActual,
-    epsEstimate,
-    yahooSurprisePct: a.surprisePct,
-  });
-  const beat = a.beatLabel ?? resolved.beatLabel;
+  // Thin-source omit must stay omitted even if raw EPS vs estimate looks like a beat.
+  const beat = a.beatLabel;
   const pct =
-    a.surprisePct != null && Number.isFinite(a.surprisePct)
+    beat && a.surprisePct != null && Number.isFinite(a.surprisePct)
       ? a.surprisePct
-      : resolved.surprisePct;
+      : undefined;
   const pctNote =
     beat && pct != null && Number.isFinite(pct)
       ? ` (괴리 ${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)`
@@ -122,7 +117,7 @@ function actualLines(event: MarketEvent): string[] {
 
   const resultLine = beat
     ? `예상 대비(EPS): ${beat}${pctNote} — 점검용 (매매 신호 아님)`
-    : "예상 대비(EPS): 미확인 — 숫자만 참고 (매매 신호 아님)";
+    : "예상 대비(EPS): 판정 보류 — 숫자만 참고 (매매 신호 아님)";
 
   return [
     `발표 결과(EPS): 실제 ${formatEps(epsActual)} · 예상 ${formatEps(epsEstimate)}`,

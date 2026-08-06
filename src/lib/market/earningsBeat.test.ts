@@ -5,6 +5,7 @@ import {
   isConsensusLikelyRolledForward,
   parseFiniteNumber,
   resolveEarningsBeat,
+  earningsResultOneLiner,
 } from "./earningsBeat";
 
 describe("parseFiniteNumber", () => {
@@ -24,13 +25,21 @@ describe("parseFiniteNumber", () => {
 });
 
 describe("resolveEarningsBeat", () => {
-  it("labels clear beat and miss", () => {
-    const beat = resolveEarningsBeat({ epsActual: 39.25, epsEstimate: 34.515 });
+  it("labels clear beat and miss only with dual-source altEstimate", () => {
+    const beat = resolveEarningsBeat({
+      epsActual: 39.25,
+      epsEstimate: 34.515,
+      altEstimate: 34.5,
+    });
     assert.equal(beat.reason, "ok");
     assert.equal(beat.beatLabel, "서프라이즈");
     assert.ok(beat.surprisePct != null && beat.surprisePct > 0);
 
-    const miss = resolveEarningsBeat({ epsActual: 1.0, epsEstimate: 1.5 });
+    const miss = resolveEarningsBeat({
+      epsActual: 1.0,
+      epsEstimate: 1.5,
+      altEstimate: 1.5,
+    });
     assert.equal(miss.reason, "ok");
     assert.equal(miss.beatLabel, "미스");
     assert.ok(miss.surprisePct != null && miss.surprisePct < 0);
@@ -38,15 +47,15 @@ describe("resolveEarningsBeat", () => {
 
   it("omits label when estimate missing or equal", () => {
     assert.equal(
-      resolveEarningsBeat({ epsActual: 1, epsEstimate: null }).reason,
+      resolveEarningsBeat({ epsActual: 1, epsEstimate: null, altEstimate: 1 }).reason,
       "missing",
     );
     assert.equal(
-      resolveEarningsBeat({ epsActual: 2.0, epsEstimate: 2.0 }).reason,
+      resolveEarningsBeat({ epsActual: 2.0, epsEstimate: 2.0, altEstimate: 2.0 }).reason,
       "inline",
     );
     assert.equal(
-      resolveEarningsBeat({ epsActual: 2.0, epsEstimate: 2.0 }).beatLabel,
+      resolveEarningsBeat({ epsActual: 2.0, epsEstimate: 2.0, altEstimate: 2.0 }).beatLabel,
       undefined,
     );
   });
@@ -56,6 +65,7 @@ describe("resolveEarningsBeat", () => {
       epsActual: 1.0,
       epsEstimate: 2.0,
       yahooSurprisePct: 10,
+      altEstimate: 2.0,
     });
     assert.equal(r.reason, "sign-conflict");
     assert.equal(r.beatLabel, undefined);
@@ -73,12 +83,25 @@ describe("resolveEarningsBeat", () => {
     assert.equal(r.beatLabel, undefined);
   });
 
-  it("allows beat when rolled calendar is not used as altEstimate", () => {
+  it("omits when only Yahoo quarterly (thin source / Sandisk post-roll)", () => {
+    // After fa5c81a rolled-calendar strip: alt omitted → must not ship 서프라이즈.
+    // Market narrative was guidance soft (하회) while Yahoo EPS printed beat.
     const r = resolveEarningsBeat({
       epsActual: 39.25,
       epsEstimate: 34.515,
       yahooSurprisePct: 13.72,
-      // Caller must omit alt when isConsensusLikelyRolledForward
+    });
+    assert.equal(r.reason, "thin-source");
+    assert.equal(r.beatLabel, undefined);
+    assert.equal(r.surprisePct, undefined);
+  });
+
+  it("allows beat when same-quarter calendar confirms quarterly estimate", () => {
+    const r = resolveEarningsBeat({
+      epsActual: 39.25,
+      epsEstimate: 34.515,
+      yahooSurprisePct: 13.72,
+      altEstimate: 34.515,
     });
     assert.equal(r.reason, "ok");
     assert.equal(r.beatLabel, "서프라이즈");
@@ -114,5 +137,16 @@ describe("computeSurprisePct", () => {
     const pct = computeSurprisePct(39.25, 34.515);
     assert.ok(pct != null);
     assert.ok(Math.abs(pct - 13.72) < 0.05);
+  });
+});
+
+describe("earningsResultOneLiner", () => {
+  it("uses 판정 보류 when label omitted", () => {
+    assert.match(earningsResultOneLiner(undefined), /판정 보류/);
+    assert.doesNotMatch(earningsResultOneLiner(undefined), /서프라이즈|미스/);
+  });
+
+  it("names beatLabel when present", () => {
+    assert.match(earningsResultOneLiner("서프라이즈"), /서프라이즈/);
   });
 });
