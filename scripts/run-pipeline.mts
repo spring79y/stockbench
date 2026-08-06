@@ -14,7 +14,7 @@ import {
   collectSnapshot,
   defaultPipelineEvents,
 } from "../src/lib/pipeline/collectSnapshot";
-import { ensureImminentEarningsMentioned, runBriefingOnlyGuard, runGuard } from "../src/lib/pipeline/guard";
+import { patchBriefingForGuardRetry, runBriefingOnlyGuard, runGuard } from "../src/lib/pipeline/guard";
 import { resolveLlmConfig } from "../src/lib/pipeline/llm";
 import { writePipelineStatus } from "../src/lib/pipeline/pipelineStatus";
 import { runBriefingAgent } from "../src/lib/pipeline/runBriefingAgent";
@@ -111,9 +111,9 @@ async function generateFullView(
     });
 
     if (!guard.ok && attempt === 2) {
-      const patched = ensureImminentEarningsMentioned(briefing, snapshot, scope);
+      const patched = patchBriefingForGuardRetry(briefing, snapshot, scope);
       if (patched !== briefing) {
-        console.log(`  patch: inject imminent earnings mention for ${scope}`);
+        console.log(`  patch: repair earnings/prior-session anchors for ${scope}`);
         briefing = patched;
         guard = runGuard({ snapshot, briefing, decision, scope });
       }
@@ -184,9 +184,9 @@ async function generateRefreshView(
     });
 
     if (!guard.ok && attempt === 2) {
-      const patched = ensureImminentEarningsMentioned(briefing, snapshot, scope);
+      const patched = patchBriefingForGuardRetry(briefing, snapshot, scope);
       if (patched !== briefing) {
-        console.log(`  patch: inject imminent earnings mention for ${scope}`);
+        console.log(`  patch: repair earnings/prior-session anchors for ${scope}`);
         briefing = patched;
         guard = runBriefingOnlyGuard({
           snapshot,

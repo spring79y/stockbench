@@ -1,3 +1,8 @@
+import { EARNINGS_BRIDGE_SYMBOLS } from "@/lib/market/earningsBridge";
+import {
+  MEGA_CAP_CANDIDATES_KR,
+  MEGA_CAP_CANDIDATES_US,
+} from "@/lib/market/retailScan";
 import type {
   BriefingDraft,
   CollectorSnapshot,
@@ -6,6 +11,7 @@ import type {
   GuardReport,
   MarketScope,
 } from "@/lib/pipeline/types";
+import type { MarketEvent } from "@/lib/types";
 
 const RECOMMENDATION_PATTERNS = [
   /매수하(세요|라|십시오)/,
@@ -138,6 +144,94 @@ function looksLikeNumberRestatement(text: string): boolean {
 
 function countMatches(texts: string[], re: RegExp): number {
   return texts.reduce((n, t) => n + (re.test(t) ? 1 : 0), 0);
+}
+
+function earningsNameCore(ev: MarketEvent): string {
+  return ev.title
+    .replace(/\s*실적\s*발표$/, "")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** 회사 식별용 토큰만 — '실적/어닝' 같은 일반어는 제외 (다른 종목 언급으로 오인 방지) */
+function earningsIdentityTokens(ev: MarketEvent): string[] {
+  const nameCore = earningsNameCore(ev);
+  const aliases = nameCore
+    .split(/[\s·/,]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2);
+  const symbol = ev.symbol ?? "";
+  const symbolBase = symbol.replace(/\.(KS|KQ)$/i, "");
+  const mega = [...MEGA_CAP_CANDIDATES_KR, ...MEGA_CAP_CANDIDATES_US].find(
+    (c) => c.id === ev.megaCapId || c.symbol === ev.symbol,
+  );
+  const bridge = EARNINGS_BRIDGE_SYMBOLS.find(
+    (b) => b.id === ev.bridgeId || b.symbol === ev.symbol,
+  );
+  return [
+    ...new Set(
+      [
+        nameCore,
+        ...aliases,
+        symbol,
+        symbolBase,
+        mega?.name,
+        ...(mega?.newsTerms ?? []),
+        bridge?.name,
+      ].filter((t): t is string => Boolean(t && t.length >= 2)),
+    ),
+  ];
+}
+
+function proseMentionsEarningsIdentity(
+  prose: string,
+  proseLower: string,
+  ev: MarketEvent,
+): boolean {
+  return earningsIdentityTokens(ev).some((t) =>
+    /[A-Za-z]/.test(t) ? proseLower.includes(t.toLowerCase()) : prose.includes(t),
+  );
+}
+
+function isImminentEarningsWindow(
+  ev: MarketEvent,
+  now: number,
+): { ok: boolean; isPost: boolean } {
+  if (ev.kind !== "earnings" || !ev.dateISO) return { ok: false, isPost: false };
+  const hours = (new Date(ev.dateISO).getTime() - now) / (60 * 60 * 1000);
+  const isPre = hours >= 0 && hours <= 48;
+  const isPost = hours < 0 && hours >= -24 && Boolean(ev.actual?.beatLabel);
+  return { ok: isPre || isPost, isPost };
+}
+
+function isPostEarningsResult(ev: MarketEvent, now: number): boolean {
+  return isImminentEarningsWindow(ev, now).isPost;
+}
+
+function earningsInScope(ev: MarketEvent, scope: MarketScope): boolean {
+  if (scope === "us") return ev.region === "US" || ev.region === "GLOBAL";
+  if (scope === "kr") return ev.region === "KR" || ev.region === "GLOBAL";
+  return true;
+}
+
+function listImminentEarnings(
+  events: MarketEvent[],
+  now: number,
+  scope: MarketScope,
+): MarketEvent[] {
+  return events.filter((e) => {
+    const window = isImminentEarningsWindow(e, now);
+    return window.ok && earningsInScope(e, scope);
+  });
+}
+
+function briefingChanged(a: BriefingDraft, b: BriefingDraft): boolean {
+  return (
+    a.headline !== b.headline ||
+    a.bullets.length !== b.bullets.length ||
+    a.bullets.some((bullet, i) => bullet !== b.bullets[i])
+  );
 }
 
 /** Guard Agent — 사실·톤·복창·공허·탭 이탈 점검 */
@@ -399,58 +493,14 @@ export function runGuard(input: {
   }
 
   const now = Date.now();
-  const snapshotEvents = input.snapshot.events ?? [];
-  const imminentEarnings = snapshotEvents.filter((e) => {
-    if (e.kind !== "earnings" || !e.dateISO) return false;
-    const t = new Date(e.dateISO).getTime();
-    const hours = (t - now) / (60 * 60 * 1000);
-
-    // pre: 발표 예정(0~48시간)
-    const isPre = hours >= 0 && hours <= 48;
-    // post: 발표 완료(최근 24시간, 실제 값이 잡힌 경우에만)
-    const isPost = hours < 0 && hours >= -24 && Boolean(e.actual?.beatLabel);
-
-    if (!isPre && !isPost) return false;
-
-    if (scope === "us") return e.region === "US" || e.region === "GLOBAL";
-    if (scope === "kr") return e.region === "KR" || e.region === "GLOBAL";
-    return true;
-  });
+  const imminentEarnings = listImminentEarnings(input.snapshot.events ?? [], now, scope);
   const proseLower = prose.toLowerCase();
   for (const ev of imminentEarnings) {
-    const nameCore = ev.title
-      .replace(/\s*실적\s*발표$/, "")
-      .replace(/\([^)]*\)/g, " ")
-      .trim();
-    const nameAliases = nameCore
-      .split(/[\s·/,]+/)
-      .map((t) => t.trim())
-      .filter((t) => t.length >= 2);
-    const tokens = [
-      nameCore,
-      ...nameAliases,
-      ev.symbol ?? "",
-      "실적",
-      "어닝",
-      "earnings",
-    ].filter((t) => t.length >= 2);
-
-    const dateISO = ev.dateISO;
-    const isPost =
-      Boolean(ev.actual?.beatLabel) &&
-      typeof dateISO === "string" &&
-      new Date(dateISO).getTime() <= now;
+    const nameCore = earningsNameCore(ev);
+    const isPost = isPostEarningsResult(ev, now);
     const beatWord = ev.actual?.beatLabel;
-
-    const hasCore = tokens.some((t) =>
-      t === t.toLowerCase() || /[A-Za-z]/.test(t)
-        ? proseLower.includes(t.toLowerCase())
-        : prose.includes(t),
-    );
-    const hasBeat =
-      !isPost ||
-      !beatWord ||
-      prose.includes(beatWord);
+    const hasCore = proseMentionsEarningsIdentity(prose, proseLower, ev);
+    const hasBeat = !isPost || !beatWord || prose.includes(beatWord);
 
     if (!hasCore || !hasBeat) {
       findings.push({
@@ -463,6 +513,7 @@ export function runGuard(input: {
     }
   }
 
+  const snapshotEvents = input.snapshot.events ?? [];
   const imminentMacro = snapshotEvents.filter((e) => {
     if (e.kind === "earnings" || !e.dateISO) return false;
     const t = new Date(e.dateISO).getTime();
@@ -495,29 +546,19 @@ export function ensureImminentEarningsMentioned(
   const now = Date.now();
   const prose = [briefing.headline, ...briefing.bullets].join("\n");
   const proseLower = prose.toLowerCase();
-  const missing = (snapshot.events ?? []).filter((e) => {
-    if (e.kind !== "earnings" || !e.dateISO) return false;
-    const hours = (new Date(e.dateISO).getTime() - now) / (60 * 60 * 1000);
-    const isPre = hours >= 0 && hours <= 48;
-    const isPost = hours < 0 && hours >= -24 && Boolean(e.actual?.beatLabel);
-    if (!isPre && !isPost) return false;
-    if (scope === "us") {
-      if (!(e.region === "US" || e.region === "GLOBAL")) return false;
-    } else if (scope === "kr") {
-      if (!(e.region === "KR" || e.region === "GLOBAL")) return false;
-    }
-    const nameCore = e.title.replace(/\s*실적\s*발표$/, "").trim();
-    const tokens = [nameCore, e.symbol ?? "", "실적", "어닝"].filter((t) => t.length >= 2);
-    return !tokens.some((t) =>
-      /[A-Za-z]/.test(t) ? proseLower.includes(t.toLowerCase()) : prose.includes(t),
-    );
+  const missing = listImminentEarnings(snapshot.events ?? [], now, scope).filter((e) => {
+    const hasCore = proseMentionsEarningsIdentity(prose, proseLower, e);
+    const beatWord = e.actual?.beatLabel;
+    const needsBeat = isPostEarningsResult(e, now) && Boolean(beatWord);
+    const hasBeat = !needsBeat || (beatWord != null && prose.includes(beatWord));
+    return !hasCore || !hasBeat;
   });
 
   if (missing.length === 0) return briefing;
 
   const extra = missing.slice(0, 2).map((e) => {
-    const nameCore = e.title.replace(/\s*실적\s*발표$/, "").trim();
-    if (e.actual?.beatLabel) {
+    const nameCore = earningsNameCore(e);
+    if (e.actual?.beatLabel && isPostEarningsResult(e, now)) {
       return `${nameCore} 실적 결과(${e.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
     }
     return `${nameCore} 실적 발표 임박 — 가이던스·섹터 반응만 관측 (방향 예측 금지)`;
@@ -525,8 +566,46 @@ export function ensureImminentEarningsMentioned(
 
   return {
     ...briefing,
-    bullets: [...briefing.bullets.slice(0, 4), ...extra].slice(0, 5),
+    // 실적 보강 불릿이 잘리지 않도록 자리를 확보 (최대 5)
+    bullets: [...briefing.bullets.slice(0, Math.max(0, 5 - extra.length)), ...extra],
   };
+}
+
+/** 장전: 시점 없는 전일 수치 문장에 '전 거래일' 앵커를 최소 보강 */
+export function ensurePriorSessionAnchored(briefing: BriefingDraft): BriefingDraft {
+  const anchorText = (text: string): string => {
+    if (!looksLikeUnanchoredPriorResult(text)) return text;
+    return `전 거래일 ${text}`;
+  };
+
+  let next: BriefingDraft = {
+    ...briefing,
+    headline: anchorText(briefing.headline),
+    bullets: briefing.bullets.map(anchorText),
+  };
+
+  const texts = [next.headline, ...next.bullets];
+  if (!texts.some((text) => PRIOR_SESSION_ANCHOR_RE.test(text))) {
+    next = {
+      ...next,
+      headline: `전 거래일 마감 정리 · ${next.headline}`.slice(0, 64),
+    };
+  }
+
+  return briefingChanged(briefing, next) ? next : briefing;
+}
+
+/** 최종 재시도용 — 실적 누락 + 전일 앵커 누락을 함께 보강 */
+export function patchBriefingForGuardRetry(
+  briefing: BriefingDraft,
+  snapshot: CollectorSnapshot,
+  scope: MarketScope = "all",
+): BriefingDraft {
+  const withEarnings = ensureImminentEarningsMentioned(briefing, snapshot, scope);
+  if (snapshot.slot !== "kr-pre" && snapshot.slot !== "us-pre") {
+    return withEarnings;
+  }
+  return ensurePriorSessionAnchored(withEarnings);
 }
 
 /** 장중 리프레시용 — 브리핑만 검사. 동결된 시나리오·점검 경고는 무시 */
