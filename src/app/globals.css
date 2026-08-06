@@ -1499,17 +1499,47 @@ a {
   letter-spacing: -0.02em;
 }
 
+.legal-doc__body h3 {
+  margin: 1.15rem 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
 .legal-doc__body p {
   margin: 0 0 0.85rem;
 }
 
-.legal-doc__body ul {
+.legal-doc__body ul,
+.legal-doc__body ol {
   margin: 0 0 0.85rem;
   padding-left: 1.2rem;
 }
 
 .legal-doc__body li {
   margin-bottom: 0.35rem;
+}
+
+.legal-doc__body table {
+  width: 100%;
+  margin: 0 0 0.95rem;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.legal-doc__body th,
+.legal-doc__body td {
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--line, #e2e8f0);
+  text-align: left;
+  vertical-align: top;
+}
+
+.legal-doc__body th {
+  background: var(--seg-track, #f8fafc);
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .legal-doc__body a {

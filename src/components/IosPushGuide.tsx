@@ -2,18 +2,12 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { IOS_PUSH_GUIDE_STEPS } from "@/lib/push/iosPushGuideSteps";
 import styles from "./IosPushGuide.module.css";
-
-const STEPS = [
-  { src: "/guide/ios-push/1-menu.png", caption: "Safari 메뉴에서 공유" },
-  { src: "/guide/ios-push/2-share.png", caption: "홈 화면에 추가" },
-  { src: "/guide/ios-push/3-add.png", caption: "추가 누르기" },
-  { src: "/guide/ios-push/4-allow.png", caption: "아이콘으로 열고 알림 허용" },
-];
 
 export function IosPushGuide({ onClose }: { onClose: () => void }) {
   const [active, setActive] = useState(0);
-  const step = STEPS[active];
+  const step = IOS_PUSH_GUIDE_STEPS[active];
 
   return (
     <section className={styles.panel} aria-label="iPhone 알림 켜는 방법">
@@ -52,8 +46,11 @@ export function IosPushGuide({ onClose }: { onClose: () => void }) {
         >
           이전
         </button>
-        <div className={styles.dots} aria-label={`${active + 1} / ${STEPS.length} 단계`}>
-          {STEPS.map((item, index) => (
+        <div
+          className={styles.dots}
+          aria-label={`${active + 1} / ${IOS_PUSH_GUIDE_STEPS.length} 단계`}
+        >
+          {IOS_PUSH_GUIDE_STEPS.map((item, index) => (
             <button
               key={item.src}
               type="button"
@@ -67,9 +64,11 @@ export function IosPushGuide({ onClose }: { onClose: () => void }) {
         <button
           type="button"
           className={`${styles.nav} ${styles.navPrimary}`}
-          disabled={active === STEPS.length - 1}
+          disabled={active === IOS_PUSH_GUIDE_STEPS.length - 1}
           onClick={() =>
-            setActive((current) => Math.min(STEPS.length - 1, current + 1))
+            setActive((current) =>
+              Math.min(IOS_PUSH_GUIDE_STEPS.length - 1, current + 1),
+            )
           }
         >
           다음
