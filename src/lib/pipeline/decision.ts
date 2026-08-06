@@ -80,9 +80,25 @@ export function buildDecisionUserPrompt(
           "- 출발 예고/예상/전망, 개장 예상, 강세/약세 출발 표현은 금지한다.",
         ].join("\n")
       : "";
+  const slotDecisionRule =
+    snapshot.slot === "kr-pre" || snapshot.slot === "us-pre"
+      ? [
+          "## 장전 관측 분기 규칙",
+          "- A/B는 같은 관측 신호가 유지될 때와 깨질 때의 온도·체감으로 나눈다. 개장 방향 예측 금지.",
+          "- checkItems는 브리핑의 관측 신호와 같은 구체 트리거(유지 여부·반응·상회/하회·전환)를 사용한다.",
+          "- why는 A(기본) 유지 / B(주의)에 가깝다는 조건부 해석만 쓴다.",
+        ].join("\n")
+      : snapshot.slot === "kr-post" || snapshot.slot === "us-post"
+        ? [
+            "## 장후 분기 규칙",
+            "- 오늘 세션 결과와 촉발 요인을 기준점으로 삼는다.",
+            "- 다음 세션은 방향 단정 없이 남은 일정·금리·환율·변동성 반응을 관측 신호로 둔다.",
+          ].join("\n")
+        : "";
 
   return [
     temporalHard,
+    slotDecisionRule,
     "## 오늘 브리핑 (이미 확정된 해석 — 모순 금지)",
     `헤드라인: ${briefing.headline}`,
     "불릿:",

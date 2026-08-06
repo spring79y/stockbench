@@ -16,6 +16,47 @@ export function seedBriefing(snapshot: CollectorSnapshot, scope: MarketScope): B
       ? `지정학·공급 리스크 헤드라인(예: ${riskHint})이 잡혀 있으면, 유가(${wti?.value ?? "WTI"})·VIX와 같이 ‘흔들림 원인 후보’로만 보세요. 전쟁 결과 예측은 하지 마세요.`
       : "유가·변동성 숫자가 흔들릴 때는 중동·공급 같은 지정학 리스크가 원인 후보일 수 있습니다. 단정하지 말고 점검 포인트로만 두세요."
     : null;
+  const isPre = snapshot.slot === "kr-pre" || snapshot.slot === "us-pre";
+  const isPost = snapshot.slot === "kr-post" || snapshot.slot === "us-post";
+
+  if (isPre) {
+    const market = scope === "us" ? "미국" : scope === "kr" ? "국내" : "한·미";
+    return {
+      headline: `전 거래일 ${market} 마감 정리 · 오늘은 핵심 변수 반응 관측`,
+      bullets: [
+        `전 거래일 ${market} 지수·시총 상위의 방향과 체감 차이를 먼저 요약합니다.`,
+        scope === "us"
+          ? "전 거래일 미 금리와 VIX가 지수·메가캡 움직임에 어떤 차이를 만들었는지 봅니다."
+          : "전 거래일 국내 수급과 코스피200이 지수 움직임과 같은 방향이었는지 봅니다.",
+        "다가올 실적·매크로 일정은 방향 예측이 아니라 변동성 맥락으로만 둡니다.",
+        scope === "us"
+          ? "장 초반 미 금리·VIX 반응과 메가캡 흐름의 유지 여부를 관측합니다."
+          : "장 초반 외국인 수급·환율 반응과 대형주 흐름의 유지 여부를 관측합니다.",
+      ],
+      evidenceIds: riskElevated
+        ? ["usdkkrw", "wti", "vix"]
+        : ["usdkkrw", "us10y", "vix"],
+    };
+  }
+
+  if (isPost) {
+    const market = scope === "us" ? "미국" : scope === "kr" ? "국내" : "한·미";
+    return {
+      headline: `오늘 ${market} 세션 마감 정리 · 지수와 체감의 차이`,
+      bullets: [
+        `오늘 ${market} 세션은 지수와 시장 폭·시총 상위 체감이 같은 방향이었는지부터 정리합니다.`,
+        scope === "us"
+          ? "장중 미 금리·VIX와 메가캡 움직임 중 무엇이 흐름을 주도했는지 봅니다."
+          : "장중 외국인·기관 수급과 코스피200 중 무엇이 흐름을 주도했는지 봅니다.",
+        riskBullet ??
+          "장중 주요 일정·섹터 이슈는 지수와 체감에 실제로 연결된 촉발 요인만 남깁니다.",
+        "다음 세션은 방향을 단정하지 않고 환율·금리·변동성 반응을 연결 포인트로 둡니다.",
+      ],
+      evidenceIds: riskElevated
+        ? ["usdkkrw", "wti", "vix"]
+        : ["usdkkrw", "us10y", "vix"],
+    };
+  }
 
   if (scope === "kr") {
     return {

@@ -57,6 +57,9 @@ const PRIOR_SESSION_NUMERIC_RE =
   /(?:(?:코스피|코스닥|나스닥|S&P|다우)[^.!?]{0,24}[+-]?\d+(?:\.\d+)?%|외국인[^.!?]{0,28}\d+(?:\.\d+)?\s*(?:조|억)[^.!?]{0,12}순매(?:수|도)|시총[^.!?]{0,30}(?:평균|상위)[^.!?]{0,20}\d+(?:\.\d+)?%)/;
 const FORWARD_REFERENCE_RE = /야간선물|오버나잇|프리마켓|애프터마켓/;
 const CONDITIONAL_REFERENCE_RE = /참고|조건|경우|시사|브릿지/;
+const OBSERVABLE_WATCH_RE =
+  /관측|지켜볼|볼\s*(?:것|포인트|틀)|유지\s*(?:여부|되는지)|반응|발표\s*전후|상회|하회|돌파|전환|확인/;
+const SESSION_RECAP_RE = /오늘|금일|장중|마감|세션|정규장/;
 
 function pushPreSessionTemporalFindings(
   findings: GuardFinding[],
@@ -65,6 +68,23 @@ function pushPreSessionTemporalFindings(
   priorDataTexts: string[],
 ) {
   if (slot !== "kr-pre" && slot !== "us-pre") return;
+
+  if (!forecastTexts.some((text) => PRIOR_SESSION_ANCHOR_RE.test(text))) {
+    findings.push({
+      severity: "block",
+      code: "pre-missing-prior-recap",
+      message:
+        "장전 브리핑에 직전 세션 요약이 없음. 전일/전 거래일/직전 마감 앵커를 넣어 핵심 상황을 짧게 요약.",
+    });
+  }
+  if (!priorDataTexts.some((text) => OBSERVABLE_WATCH_RE.test(text))) {
+    findings.push({
+      severity: "block",
+      code: "pre-missing-observable-watch",
+      message:
+        "장전 브리핑에 오늘 관측할 신호가 없음. 유지 여부·반응·상회/하회·전환 등 구체 신호를 불릿에 추가.",
+    });
+  }
 
   for (const text of forecastTexts) {
     if (PRE_SESSION_FORECAST_PATTERNS.some((pattern) => pattern.test(text))) {
@@ -130,6 +150,17 @@ export function runGuard(input: {
     texts,
     briefingTexts,
   );
+  if (
+    (input.snapshot.slot === "kr-post" || input.snapshot.slot === "us-post") &&
+    !briefingTexts.some((text) => SESSION_RECAP_RE.test(text))
+  ) {
+    findings.push({
+      severity: "block",
+      code: "post-missing-session-recap",
+      message:
+        "장후 브리핑에 오늘 세션 리캡이 없음. 마감·장중·세션 결과와 주요 촉발 요인을 요약.",
+    });
+  }
 
   for (const text of texts) {
     for (const pattern of RECOMMENDATION_PATTERNS) {

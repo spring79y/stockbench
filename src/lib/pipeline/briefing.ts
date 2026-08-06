@@ -112,12 +112,34 @@ export function buildBriefingUserPrompt(
           "- 야간선물·오버나잇은 출처를 밝힌 조건부 참고 맥락만 허용하며 예측·전망으로 쓰지 말 것.",
         ].join("\n")
       : "";
+  const slotStructure =
+    snapshot.slot === "kr-pre" || snapshot.slot === "us-pre"
+      ? [
+          "장전 브리핑 구조(필수):",
+          "- 헤드라인: 직전 세션 핵심 + 오늘 관측 틀. 방향·개장 예측 금지.",
+          "- 불릿 1~2개: 전 거래일 지수·수급·시총·체감의 핵심만 요약하고 시점 앵커 명시.",
+          "- 불릿 최대 1개: 상대 시장·오버나잇을 조건부 참고 브릿지로만 사용.",
+          "- 불릿 1개: 다가올 일정·실적·매크로 맥락.",
+          "- 불릿 1~2개: 오늘 눈으로 확인할 구체적 신호(유지 여부·반응·상회/하회·전환 등).",
+        ].join("\n")
+      : snapshot.slot === "kr-post" || snapshot.slot === "us-post"
+        ? [
+            "장후 브리핑 구조(필수):",
+            "- 헤드라인: 오늘 해당 시장의 세션 결과·온도 + 가장 중요한 촉발 요인 1개.",
+            "- 불릿 1개: 지수와 시장 폭·체감의 관계.",
+            "- 불릿 1개: 수급(한국) 또는 메가캡·시총(미국).",
+            "- 불릿 1개: 장중 주요 촉발 요인·이벤트·섹터 흐름.",
+            "- 불릿 최대 1개: 다음 상대 시장은 방향 예측 없이 연결·점검만.",
+            "- 숫자 나열이 아니라 무엇이 장중 흐름을 만들었는지 요약.",
+          ].join("\n")
+        : "";
 
   if (snapshot.evidence) {
     return [
       modeLine,
       scopeHard,
       temporalHard,
+      slotStructure,
       renderEvidencePackForPrompt(snapshot.evidence, scope),
       ...repair,
     ].join("\n");
@@ -154,6 +176,7 @@ export function buildBriefingUserPrompt(
     modeLine,
     scopeHard,
     temporalHard,
+    slotStructure,
     `탭 초점(scope): ${scope}`,
     `슬롯: ${snapshot.slot}`,
     `온도: ${snapshot.temperature}`,
