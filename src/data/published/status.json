@@ -1,9 +1,9 @@
 {
-  "updatedAt": "2026-08-06T07:53:47.054Z",
+  "updatedAt": "2026-08-06T08:26:40.694Z",
   "slot": "kr-mid",
   "ok": false,
   "mode": "full",
-  "error": "keep-previous: blocked: evidence-missing, invented-event-result, invented-event-result",
+  "error": "keep-previous: blocked: invented-event-result",
   "guardOk": false,
-  "guardSummary": "blocked: evidence-missing, invented-event-result, invented-event-result"
+  "guardSummary": "blocked: invented-event-result"
 }
