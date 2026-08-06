@@ -1,9 +1,8 @@
 {
-  "updatedAt": "2026-08-06T08:26:40.694Z",
-  "slot": "kr-mid",
-  "ok": false,
+  "updatedAt": "2026-08-06T09:28:36.057Z",
+  "slot": "kr-post",
+  "ok": true,
   "mode": "full",
-  "error": "keep-previous: blocked: invented-event-result",
-  "guardOk": false,
-  "guardSummary": "blocked: invented-event-result"
+  "guardOk": true,
+  "guardSummary": "ok · 9 warn"
 }
