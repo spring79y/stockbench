@@ -77,7 +77,7 @@ Discuss 원칙: 사용자가 말한 “예측 지수”는 **기대·경계 신�
 | Collector | Yahoo·네이버 등 API로 지수·매크로·시총·수급 수집 → **Evidence Pack** 구조화 (비AI) |
 | Briefing | Evidence Pack 섹션 입력 → 헤드라인·불릿·근거 (**탭별**, LLM → seed). **한·미는 해당 시장 1순위·상대 시장 ≤1불릿 브릿지**. 숫자 복창·공허 일반론 금지 |
 | Decision | 브리핑+Evidence Pack → 시나리오 A/B + 「오늘 볼 것」3~5 (**탭별**, LLM → seed) |
-| Guard | 추천/예측 톤·숫자 복창·공허 점검·사실 불일치 차단 |
+| Guard | 추천/예측 톤·숫자 복창·공허·**시점 둔갑(전일↔장중)**·사실 불일치 차단. 최대 5회 재생성. 전부 거절 시 **직전 발행 유지** |
 | Publisher | `src/data/published/latest.json` (version 2, views.all/kr/us) |
 
 ### Evidence Pack (LLM 입력)
@@ -87,9 +87,9 @@ Briefing/Decision이 받는 구조화 근거. UI 대시보드가 아님.
 | 섹션 | 내용 |
 |------|------|
 | 세션 | 슬롯·초점·수집시각 |
-| 시장 온도 | 한·미 평균, 디커플링 갭 |
-| 지수·매크로 | 복창 금지 전제, evidenceIds 후보 |
-| 수급 | 오늘 + 5거래일 합 + 외국인 연속 |
+| 시장 온도 | 한·미 평균, 디커플링 갭 · 장전은 전일세션 평균도 제공 |
+| 지수·매크로 | **전일세션마감 vs 현재(장중/프리)** 분리. 복창 금지, evidenceIds 후보 |
+| 수급 | 전 거래일 수급(장전 요약용) + 수집 기준일 + 5거래일 합 |
 | 시총 상위 | 평균·분산(고−저)·상승/하락 수 |
 | 기대·경계 신호 | KS200·VIX 등 |
 | 일정 | 경제 캘린더 + **시총·섹터 브릿지 실적**(Yahoo 발표일·컨센서스 참고) |
@@ -99,7 +99,13 @@ Briefing/Decision이 받는 구조화 근거. UI 대시보드가 아님.
 LLM: `.env.local` — 품질 우선 시 Anthropic/OpenAI 권장. Ollama는 가능하나 소형 모델은 비권장.  
 실행: `npm run pipeline -- kr-post` (슬롯: kr-pre / kr-mid / kr-post / us-pre / us-mid / us-post)  
 스케줄: 풀 `us-post·kr-pre 07:00` · `kr-post 15:40` · `us-pre 21:50` / 리프레시 `kr-mid 11:30` · `us-mid 02:00` (주말 스킵). mid는 briefing만 갱신. 탭: 한국슬롯→통합+한국, 미국슬롯→통합+미국. 웹 푸시는 KST 00:00–07:00 미발송.  
-실패·키 없음 → seed fallback. Guard block 시 scope당 1회 재생성.
+실패·키 없음 → seed fallback. **Guard block 시 scope당 최대 5회 재생성. 전부 거절이면 latest를 덮지 않고 직전 발행 유지.**
+
+### 하지 않는 시점 오류
+
+- 장중·프리 등락을 「전일 마감」으로 표기
+- Evidence에 없는 전일 수치 창작
+- 장전 브리핑을 개장 방향 예측으로 쓰는 것
 
 홈 UI: 상단 세그먼트(증시개요/한국/미국) + 한·미는 세션 힌트 + 접힌 상대 시장
 

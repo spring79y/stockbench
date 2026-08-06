@@ -72,18 +72,24 @@ function loadPreviousBundle(): PublishedBundle | null {
   return null;
 }
 
+const MAX_GUARD_ATTEMPTS = 5;
+
 async function generateFullView(
   snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
   scope: MarketScope,
   publishedAt: string,
   slot: PipelineSlot,
-): Promise<{ view: EditorialView; findings: PublishedBundle["guard"]["findings"] }> {
+): Promise<{
+  view: EditorialView | null;
+  findings: PublishedBundle["guard"]["findings"];
+  blocked: boolean;
+}> {
   let repairHints: string[] | undefined;
   const findings: PublishedBundle["guard"]["findings"] = [];
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  for (let attempt = 1; attempt <= MAX_GUARD_ATTEMPTS; attempt++) {
     console.log(
-      `[pipeline] Briefing scope=${scope}${attempt > 1 ? ` retry=${attempt}` : ""}`,
+      `[pipeline] Briefing scope=${scope}${attempt > 1 ? ` retry=${attempt}/${MAX_GUARD_ATTEMPTS}` : ""}`,
     );
     const briefingResult = await runBriefingAgent(snapshot, scope, repairHints, "full");
     console.log(
@@ -102,7 +108,7 @@ async function generateFullView(
     );
 
     let briefing = briefingResult.data;
-    let decision = decisionResult.data;
+    const decision = decisionResult.data;
     let guard = runGuard({
       snapshot,
       briefing,
@@ -110,16 +116,16 @@ async function generateFullView(
       scope,
     });
 
-    if (!guard.ok && attempt === 2) {
+    if (!guard.ok && attempt === MAX_GUARD_ATTEMPTS) {
       const patched = patchBriefingForGuardRetry(briefing, snapshot, scope);
       if (patched !== briefing) {
-        console.log(`  patch: repair earnings/prior-session anchors for ${scope}`);
+        console.log(`  patch: repair earnings mentions for ${scope}`);
         briefing = patched;
         guard = runGuard({ snapshot, briefing, decision, scope });
       }
     }
 
-    if (guard.ok || attempt === 2) {
+    if (guard.ok) {
       findings.push(
         ...guard.findings.map((f) => ({ ...f, message: `[${scope}] ${f.message}` })),
       );
@@ -137,14 +143,23 @@ async function generateFullView(
           mode: "full",
         },
         findings,
+        blocked: false,
       };
     }
 
     repairHints = guard.findings.map((f) => f.message);
-    console.log(`  guard blocked → retry once: ${repairHints.join("; ")}`);
+    console.log(
+      `  guard blocked → ${attempt < MAX_GUARD_ATTEMPTS ? "retry" : "give up"}: ${repairHints.join("; ")}`,
+    );
+    if (attempt === MAX_GUARD_ATTEMPTS) {
+      findings.push(
+        ...guard.findings.map((f) => ({ ...f, message: `[${scope}] ${f.message}` })),
+      );
+      return { view: null, findings, blocked: true };
+    }
   }
 
-  throw new Error(`failed to generate view for ${scope}`);
+  return { view: null, findings, blocked: true };
 }
 
 async function generateRefreshView(
@@ -153,7 +168,11 @@ async function generateRefreshView(
   publishedAt: string,
   slot: PipelineSlot,
   previous: EditorialView | undefined,
-): Promise<{ view: EditorialView; findings: PublishedBundle["guard"]["findings"] }> {
+): Promise<{
+  view: EditorialView | null;
+  findings: PublishedBundle["guard"]["findings"];
+  blocked: boolean;
+}> {
   if (!previous?.scenarios?.length || !previous.checkItems?.length) {
     console.log(`[pipeline] refresh fallback → full (no prior view for ${scope})`);
     return generateFullView(snapshot, scope, publishedAt, slot);
@@ -166,9 +185,9 @@ async function generateRefreshView(
     checkItems: previous.checkItems,
   };
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  for (let attempt = 1; attempt <= MAX_GUARD_ATTEMPTS; attempt++) {
     console.log(
-      `[pipeline] Refresh Briefing scope=${scope}${attempt > 1 ? ` retry=${attempt}` : ""}`,
+      `[pipeline] Refresh Briefing scope=${scope}${attempt > 1 ? ` retry=${attempt}/${MAX_GUARD_ATTEMPTS}` : ""}`,
     );
     const briefingResult = await runBriefingAgent(snapshot, scope, repairHints, "refresh");
     console.log(
@@ -183,10 +202,10 @@ async function generateRefreshView(
       scope,
     });
 
-    if (!guard.ok && attempt === 2) {
+    if (!guard.ok && attempt === MAX_GUARD_ATTEMPTS) {
       const patched = patchBriefingForGuardRetry(briefing, snapshot, scope);
       if (patched !== briefing) {
-        console.log(`  patch: repair earnings/prior-session anchors for ${scope}`);
+        console.log(`  patch: repair earnings mentions for ${scope}`);
         briefing = patched;
         guard = runBriefingOnlyGuard({
           snapshot,
@@ -197,21 +216,7 @@ async function generateRefreshView(
       }
     }
 
-    if (guard.ok || attempt === 2) {
-      if (!guard.ok) {
-        console.log(`[pipeline] refresh guard blocked — keep previous briefing for ${scope}`);
-        findings.push(
-          ...guard.findings.map((f) => ({
-            ...f,
-            severity: "warn" as const,
-            message: `[${scope}] refresh skipped: ${f.message}`,
-          })),
-        );
-        return {
-          view: { ...previous },
-          findings,
-        };
-      }
+    if (guard.ok) {
       findings.push(
         ...guard.findings.map((f) => ({ ...f, message: `[${scope}] ${f.message}` })),
       );
@@ -229,14 +234,27 @@ async function generateRefreshView(
           mode: "refresh",
         },
         findings,
+        blocked: false,
       };
     }
 
     repairHints = guard.findings.map((f) => f.message);
-    console.log(`  guard blocked → retry once: ${repairHints.join("; ")}`);
+    console.log(
+      `  guard blocked → ${attempt < MAX_GUARD_ATTEMPTS ? "retry" : "keep previous"}: ${repairHints.join("; ")}`,
+    );
+    if (attempt === MAX_GUARD_ATTEMPTS) {
+      findings.push(
+        ...guard.findings.map((f) => ({
+          ...f,
+          severity: "warn" as const,
+          message: `[${scope}] refresh skipped: ${f.message}`,
+        })),
+      );
+      return { view: { ...previous }, findings, blocked: false };
+    }
   }
 
-  throw new Error(`failed to refresh view for ${scope}`);
+  return { view: { ...previous }, findings, blocked: false };
 }
 
 async function main() {
@@ -272,13 +290,22 @@ async function main() {
     const findings = [...(previous?.guard.findings ?? []).filter((f) => f.severity !== "block")];
 
     for (const scope of targetScopes) {
-      const { view, findings: scopeFindings } =
+      const { view, findings: scopeFindings, blocked } =
         mode === "refresh"
           ? await generateRefreshView(snapshot, scope, publishedAt, slot, views[scope])
           : await generateFullView(snapshot, scope, publishedAt, slot);
+      findings.push(...scopeFindings);
+      if (blocked || !view) {
+        console.error(
+          `[pipeline] scope=${scope} blocked after ${MAX_GUARD_ATTEMPTS} attempts — keep previous view`,
+        );
+        if (!views[scope] && previous?.views?.[scope]) {
+          views[scope] = previous.views[scope];
+        }
+        continue;
+      }
       const changeLines = buildChangeLines(previous?.views?.[scope], view, mode);
       views[scope] = { ...view, changeLines };
-      findings.push(...scopeFindings);
     }
 
     (["all", "kr", "us"] as MarketScope[]).forEach((scope) => {
@@ -298,17 +325,32 @@ async function main() {
       console.error("[pipeline] missing views — seeding missing scopes with full generation");
       for (const scope of ["all", "kr", "us"] as MarketScope[]) {
         if (!views[scope]) {
-          const { view, findings: scopeFindings } = await generateFullView(
+          const { view, findings: scopeFindings, blocked } = await generateFullView(
             snapshot,
             scope,
             publishedAt,
             slot,
           );
+          findings.push(...scopeFindings);
+          if (blocked || !view) {
+            console.error(`[pipeline] cannot seed scope=${scope} — abort publish, keep previous`);
+            recordStatus({
+              slot,
+              ok: false,
+              mode,
+              guardOk: false,
+              guardSummary: summarizeGuard({
+                ok: false,
+                findings,
+              }),
+              error: `keep-previous: missing ${scope} after guard blocks`,
+            });
+            process.exit(0);
+          }
           views[scope] = {
             ...view,
             changeLines: buildChangeLines(previous?.views?.[scope], view, "full"),
           };
-          findings.push(...scopeFindings);
         }
       }
     }
@@ -319,16 +361,19 @@ async function main() {
     };
     console.log("[pipeline] Guard", JSON.stringify(guard, null, 2));
     if (!guard.ok) {
-      console.error("[pipeline] blocked by guard");
+      console.error(
+        "[pipeline] blocked by guard — keep previous publication (latest.json unchanged)",
+      );
       recordStatus({
         slot,
         ok: false,
         mode,
         guardOk: false,
         guardSummary: summarizeGuard(guard),
-        error: summarizeGuard(guard),
+        error: `keep-previous: ${summarizeGuard(guard)}`,
       });
-      process.exit(1);
+      // 직전 발행 유지 — 오보로 latest를 덮지 않음
+      process.exit(0);
     }
 
     const bundle: PublishedBundle = {

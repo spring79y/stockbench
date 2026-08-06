@@ -72,6 +72,85 @@ const THRESHOLD_WATCH_RE =
   /이상\s*(?:유지|여부)|이하\s*(?:유지|여부)|하회|상회|유지\s*여부|관측|점검/;
 const SESSION_RECAP_RE = /오늘|금일|장중|마감|세션|정규장/;
 
+const INDEX_LABEL_TO_ID: Array<{ re: RegExp; id: string }> = [
+  { re: /코스피(?!\s*200)|KOSPI/i, id: "kospi" },
+  { re: /코스닥|KOSDAQ/i, id: "kosdaq" },
+  { re: /나스닥|NASDAQ/i, id: "nasdaq" },
+  { re: /S\s*&\s*P|S&P/i, id: "sp500" },
+  { re: /다우|DOW/i, id: "dow" },
+  { re: /반도체|SOX/i, id: "sox" },
+];
+
+function nearlyEqual(a: number, b: number, eps = 0.25): boolean {
+  return Math.abs(a - b) <= eps;
+}
+
+function extractPctNearLabel(text: string, labelRe: RegExp): number | null {
+  const source = text.replace(/−/g, "-");
+  const match = source.match(
+    new RegExp(
+      `(?:${labelRe.source})[^0-9+\\-]{0,24}([+-]?\\d+(?:\\.\\d+)?)\\s*%`,
+      "i",
+    ),
+  );
+  if (!match?.[1]) return null;
+  const n = Number(match[1]);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** 전일 라벨 + 장중 수치 둔갑 차단 */
+function pushPriorLabelMismatchFindings(
+  findings: GuardFinding[],
+  snapshot: CollectorSnapshot,
+  texts: string[],
+) {
+  if (snapshot.slot !== "kr-pre" && snapshot.slot !== "us-pre") return;
+
+  for (const text of texts) {
+    if (!PRIOR_SESSION_ANCHOR_RE.test(text)) continue;
+    for (const { re, id } of INDEX_LABEL_TO_ID) {
+      if (!re.test(text)) continue;
+      const quoted = extractPctNearLabel(text, re);
+      if (quoted == null) continue;
+      const idx = snapshot.indexes.find((q) => q.id === id);
+      if (!idx) continue;
+      const prior = idx.priorSessionChangePercent;
+      const live = idx.changePercent;
+      const basis = idx.changeBasis ?? "unknown";
+
+      if (
+        prior != null &&
+        (basis === "intraday" || basis === "premarket" || basis === "postmarket") &&
+        nearlyEqual(quoted, live) &&
+        !nearlyEqual(quoted, prior)
+      ) {
+        findings.push({
+          severity: "block",
+          code: "prior-label-mismatch",
+          message:
+            `전일 라벨에 장중/현재 수치 둔갑: "${text.slice(0, 56)}" ` +
+            `(${idx.name} 인용 ${quoted}% ≈ 현재 ${live}%, 전일세션 ${prior}%). ` +
+            "전일 요약은 전일세션마감 숫자만 사용.",
+        });
+      } else if (
+        prior != null &&
+        PRIOR_RESULT_VERB_RE.test(text) &&
+        !nearlyEqual(quoted, prior) &&
+        Math.abs(quoted - prior) >= 1.0
+      ) {
+        // 전일 결과로 서술했는데 전일세션과 크게 어긋남
+        findings.push({
+          severity: "block",
+          code: "prior-session-fact-mismatch",
+          message:
+            `전일 세션 사실 불일치: "${text.slice(0, 56)}" ` +
+            `(${idx.name} 인용 ${quoted}% vs 전일세션 ${prior}%).`,
+        });
+      }
+    }
+  }
+}
+
 function looksLikeUnanchoredPriorResult(text: string): boolean {
   if (!PRIOR_SESSION_NUMERIC_RE.test(text)) return false;
   if (PRIOR_SESSION_ANCHOR_RE.test(text)) return false;
@@ -255,6 +334,7 @@ export function runGuard(input: {
     texts,
     briefingTexts,
   );
+  pushPriorLabelMismatchFindings(findings, input.snapshot, briefingTexts);
   if (
     (input.snapshot.slot === "kr-post" || input.snapshot.slot === "us-post") &&
     !briefingTexts.some((text) => SESSION_RECAP_RE.test(text))
@@ -571,41 +651,18 @@ export function ensureImminentEarningsMentioned(
   };
 }
 
-/** 장전: 시점 없는 전일 수치 문장에 '전 거래일' 앵커를 최소 보강 */
+/** 장전: 시점 없는 수치에 '전 거래일'을 기계적으로 붙이지 않음 — 장중 둔갑을 키움 */
 export function ensurePriorSessionAnchored(briefing: BriefingDraft): BriefingDraft {
-  const anchorText = (text: string): string => {
-    if (!looksLikeUnanchoredPriorResult(text)) return text;
-    return `전 거래일 ${text}`;
-  };
-
-  let next: BriefingDraft = {
-    ...briefing,
-    headline: anchorText(briefing.headline),
-    bullets: briefing.bullets.map(anchorText),
-  };
-
-  const texts = [next.headline, ...next.bullets];
-  if (!texts.some((text) => PRIOR_SESSION_ANCHOR_RE.test(text))) {
-    next = {
-      ...next,
-      headline: `전 거래일 마감 정리 · ${next.headline}`.slice(0, 64),
-    };
-  }
-
-  return briefingChanged(briefing, next) ? next : briefing;
+  return briefing;
 }
 
-/** 최종 재시도용 — 실적 누락 + 전일 앵커 누락을 함께 보강 */
+/** 최종 재시도용 — 실적 누락만 보강. 전일 앵커 강제 삽입 금지(시점 둔갑 방지) */
 export function patchBriefingForGuardRetry(
   briefing: BriefingDraft,
   snapshot: CollectorSnapshot,
   scope: MarketScope = "all",
 ): BriefingDraft {
-  const withEarnings = ensureImminentEarningsMentioned(briefing, snapshot, scope);
-  if (snapshot.slot !== "kr-pre" && snapshot.slot !== "us-pre") {
-    return withEarnings;
-  }
-  return ensurePriorSessionAnchored(withEarnings);
+  return ensureImminentEarningsMentioned(briefing, snapshot, scope);
 }
 
 /** 장중 리프레시용 — 브리핑만 검사. 동결된 시나리오·점검 경고는 무시 */

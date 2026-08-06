@@ -8,8 +8,10 @@ export function seedBriefing(snapshot: CollectorSnapshot, scope: MarketScope): B
   const wti = snapshot.macros.find((m) => m.id === "wti");
   const riskElevated = Boolean(snapshot.evidence?.risk?.elevated);
   const riskHint = snapshot.evidence?.risk?.headlines[0]?.title;
-  const sharp = (kospi?.changePercent ?? 0) <= -3;
-  const usUp = (nasdaq?.changePercent ?? 0) >= 0.3;
+  const sharp =
+    (kospi?.priorSessionChangePercent ?? kospi?.changePercent ?? 0) <= -3;
+  const usUp =
+    (nasdaq?.priorSessionChangePercent ?? nasdaq?.changePercent ?? 0) >= 0.3;
 
   const riskBullet = riskElevated
     ? riskHint
@@ -21,10 +23,17 @@ export function seedBriefing(snapshot: CollectorSnapshot, scope: MarketScope): B
 
   if (isPre) {
     const market = scope === "us" ? "미국" : scope === "kr" ? "국내" : "한·미";
+    const focus =
+      scope === "us" ? nasdaq : scope === "kr" ? kospi : kospi ?? nasdaq;
+    const priorPct = focus?.priorSessionChangePercent;
+    const priorLine =
+      priorPct == null
+        ? `전 거래일 ${market} 지수·시총 상위의 방향과 체감 차이를 먼저 요약합니다.`
+        : `전 거래일 ${focus?.name ?? market} 마감 ${priorPct >= 0 ? "+" : ""}${priorPct.toFixed(2)}% — 장중 숫자를 전일로 쓰지 않습니다.`;
     return {
       headline: `전 거래일 ${market} 마감 정리 · 오늘은 핵심 변수 반응 관측`,
       bullets: [
-        `전 거래일 ${market} 지수·시총 상위의 방향과 체감 차이를 먼저 요약합니다.`,
+        priorLine,
         scope === "us"
           ? "전 거래일 미 금리와 VIX가 지수·메가캡 움직임에 어떤 차이를 만들었는지 봅니다."
           : "전 거래일 국내 수급과 코스피200이 지수 움직임과 같은 방향이었는지 봅니다.",

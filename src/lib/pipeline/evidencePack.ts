@@ -1,6 +1,17 @@
-import type { IndexQuote, MacroChip, MarketEvent } from "@/lib/types";
+import type { IndexChangeBasis, IndexQuote, MacroChip, MarketEvent } from "@/lib/types";
 import type { FlowLeg } from "@/lib/market/retailScan";
 import type { MarketScope, PipelineSlot } from "@/lib/pipeline/types";
+
+export type EvidenceIndexRow = {
+  id: string;
+  name: string;
+  /** 현재 Yahoo 등락(장중=당일, 마감=직전 세션) */
+  changePercent: number;
+  status: string;
+  changeBasis: IndexChangeBasis;
+  /** 직전 완료 정규장 세션 등락 — 장전 전일 요약에만 사용 */
+  priorSessionChangePercent: number | null;
+};
 
 export type EvidencePack = {
   session: {
@@ -18,10 +29,13 @@ export type EvidencePack = {
     usAvgPct: number | null;
     decouplingPct: number | null;
     decouplingNote: string;
+    /** 장전용: 직전 세션 평균(있을 때) */
+    krPriorAvgPct?: number | null;
+    usPriorAvgPct?: number | null;
   };
   indexes: {
-    kr: Array<{ id: string; name: string; changePercent: number; status: string }>;
-    us: Array<{ id: string; name: string; changePercent: number; status: string }>;
+    kr: EvidenceIndexRow[];
+    us: EvidenceIndexRow[];
   };
   macros: Array<{
     id: string;
@@ -36,6 +50,8 @@ export type EvidencePack = {
     todaySummary: string;
     weekSummary: string;
     foreignStreakNote: string;
+    /** 장전: 직전 완료일 수급 요약(있으면) */
+    priorDaySummary?: string;
   };
   megaCaps: {
     summary: string;
@@ -166,8 +182,31 @@ export function buildEvidencePack(input: {
 }): EvidencePack {
   const kr = input.indexes.filter((q) => q.region === "KR");
   const us = input.indexes.filter((q) => q.region === "US");
+  const toRow = (q: IndexQuote): EvidenceIndexRow => ({
+    id: q.id,
+    name: q.name,
+    changePercent: Number(q.changePercent.toFixed(2)),
+    status: q.status,
+    changeBasis: q.changeBasis ?? "unknown",
+    priorSessionChangePercent:
+      q.priorSessionChangePercent == null
+        ? null
+        : Number(q.priorSessionChangePercent.toFixed(2)),
+  });
+  const krRows = kr.map(toRow);
+  const usRows = us.map(toRow);
   const krAvg = avg(kr.map((q) => q.changePercent));
   const usAvg = avg(us.map((q) => q.changePercent));
+  const krPriorAvg = avg(
+    krRows
+      .map((q) => q.priorSessionChangePercent)
+      .filter((n): n is number => n != null),
+  );
+  const usPriorAvg = avg(
+    usRows
+      .map((q) => q.priorSessionChangePercent)
+      .filter((n): n is number => n != null),
+  );
   const decoupling =
     krAvg != null && usAvg != null ? Number((krAvg - usAvg).toFixed(2)) : null;
 
@@ -193,6 +232,26 @@ export function buildEvidencePack(input: {
 
   const kospiHist = input.flow.kospiHistory;
   const kosdaqHist = input.flow.kosdaqHistory;
+  const isPre = input.slot === "kr-pre" || input.slot === "us-pre";
+  const liveBasis = [...krRows, ...usRows].some(
+    (q) => q.changeBasis === "intraday" || q.changeBasis === "premarket",
+  );
+  const priorFlowIdx = isPre && liveBasis ? 1 : 0;
+  const priorKospi = kospiHist[priorFlowIdx];
+  const priorKosdaq = kosdaqHist[priorFlowIdx];
+  const priorDaySummary =
+    priorKospi || priorKosdaq
+      ? [
+          priorKospi
+            ? `코스피 ${priorKospi.dateLabel}: 외국인 ${formatEok(priorKospi.foreign)} · 기관 ${formatEok(priorKospi.institution)} · 개인 ${formatEok(priorKospi.personal)}`
+            : null,
+          priorKosdaq
+            ? `코스닥 ${priorKosdaq.dateLabel}: 외국인 ${formatEok(priorKosdaq.foreign)} · 기관 ${formatEok(priorKosdaq.institution)} · 개인 ${formatEok(priorKosdaq.personal)}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" / ")
+      : undefined;
 
   return {
     session: {
@@ -210,20 +269,12 @@ export function buildEvidencePack(input: {
       usAvgPct: usAvg == null ? null : Number(usAvg.toFixed(2)),
       decouplingPct: decoupling,
       decouplingNote,
+      krPriorAvgPct: krPriorAvg == null ? null : Number(krPriorAvg.toFixed(2)),
+      usPriorAvgPct: usPriorAvg == null ? null : Number(usPriorAvg.toFixed(2)),
     },
     indexes: {
-      kr: kr.map((q) => ({
-        id: q.id,
-        name: q.name,
-        changePercent: Number(q.changePercent.toFixed(2)),
-        status: q.status,
-      })),
-      us: us.map((q) => ({
-        id: q.id,
-        name: q.name,
-        changePercent: Number(q.changePercent.toFixed(2)),
-        status: q.status,
-      })),
+      kr: krRows,
+      us: usRows,
     },
     macros: input.macros.map((m) => ({
       id: m.id,
@@ -241,6 +292,7 @@ export function buildEvidencePack(input: {
         weekFlowSummary("코스닥", kosdaqHist, 5),
       ].join(" / "),
       foreignStreakNote: foreignStreak(kospiHist),
+      priorDaySummary,
     },
     megaCaps: {
       summary:
@@ -289,46 +341,56 @@ export function renderEvidencePackForPrompt(
   pack: EvidencePack,
   scope: MarketScope,
 ): string {
+  const formatIndexRow = (q: EvidenceIndexRow): string => {
+    const prior =
+      q.priorSessionChangePercent == null
+        ? "전일세션=n/a"
+        : `전일세션마감=${formatPct(q.priorSessionChangePercent)}`;
+    const liveLabel =
+      q.changeBasis === "prior-close"
+        ? "마감세션"
+        : q.changeBasis === "intraday"
+          ? "장중(당일)"
+          : q.changeBasis === "premarket"
+            ? "프리/장전"
+            : q.changeBasis === "postmarket"
+              ? "애프터"
+              : "현재";
+    return `- ${q.id} ${q.name} ${prior} · ${liveLabel}=${formatPct(q.changePercent)} 상태=${q.status} basis=${q.changeBasis}`;
+  };
+
   const krBridge =
     pack.indexes.kr.length > 0
       ? `국내 보조(브릿지≤1불릿): ${pack.indexes.kr
-          .map((q) => `${q.name} ${formatPct(q.changePercent)}`)
+          .map((q) => `${q.name} 전일세션=${formatPct(q.priorSessionChangePercent)} / 현재=${formatPct(q.changePercent)}`)
           .join(" · ")}`
       : "국내 보조: n/a";
   const usBridge =
     pack.indexes.us.length > 0
       ? `미국 보조(브릿지≤1불릿): ${pack.indexes.us
-          .map((q) => `${q.name} ${formatPct(q.changePercent)}`)
+          .map((q) => `${q.name} 전일세션=${formatPct(q.priorSessionChangePercent)} / 현재=${formatPct(q.changePercent)}`)
           .join(" · ")}`
       : "미국 보조: n/a";
 
   const indexBlock =
     scope === "kr"
       ? [
-          "지수·KR 초점 (화면에도 표시 — 복창 금지):",
-          ...pack.indexes.kr.map(
-            (q) => `- ${q.id} ${q.name} ${formatPct(q.changePercent)} 상태=${q.status}`,
-          ),
+          "지수·KR 초점 (전일세션마감 vs 현재를 구분 — 복창·시점 둔갑 금지):",
+          ...pack.indexes.kr.map(formatIndexRow),
           usBridge,
         ]
       : scope === "us"
         ? [
-            "지수·US 초점 (화면에도 표시 — 복창 금지):",
-            ...pack.indexes.us.map(
-              (q) => `- ${q.id} ${q.name} ${formatPct(q.changePercent)} 상태=${q.status}`,
-            ),
+            "지수·US 초점 (전일세션마감 vs 현재를 구분 — 복창·시점 둔갑 금지):",
+            ...pack.indexes.us.map(formatIndexRow),
             krBridge,
           ]
         : [
-            "지수 (화면에도 표시 — 복창 금지):",
+            "지수 (전일세션마감 vs 현재를 구분 — 복창·시점 둔갑 금지):",
             "국내:",
-            ...pack.indexes.kr.map(
-              (q) => `- ${q.id} ${q.name} ${formatPct(q.changePercent)} 상태=${q.status}`,
-            ),
+            ...pack.indexes.kr.map(formatIndexRow),
             "미국:",
-            ...pack.indexes.us.map(
-              (q) => `- ${q.id} ${q.name} ${formatPct(q.changePercent)} 상태=${q.status}`,
-            ),
+            ...pack.indexes.us.map(formatIndexRow),
           ];
 
   const tempBlock =
@@ -388,10 +450,13 @@ export function renderEvidencePackForPrompt(
       : [
           "## 수급 (시장 합계 · 예측/매매신호 아님)",
           `상태: ${pack.flow.status} · 기준일: ${pack.flow.asOfLabel || "n/a"}`,
-          `오늘: ${pack.flow.todaySummary}`,
+          pack.flow.priorDaySummary
+            ? `전 거래일 수급(장전 요약용): ${pack.flow.priorDaySummary}`
+            : null,
+          `수집 기준일 수급: ${pack.flow.todaySummary}`,
           `주간(5거래일 합): ${pack.flow.weekSummary}`,
           `연속: ${pack.flow.foreignStreakNote}`,
-        ];
+        ].filter((line): line is string => Boolean(line));
 
   const signalsBlock =
     scope === "us"
@@ -421,9 +486,12 @@ export function renderEvidencePackForPrompt(
   const preSessionRule =
     pack.session.slot === "kr-pre" || pack.session.slot === "us-pre"
       ? [
-          "장전 시점 규칙: 아래 정규장 지수·수급·시총 등락은 전 거래일 마감 데이터이며 오늘 개장 예측이 아님.",
-          "사용 시 같은 문장에 '전일/전 거래일/직전 마감/마감 기준'을 반드시 명시.",
-          "'출발 예고/예상/전망', '개장 예상', '강세/약세 출발' 표현 금지.",
+          "장전 시점 규칙(하드):",
+          "- '전일/전 거래일/직전 마감' 요약에는 **전일세션마감** 숫자만 사용.",
+          "- 장중(당일)/프리/애프터 숫자를 전일로 쓰지 말 것. (시점 둔갑 = 발행 차단)",
+          "- basis=intraday|premarket 인 현재 등락은 오늘 관측 신호로만, 전일 마감 사실로 쓰지 말 것.",
+          "- '출발 예고/예상/전망', '개장 예상', '강세/약세 출발' 표현 금지.",
+          `- 참고 전일 평균: KR ${formatPct(pack.temperature.krPriorAvgPct ?? null)} · US ${formatPct(pack.temperature.usPriorAvgPct ?? null)}`,
         ]
       : [];
 

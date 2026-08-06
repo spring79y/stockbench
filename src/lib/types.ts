@@ -4,6 +4,13 @@ export type ChangeDirection = "up" | "down" | "flat";
 
 export type MarketMood = "risk-on" | "caution" | "mixed" | "risk-off";
 
+export type IndexChangeBasis =
+  | "prior-close"
+  | "intraday"
+  | "premarket"
+  | "postmarket"
+  | "unknown";
+
 export interface IndexQuote {
   id: string;
   name: string;
@@ -11,8 +18,14 @@ export interface IndexQuote {
   region: MarketRegion;
   value: number;
   change: number;
+  /** Yahoo 실시간 등락 — 장중이면 당일, 마감이면 직전 세션 */
   changePercent: number;
   status: string;
+  /** Yahoo marketState 원문 */
+  marketState?: string;
+  /** 직전 완료 정규장 세션 등락(전일 마감 요약용). 없으면 null */
+  priorSessionChangePercent?: number | null;
+  changeBasis?: IndexChangeBasis;
 }
 
 export interface MacroChip {

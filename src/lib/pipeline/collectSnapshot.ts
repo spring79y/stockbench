@@ -13,6 +13,7 @@ import {
   type YahooQuoteLike,
 } from "@/lib/market/map";
 import { fetchInvestorFlow } from "@/lib/market/fetchInvestorFlow";
+import { fetchPriorSessionChanges } from "@/lib/market/fetchPriorSessionChanges";
 import { fetchRiskContext } from "@/lib/market/fetchRiskContext";
 import {
   KS200_SYMBOL,
@@ -82,9 +83,29 @@ export async function collectSnapshot(
     loadPreviousBriefing(cwd),
   ]);
 
-  const indexes = INDEX_DEFINITIONS.map((def) => toIndexQuote(def, rawResult[def.symbol])).filter(
+  const indexesBase = INDEX_DEFINITIONS.map((def) => toIndexQuote(def, rawResult[def.symbol])).filter(
     (q): q is IndexQuote => Boolean(q),
   );
+
+  const marketStates: Record<string, string | undefined> = {};
+  const livePercents: Record<string, number | undefined> = {};
+  for (const def of INDEX_DEFINITIONS) {
+    marketStates[def.symbol] = rawResult[def.symbol]?.marketState;
+    livePercents[def.symbol] = rawResult[def.symbol]?.regularMarketChangePercent;
+  }
+  const priorBySymbol = await fetchPriorSessionChanges(yf, marketStates, livePercents).catch(
+    () => ({}) as Awaited<ReturnType<typeof fetchPriorSessionChanges>>,
+  );
+
+  const indexes = indexesBase.map((q) => {
+    const def = INDEX_DEFINITIONS.find((d) => d.id === q.id);
+    const prior = def ? priorBySymbol[def.symbol] : undefined;
+    return {
+      ...q,
+      priorSessionChangePercent: prior?.priorSessionChangePercent ?? null,
+      changeBasis: prior?.changeBasis ?? "unknown",
+    };
+  });
 
   const macros = MACRO_DEFINITIONS.map((def) => {
     const hit =

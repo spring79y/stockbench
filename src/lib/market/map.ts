@@ -41,6 +41,7 @@ export type YahooQuoteLike = {
   regularMarketPrice?: number;
   regularMarketChange?: number;
   regularMarketChangePercent?: number;
+  regularMarketPreviousClose?: number;
   marketState?: string;
   regularMarketTime?: Date | string | number;
   marketCap?: number;
@@ -132,6 +133,7 @@ export function toIndexQuote(
     change: Number(raw.regularMarketChange ?? 0),
     changePercent: Number(raw.regularMarketChangePercent ?? 0),
     status: marketStateLabel(raw.marketState, def.region),
+    marketState: raw.marketState,
   };
 }
 
