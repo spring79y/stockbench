@@ -12,6 +12,11 @@ Discuss에서 말한 BriefGuard 역할은 **별도 에이전트가 아니라 이
 - `prior-label-mismatch` — 「전일/마감」라벨에 장중·현재 수치를 붙인 경우
 - `prior-session-fact-mismatch` — 전일 서술 수치가 Evidence 전일세션과 크게 어긋남
 - `pre-session-forecast` — 개장 방향 예측 표현
+- `carry-forward-omission` — due+Evidence 사실이 있는데 브리핑이 생략
+- `invented-event-result` — Evidence 없이 실적/이벤트 결과 단정
+
+소프트:
+- `prior-phrase-parrot` — 직전 연속성 문구 과도 복창
 
 정책:
 - scope당 최대 5회 재생성(repairHints)

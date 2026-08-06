@@ -3,6 +3,10 @@ import {
   MEGA_CAP_CANDIDATES_KR,
   MEGA_CAP_CANDIDATES_US,
 } from "@/lib/market/retailScan";
+import {
+  forceCiteTokens,
+  type CarryForwardItem,
+} from "@/lib/pipeline/carryForward";
 import type {
   BriefingDraft,
   CollectorSnapshot,
@@ -305,6 +309,107 @@ function listImminentEarnings(
   });
 }
 
+function continuityForScope(
+  snapshot: CollectorSnapshot,
+  scope: MarketScope,
+): CarryForwardItem[] {
+  const continuity = snapshot.evidence?.previous.continuity;
+  if (!continuity) return [];
+  const block =
+    continuity[scope] ??
+    (scope === "all" ? continuity.kr ?? continuity.us : undefined);
+  return block?.items ?? [];
+}
+
+/** due+Evidence 사실(forceCite) 누락 → hard fail */
+function pushCarryForwardOmissionFindings(
+  findings: GuardFinding[],
+  snapshot: CollectorSnapshot,
+  scope: MarketScope,
+  prose: string,
+  proseLower: string,
+) {
+  const items = continuityForScope(snapshot, scope).filter((i) => i.forceCite);
+  for (const item of items) {
+    const tokens = forceCiteTokens(item);
+    const hit = tokens.some((t) =>
+      /[A-Za-z0-9]/.test(t) ? proseLower.includes(t.toLowerCase()) : prose.includes(t),
+    );
+    if (!hit) {
+      findings.push({
+        severity: "block",
+        code: "carry-forward-omission",
+        message:
+          `due+Evidence 연속성 누락: "${item.priorText.slice(0, 40)}" ` +
+          `(${item.evidenceFact?.slice(0, 48) ?? item.status}). ` +
+          "현재 Evidence 사실로 재평가해 브리핑에 반영.",
+      });
+    }
+  }
+}
+
+/** Evidence 없는 실적 결과 단정 → hard fail */
+function pushInventedResultFindings(
+  findings: GuardFinding[],
+  snapshot: CollectorSnapshot,
+  scope: MarketScope,
+  briefingTexts: string[],
+) {
+  const RESULT_CLAIM_RE = /서프라이즈|미스|어닝\s*비트|어닝\s*쇼크|컨센서스\s*(상회|하회)|예상\s*(상회|하회)/;
+  const claimed = briefingTexts.filter((t) => RESULT_CLAIM_RE.test(t));
+  if (claimed.length === 0) return;
+
+  const events = (snapshot.events ?? []).filter((e) => earningsInScope(e, scope));
+  const now = Date.now();
+  for (const text of claimed) {
+    const hasEvidenceResult = events.some((ev) => {
+      if (!ev.actual?.beatLabel || !ev.dateISO) return false;
+      const hours = (new Date(ev.dateISO).getTime() - now) / (60 * 60 * 1000);
+      if (hours >= 0 || hours < -48) return false;
+      return proseMentionsEarningsIdentity(text, text.toLowerCase(), ev);
+    });
+    if (!hasEvidenceResult) {
+      findings.push({
+        severity: "block",
+        code: "invented-event-result",
+        message:
+          `Evidence에 없는 실적/이벤트 결과 단정: "${text.slice(0, 56)}". ` +
+          "결과 없으면 대기/미확인 또는 생략.",
+      });
+    }
+  }
+}
+
+/** 직전 문구 과도 복창 — soft warn (취약하면 hard-fail 피함) */
+function pushPriorParrotFindings(
+  findings: GuardFinding[],
+  snapshot: CollectorSnapshot,
+  scope: MarketScope,
+  briefingTexts: string[],
+) {
+  const items = continuityForScope(snapshot, scope).filter(
+    (i) => i.kind === "check" || i.kind === "scenario",
+  );
+  let parrotHits = 0;
+  for (const item of items) {
+    const prior = item.priorText.replace(/\s+/g, " ").trim();
+    if (prior.length < 12) continue;
+    const core = prior.slice(0, Math.min(28, prior.length));
+    if (briefingTexts.some((t) => t.includes(core))) {
+      parrotHits += 1;
+    }
+  }
+  if (parrotHits >= 2) {
+    findings.push({
+      severity: "warn",
+      code: "prior-phrase-parrot",
+      message:
+        `직전 연속성 문구를 ${parrotHits}건 거의 그대로 복창. ` +
+        "현재 Evidence 숫자로 재평가한 문장으로 바꾸세요.",
+    });
+  }
+}
+
 function briefingChanged(a: BriefingDraft, b: BriefingDraft): boolean {
   return (
     a.headline !== b.headline ||
@@ -593,6 +698,10 @@ export function runGuard(input: {
     }
   }
 
+  pushCarryForwardOmissionFindings(findings, input.snapshot, scope, prose, proseLower);
+  pushInventedResultFindings(findings, input.snapshot, scope, briefingTexts);
+  pushPriorParrotFindings(findings, input.snapshot, scope, briefingTexts);
+
   const snapshotEvents = input.snapshot.events ?? [];
   const imminentMacro = snapshotEvents.filter((e) => {
     if (e.kind === "earnings" || !e.dateISO) return false;
@@ -703,4 +812,5 @@ export function runBriefingOnlyGuard(input: {
 }
 
 export const GUARD_SYSTEM_PROMPT = `당신은 증시 브리핑의 Guard Agent다.
-숫자 복창, 공허한 브리핑, 추천/예측 톤, 탭 초점 이탈(scope-leakage), 사실 불일치를 차단한다.`;
+숫자 복창, 공허한 브리핑, 추천/예측 톤, 탭 초점 이탈(scope-leakage), 사실 불일치,
+due+Evidence 연속성 누락, Evidence 없는 결과 창작을 차단한다.`;

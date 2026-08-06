@@ -1,5 +1,9 @@
 import type { IndexChangeBasis, IndexQuote, MacroChip, MarketEvent } from "@/lib/types";
 import type { FlowLeg } from "@/lib/market/retailScan";
+import {
+  renderCarryForwardForPrompt,
+  type CarryForwardBlock,
+} from "@/lib/pipeline/carryForward";
 import type { MarketScope, PipelineSlot } from "@/lib/pipeline/types";
 
 export type EvidenceIndexRow = {
@@ -90,7 +94,13 @@ export type EvidencePack = {
   previous: {
     slot: string | null;
     publishedAt: string | null;
+    /** 반복 방지용 헤드라인만 — 본문 덤프 금지 */
     headlines: Partial<Record<MarketScope, string>>;
+    /**
+     * 같은 시장 탭 직전 1건의 구조화 연속성 (scenarios/checkItems/upcoming).
+     * Collector가 due 항목을 Evidence 사실로 해석해 붙인다.
+     */
+    continuity?: Partial<Record<MarketScope, CarryForwardBlock>>;
   };
 };
 
@@ -480,6 +490,15 @@ export function renderEvidencePackForPrompt(
     .map((s) => (pack.previous.headlines[s] ? `- ${s}: ${pack.previous.headlines[s]}` : null))
     .filter(Boolean);
 
+  const continuityScope: MarketScope =
+    scope === "us" || scope === "kr" ? scope : "all";
+  const continuity =
+    pack.previous.continuity?.[continuityScope] ??
+    (scope === "all"
+      ? pack.previous.continuity?.kr ?? pack.previous.continuity?.us
+      : undefined);
+  const continuityLines = renderCarryForwardForPrompt(continuity);
+
   const scopeRule =
     scope === "us"
       ? "SCOPE 규칙: 헤드라인·불릿 과반 = 미 지수·금리·VIX·미 시총·US/GLOBAL 일정. 코스피/코스닥/국내 수급/KS200은 헤드라인 금지·본문 최대 1불릿 브릿지."
@@ -559,10 +578,12 @@ export function renderEvidencePackForPrompt(
       ? "지시: elevated면 bullets 중 1개에 유가/변동성/환율과 연결해 지정학·공급 리스크를 ‘점검 포인트’로만 짧게 언급. 전쟁 결과·승패·투자 추천 금지."
       : "지시: elevated 아니면 억지로 정치·전쟁 이야기를 넣지 말 것.",
     "",
-    "## 직전 발행 (반복·복창 말고 연결/차별만)",
+    "## 직전 발행 헤드라인 (반복·복창 말고 연결/차별만 · 본문 덤프 금지)",
     pack.previous.slot
-      ? `직전 슬롯: ${pack.previous.slot} @ ${pack.previous.publishedAt}`
+      ? `번들 직전 슬롯: ${pack.previous.slot} @ ${pack.previous.publishedAt}`
       : "직전 발행 없음",
     ...prevHeadlines,
+    "",
+    ...continuityLines,
   ].join("\n");
 }

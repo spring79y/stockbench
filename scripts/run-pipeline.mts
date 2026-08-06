@@ -14,6 +14,7 @@ import {
   collectSnapshot,
   defaultPipelineEvents,
 } from "../src/lib/pipeline/collectSnapshot";
+import { nextCarryStreaks } from "../src/lib/pipeline/carryForward";
 import { patchBriefingForGuardRetry, runBriefingOnlyGuard, runGuard } from "../src/lib/pipeline/guard";
 import { resolveLlmConfig } from "../src/lib/pipeline/llm";
 import { writePipelineStatus } from "../src/lib/pipeline/pipelineStatus";
@@ -79,6 +80,7 @@ async function generateFullView(
   scope: MarketScope,
   publishedAt: string,
   slot: PipelineSlot,
+  previousView?: EditorialView,
 ): Promise<{
   view: EditorialView | null;
   findings: PublishedBundle["guard"]["findings"];
@@ -129,18 +131,23 @@ async function generateFullView(
       findings.push(
         ...guard.findings.map((f) => ({ ...f, message: `[${scope}] ${f.message}` })),
       );
+      const continuity = snapshot.evidence?.previous.continuity?.[scope] ?? null;
+      const draftView: EditorialView = {
+        briefing: {
+          headline: briefing.headline,
+          bullets: briefing.bullets,
+          evidenceIds: briefing.evidenceIds,
+        },
+        scenarios: decision.scenarios,
+        checkItems: decision.checkItems,
+        publishedAt,
+        slot,
+        mode: "full",
+      };
       return {
         view: {
-          briefing: {
-            headline: briefing.headline,
-            bullets: briefing.bullets,
-            evidenceIds: briefing.evidenceIds,
-          },
-          scenarios: decision.scenarios,
-          checkItems: decision.checkItems,
-          publishedAt,
-          slot,
-          mode: "full",
+          ...draftView,
+          carryStreaks: nextCarryStreaks(previousView, draftView, continuity),
         },
         findings,
         blocked: false,
@@ -175,7 +182,7 @@ async function generateRefreshView(
 }> {
   if (!previous?.scenarios?.length || !previous.checkItems?.length) {
     console.log(`[pipeline] refresh fallback → full (no prior view for ${scope})`);
-    return generateFullView(snapshot, scope, publishedAt, slot);
+    return generateFullView(snapshot, scope, publishedAt, slot, previous);
   }
 
   let repairHints: string[] | undefined;
@@ -293,7 +300,7 @@ async function main() {
       const { view, findings: scopeFindings, blocked } =
         mode === "refresh"
           ? await generateRefreshView(snapshot, scope, publishedAt, slot, views[scope])
-          : await generateFullView(snapshot, scope, publishedAt, slot);
+          : await generateFullView(snapshot, scope, publishedAt, slot, views[scope]);
       findings.push(...scopeFindings);
       if (blocked || !view) {
         console.error(
@@ -330,6 +337,7 @@ async function main() {
             scope,
             publishedAt,
             slot,
+            previous?.views?.[scope],
           );
           findings.push(...scopeFindings);
           if (blocked || !view) {

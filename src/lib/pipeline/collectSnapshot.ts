@@ -23,6 +23,9 @@ import {
   toCollectorRetailScan,
 } from "@/lib/market/retailScan";
 import {
+  buildAllScopeCarryForward,
+} from "@/lib/pipeline/carryForward";
+import {
   buildEvidencePack,
   type EvidencePack,
 } from "@/lib/pipeline/evidencePack";
@@ -38,26 +41,36 @@ import { defaultPipelineEvents } from "@/lib/events/defaultEvents";
 
 export { defaultPipelineEvents } from "@/lib/events/defaultEvents";
 
-async function loadPreviousBriefing(cwd: string): Promise<EvidencePack["previous"]> {
+async function loadPublishedBundle(cwd: string): Promise<PublishedBundle | null> {
   try {
     const path = join(cwd, "src/data/published/latest.json");
     const raw = await readFile(path, "utf8");
     const published = JSON.parse(raw) as PublishedBundle;
-    const headlines: Partial<Record<MarketScope, string>> = {};
-    if (published.views) {
-      (["all", "kr", "us"] as MarketScope[]).forEach((scope) => {
-        const h = published.views[scope]?.briefing?.headline;
-        if (h) headlines[scope] = h;
-      });
-    }
-    return {
-      slot: published.slot ?? null,
-      publishedAt: published.publishedAt ?? null,
-      headlines,
-    };
+    if (published.version === 2 && published.views) return published;
+    return null;
   } catch {
-    return { slot: null, publishedAt: null, headlines: {} };
+    return null;
   }
+}
+
+function previousFromPublished(
+  published: PublishedBundle | null,
+  continuity: EvidencePack["previous"]["continuity"],
+): EvidencePack["previous"] {
+  if (!published) {
+    return { slot: null, publishedAt: null, headlines: {}, continuity };
+  }
+  const headlines: Partial<Record<MarketScope, string>> = {};
+  (["all", "kr", "us"] as MarketScope[]).forEach((scope) => {
+    const h = published.views[scope]?.briefing?.headline;
+    if (h) headlines[scope] = h;
+  });
+  return {
+    slot: published.slot ?? null,
+    publishedAt: published.publishedAt ?? null,
+    headlines,
+    continuity,
+  };
 }
 
 export async function collectSnapshot(
@@ -77,10 +90,10 @@ export async function collectSnapshot(
     ...MEGA_CAP_CANDIDATES_US.map((d) => d.symbol),
   ];
 
-  const [rawResult, investorFlow, previous] = await Promise.all([
+  const [rawResult, investorFlow, published] = await Promise.all([
     yf.quote(symbols, { return: "object" }) as Promise<Record<string, YahooQuoteLike>>,
     fetchInvestorFlow(MEGA_CAP_CANDIDATES_KR),
-    loadPreviousBriefing(cwd),
+    loadPublishedBundle(cwd),
   ]);
 
   const indexesBase = INDEX_DEFINITIONS.map((def) => toIndexQuote(def, rawResult[def.symbol])).filter(
@@ -133,7 +146,8 @@ export async function collectSnapshot(
     byStock: investorFlow.byStock,
   });
 
-  const evidence = buildEvidencePack({
+  // Build pack first without continuity, then attach resolved carry-forward
+  const evidenceBase = buildEvidencePack({
     slot,
     collectedAt,
     asOfLabel,
@@ -162,9 +176,20 @@ export async function collectSnapshot(
     signalsSummary: retailBundle.summaries.signal,
     ks200Label: retailBundle.summaries.ks200,
     events,
-    previous,
+    previous: previousFromPublished(published, undefined),
     risk,
   });
+
+  const continuity = buildAllScopeCarryForward({
+    published,
+    pack: evidenceBase,
+    currentEvents: events,
+  });
+
+  const evidence: EvidencePack = {
+    ...evidenceBase,
+    previous: previousFromPublished(published, continuity),
+  };
 
   return {
     collectedAt,

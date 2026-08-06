@@ -79,6 +79,11 @@ export type EditorialView = {
   mode?: PipelineMode;
   /** 직전 발행 대비 짧은 변화 (최대 3) */
   changeLines?: string[];
+  /**
+   * 같은 시장 탭 연속성 안티루프 — fingerprint → 무변화 슬롯 수.
+   * 2 이상이면 다음 Collector가 해당 항목을 carry-forward에서 드롭.
+   */
+  carryStreaks?: Record<string, number>;
 };
 
 export type PublishedBundle = {
