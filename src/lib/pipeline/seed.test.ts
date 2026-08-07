@@ -145,6 +145,7 @@ function snapshot(slot: CollectorSnapshot["slot"] = "kr-post"): CollectorSnapsho
         level: "high",
         region: "KR",
         title: "NAVER 실적 발표",
+        dateLabel: "오늘",
         dateISO: new Date().toISOString(),
         oneLiner: "발표됨",
         actual: {

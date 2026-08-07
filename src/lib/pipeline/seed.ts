@@ -1,5 +1,21 @@
-import type { MarketEvent } from "@/lib/types";
 import type { BriefingDraft, CollectorSnapshot, DecisionDraft, MarketScope } from "@/lib/pipeline/types";
+
+/**
+ * Minimal earnings shape for facts-only bullets.
+ * Accepts both `MarketEvent` and EvidencePack event rows (looser string unions).
+ */
+export type EarningsFactSource = {
+  title: string;
+  region?: string;
+  oneLiner?: string;
+  actual?: {
+    revenueActualLabel?: string;
+    operatingProfitActualLabel?: string;
+    beatLabel?: string;
+    epsActual?: number;
+    epsEstimate?: number;
+  };
+};
 
 /**
  * Phrases that must never appear in seed/facts-only user-facing briefing copy.
@@ -63,13 +79,13 @@ function flowLine(snapshot: CollectorSnapshot): string | null {
   return flow || null;
 }
 
-function earningsNameCore(ev: MarketEvent): string {
+function earningsNameCore(ev: EarningsFactSource): string {
   const raw = ev.title.split("(")[0]?.trim() ?? ev.title;
   return raw.replace(/\s*실적\s*발표\s*$/u, "").trim() || raw;
 }
 
 /** Minimal earnings fact line — numbers only, no speculative / process voice. */
-export function formatFactsOnlyEarningsBullet(ev: MarketEvent): string {
+export function formatFactsOnlyEarningsBullet(ev: EarningsFactSource): string {
   const name = earningsNameCore(ev);
   const a = ev.actual;
   const parts: string[] = [];
