@@ -1,9 +1,8 @@
 {
-  "updatedAt": "2026-08-06T15:05:04.191Z",
-  "slot": "us-pre",
-  "ok": false,
+  "updatedAt": "2026-08-07T00:20:41.855Z",
+  "slot": "kr-pre",
+  "ok": true,
   "mode": "full",
-  "error": "keep-previous: blocked: prior-session-without-anchor",
-  "guardOk": false,
-  "guardSummary": "blocked: prior-session-without-anchor"
+  "guardOk": true,
+  "guardSummary": "ok · 16 warn"
 }
