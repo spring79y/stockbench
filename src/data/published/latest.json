@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "slot": "kr-post",
-  "publishedAt": "2026-08-07T14:49:43.279Z",
+  "slot": "us-pre",
+  "publishedAt": "2026-08-07T14:54:04.621Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 약세 · 미국 강세",
     "mood": "mixed",
     "moodLabel": "혼조",
-    "asOfLabel": "2026. 08. 07. 23:49 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 07. 23:54 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -363,13 +363,13 @@
       "contextNews": [
         {
           "title": "[버핏 리포트] BGF리테일, 2분기 컨센 상회...1인 가구 증가 방한 외국인 소비 확대 구조적 수혜 전망 - 흥국",
-          "publisher": "버핏연구소",
+          "publisher": "buffettlab.co.kr",
           "publishedAt": "2026-08-07T06:03:34.000Z",
           "snippet": "[버핏 리포트] BGF리테일, 2분기 컨센 상회...1인 가구 증가 방한 외국인 소비 확대 구조적 수혜 전망 - 흥국"
         },
         {
           "title": "[버핏 리포트] CJ ENM, 티빙 구독자/광고 성장·음악IP 고성장·MLC 취급고 성장으로 2Q 실적 선방 – NH",
-          "publisher": "버핏연구소",
+          "publisher": "buffettlab.co.kr",
           "publishedAt": "2026-08-06T23:39:20.000Z",
           "snippet": "[버핏 리포트] CJ ENM, 티빙 구독자/광고 성장·음악IP 고성장·MLC 취급고 성장으로 2Q 실적 선방 – NH"
         },
@@ -675,6 +675,16 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdoaEuaA9qfwdNqErj6sn\"}): seed essays not published; kept previous briefing"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011Cdoaa9XKxBAKuJ5aBgkYi\"}): seed essays not published; kept previous briefing"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdoaaAwQffexwCofxee6T\"}): seed essays not published; kept previous briefing"
       }
     ]
   }
