@@ -80,6 +80,41 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 
 홈(PWA·브라우저)이 백그라운드에서 돌아올 때는 발행 버전 비교 없이 `location.reload()`로 셸을 갱신한다(짧은 탭 blip·자기 reload 루프는 제외). Cache API는 백그라운드에서 비우지 않는다. 알림 클릭 hard navigate는 그대로.
 
+## Catch-up watchdog (누락·지연 복구)
+
+워크플로: [`.github/workflows/catchup-watchdog.yml`](../.github/workflows/catchup-watchdog.yml) · 이름 **Catch-up watchdog**.
+
+**하는 일:** 기대 KST 슬롯 시각 이후 **45분**이 지났는데 `latest.json`(루트·탭 `slot`/`publishedAt`)에 같은 서울 날짜의 해당 슬롯 발행이 없으면, 그 슬롯(또는 `morning`/`noon` 묶음)을 **하루 1회** 다시 돌린다. `GITHUB_TOKEN`만 사용하며 Publish briefing을 `workflow_call`로 호출한다(`workflow_dispatch` 체인은 토큰 제한으로 불가).
+
+**하지 않는 일:** 분 단위 정시 보장, hosted runner 미획득 0건, 외부 cron/PAT, 제품 UI 추가.
+
+### 프로브 cron (UTC · 슬롯 +≈45/+65분)
+
+| 슬롯(KST) | catch-up probes (UTC) |
+|-----------|------------------------|
+| us-mid 02:00 | `45 17` · `5 18` (Sun–Thu) |
+| morning 07:00 | `45 22` · `5 23` (Sun–Thu) |
+| noon 12:30 | `15 4` · `35 4` (Mon–Fri) |
+| kr-post 15:40 | `25 7` · `45 7` (Mon–Fri) |
+| us-pre 21:50 | `35 13` · `55 13` (Mon–Fri) |
+
+주말은 스크립트가 스킵. 탐지 창은 대략 **슬롯+45분 ~ +180분** — 오후 프로브가 새벽 슬롯을 다시 건드리지 않는다.
+
+### 중복 방지
+
+1. Publish briefing이 `in_progress`/`queued`이거나 다른 catch-up run이 진행 중이면 스킵  
+2. `src/data/published/catchup.json`에 당일 target 마커를 남기고 같은 target은 재디스패치하지 않음  
+3. Publish briefing과 동일 `concurrency.group: publish-briefing`
+
+### 한계 (약속하지 말 것)
+
+- 워치독 스케줄도 GHA라 **여전히 늦을 수 있음**  
+- hosted runner 고갈·ISE면 catch-up도 막힐 수 있음 → 수동 Re-run / `workflow_dispatch`  
+- catch-up 1회 실패 후 자동 재시도 없음(당일 마커)  
+- 정시 SLA 없음 — “비어 있는 브리핑을 늦게라도 채움”
+
+로직·단위 테스트: `src/lib/pipeline/catchup.ts`, `npm run test:unit`(catchup 포함). 수동 점검: Actions → Catch-up watchdog → Run workflow.
+
 ## 실적 beat/miss (정확성)
 
 - `beatLabel`(서프라이즈/미스)은 **Collector만** 설정한다 (`src/lib/market/earningsBeat.ts` → `fetchEarningsCalendar`).

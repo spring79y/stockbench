@@ -1,0 +1,133 @@
+# Catch-up watchdog — recover missed/late Publish briefing slots (ops only).
+# Stance: fill empty slots after ~45m stale — NOT minute-accurate SLA.
+# GITHUB_TOKEN cannot trigger workflow_dispatch on another workflow, so we
+# workflow_call Publish briefing when a slot is stale.
+#
+# Still may delay (this schedule runs on GHA too). Runner starvation can
+# block catch-up the same way it blocks the primary cron.
+name: Catch-up watchdog
+
+on:
+  schedule:
+    # Offset probes after each KST slot window (+45m / +~65m). Weekends skipped in script.
+    # us-mid 02:00 KST = 17:00 UTC (Sun–Thu UTC)
+    - cron: "45 17 * * 0-4"
+    - cron: "5 18 * * 0-4"
+    # us-post+kr-pre 07:00 KST = 22:00 UTC
+    - cron: "45 22 * * 0-4"
+    - cron: "5 23 * * 0-4"
+    # us-noon+kr-mid 12:30 KST = 03:30 UTC
+    - cron: "15 4 * * 1-5"
+    - cron: "35 4 * * 1-5"
+    # kr-post 15:40 KST = 06:40 UTC
+    - cron: "25 7 * * 1-5"
+    - cron: "45 7 * * 1-5"
+    # us-pre 21:50 KST = 12:50 UTC
+    - cron: "35 13 * * 1-5"
+    - cron: "55 13 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: catchup-watchdog
+  # Do not cancel an in-flight catch-up publish when the next probe fires.
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      target: ${{ steps.decide.outputs.target }}
+      reason: ${{ steps.decide.outputs.reason }}
+      should_run: ${{ steps.gate.outputs.should_run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Decide catch-up target
+        id: decide
+        run: npx tsx scripts/catchup-watchdog.mts
+
+      - name: Skip if publish already active
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ steps.decide.outputs.target }}
+          REASON: ${{ steps.decide.outputs.reason }}
+          THIS_RUN: ${{ github.run_id }}
+        run: |
+          echo "reason=${REASON}"
+          if [ -z "$TARGET" ]; then
+            echo "No catch-up target."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Primary Publish briefing runs (schedule / manual)
+          ACTIVE=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow "pipeline.yml" \
+            --status in_progress \
+            --limit 5 \
+            --json databaseId -q 'length')
+          QUEUED=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow "pipeline.yml" \
+            --status queued \
+            --limit 5 \
+            --json databaseId -q 'length')
+
+          # Another catch-up run may already be calling Publish briefing via workflow_call
+          OTHER_CATCHUP=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow "catchup-watchdog.yml" \
+            --status in_progress \
+            --limit 10 \
+            --json databaseId \
+            -q "[.[] | select(.databaseId != ${THIS_RUN})] | length")
+
+          echo "pipeline in_progress=${ACTIVE} queued=${QUEUED} other_catchup=${OTHER_CATCHUP}"
+          if [ "${ACTIVE:-0}" != "0" ] || [ "${QUEUED:-0}" != "0" ] || [ "${OTHER_CATCHUP:-0}" != "0" ]; then
+            echo "Publish already active — skip catch-up to avoid double-run."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+          echo "Will catch up target=${TARGET}"
+
+      - name: Mark catch-up dispatched (once per day)
+        if: steps.gate.outputs.should_run == 'true'
+        run: |
+          npx tsx scripts/catchup-watchdog.mts --mark "${{ steps.decide.outputs.target }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/published/catchup.json
+          if git diff --staged --quiet; then
+            echo "catchup.json unchanged"
+            exit 0
+          fi
+          git commit -m "chore: catch-up mark ${{ steps.decide.outputs.target }} ($(date -u +%Y-%m-%dT%H:%MZ))"
+          git pull --rebase origin "${GITHUB_REF_NAME:-main}"
+          git push origin "HEAD:${GITHUB_REF_NAME:-main}"
+
+  publish:
+    needs: detect
+    if: needs.detect.outputs.should_run == 'true' && needs.detect.outputs.target != ''
+    uses: ./.github/workflows/pipeline.yml
+    with:
+      slot: ${{ needs.detect.outputs.target }}
+    secrets: inherit

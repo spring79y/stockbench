@@ -1,6 +1,7 @@
 # 한·미 장전·장중·장후 풀 + 12:30 미국 점검 (하루 최대 7회)
 # Vercel은 git push 후 자동 재배포됩니다.
 # 웹 푸시는 latest.json 커밋·프로덕션 반영 확인 뒤에만 발송합니다.
+# catchup-watchdog.yml 이 누락 슬롯을 workflow_call 로 재실행할 수 있습니다.
 #
 # GitHub → Settings → Secrets and variables → Actions 에 등록:
 #   ANTHROPIC_API_KEY
@@ -36,6 +37,13 @@ on:
           - noon # us-noon then kr-mid
           - morning # us-post then kr-pre
           - all # 전 슬롯 순차 (us-mid → … → us-pre)
+  # GITHUB_TOKEN cannot chain workflow_dispatch; catch-up uses workflow_call instead.
+  workflow_call:
+    inputs:
+      slot:
+        description: "Pipeline slot or bundle (morning/noon/…)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -64,7 +72,7 @@ jobs:
       - name: Resolve slots
         id: slots
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "workflow_call" ]; then
             INPUT="${{ inputs.slot }}"
             if [ "$INPUT" = "morning" ]; then
               echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT"
