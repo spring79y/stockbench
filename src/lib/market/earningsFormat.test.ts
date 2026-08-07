@@ -4,6 +4,7 @@ import {
   epsDisplayLabel,
   formatEps,
   formatRevenue,
+  operatingProfitDisplayLabel,
   revenueDisplayLabel,
 } from "./earningsFormat";
 
@@ -35,7 +36,7 @@ describe("formatEps", () => {
   });
 });
 
-describe("revenueDisplayLabel / epsDisplayLabel", () => {
+describe("revenueDisplayLabel / epsDisplayLabel / operatingProfitDisplayLabel", () => {
   it("prefers stored label over raw", () => {
     assert.equal(
       revenueDisplayLabel(
@@ -52,5 +53,19 @@ describe("revenueDisplayLabel / epsDisplayLabel", () => {
       "약 3.4조원",
     );
     assert.equal(epsDisplayLabel({ epsAvg: 1842 }, "KR"), "약 1,842원");
+  });
+
+  it("formats operating profit in the same company-scale units as revenue", () => {
+    assert.equal(
+      operatingProfitDisplayLabel({ operatingProfitAvg: 566_200_000_000 }, "KR"),
+      "약 5,662억원",
+    );
+    assert.equal(
+      operatingProfitDisplayLabel(
+        { operatingProfitAvg: 1, operatingProfitLabel: "약 5.7조원" },
+        "KR",
+      ),
+      "약 5.7조원",
+    );
   });
 });

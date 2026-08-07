@@ -6,8 +6,9 @@ import type { IndexChartSeries } from "@/lib/market/chartTypes";
 import type { EventDetailContent } from "@/lib/events/catalog";
 import {
   LABEL_EPS_EXPECTED,
+  LABEL_OP_EXPECTED,
   LABEL_REVENUE_EXPECTED,
-  NOTE_CONSENSUS_UI,
+  consensusNoteFor,
 } from "@/lib/events/earningsCopy";
 import type { MarketEvent } from "@/lib/types";
 import styles from "./EventDetailView.module.css";
@@ -81,16 +82,39 @@ export function EventDetailView({
                 <span className={styles.consensusHint}>회사 규모</span>
               </p>
             ) : null}
-            {event.consensus.epsLabel ? (
-              <p className={styles.consensusSecondary}>
-                <strong>{LABEL_EPS_EXPECTED}</strong>
+            {event.consensus.operatingProfitLabel ? (
+              <p className={styles.consensusPrimary}>
+                <strong>{LABEL_OP_EXPECTED}</strong>
                 <span className={styles.consensusValue}>
-                  {event.consensus.epsLabel}
+                  {event.consensus.operatingProfitLabel}
                 </span>
-                <span className={styles.consensusHint}>주당</span>
+                <span className={styles.consensusHint}>회사 규모</span>
               </p>
             ) : null}
-            <p className={styles.consensusNote}>{NOTE_CONSENSUS_UI}</p>
+            {event.consensus.epsLabel ? (
+              event.consensus.operatingProfitLabel ? (
+                <details className={styles.consensusFold}>
+                  <summary>{LABEL_EPS_EXPECTED}</summary>
+                  <p className={styles.consensusSecondary}>
+                    <span className={styles.consensusValue}>
+                      {event.consensus.epsLabel}
+                    </span>
+                    <span className={styles.consensusHint}>주당 · 서프라이즈 참고</span>
+                  </p>
+                </details>
+              ) : (
+                <p className={styles.consensusSecondary}>
+                  <strong>{LABEL_EPS_EXPECTED}</strong>
+                  <span className={styles.consensusValue}>
+                    {event.consensus.epsLabel}
+                  </span>
+                  <span className={styles.consensusHint}>주당</span>
+                </p>
+              )
+            ) : null}
+            <p className={styles.consensusNote}>
+              {consensusNoteFor(event.consensus)}
+            </p>
           </div>
         ) : null}
       </article>

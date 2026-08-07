@@ -2,6 +2,7 @@ import type { EarningsConsensus, IndexChangeBasis, IndexQuote, MacroChip, Market
 import {
   epsDisplayLabel,
   formatEps,
+  operatingProfitDisplayLabel,
   revenueDisplayLabel,
 } from "@/lib/market/earningsFormat";
 import type { FlowLeg } from "@/lib/market/retailScan";
@@ -424,9 +425,14 @@ function formatEarningsEventLine(e: EvidencePack["events"][number]): string {
   if (e.kind === "earnings" && e.consensus) {
     const parts: string[] = [];
     const rev = revenueDisplayLabel(e.consensus, e.region as "KR" | "US" | "GLOBAL");
+    const op = operatingProfitDisplayLabel(
+      e.consensus,
+      e.region as "KR" | "US" | "GLOBAL",
+    );
     const eps = epsDisplayLabel(e.consensus, e.region as "KR" | "US" | "GLOBAL");
     if (rev) parts.push(`시장예상매출=${rev}`);
-    if (eps) parts.push(`주당순이익예상=${eps}`);
+    if (op) parts.push(`시장예상영업이익=${op}`);
+    if (eps) parts.push(`주당순이익예상=${eps}${op ? "(보조)" : ""}`);
     if (parts.length > 0) consensusHint = ` · Evidence예상: ${parts.join(" · ")}`;
   }
 
@@ -681,11 +687,11 @@ export function renderEvidencePackForPrompt(
       : ["- 해당 일정 없음"]),
     ...(events.some((e) => e.kind === "earnings")
       ? [
-          "지시: 48시간 이내 실적(kind=earnings)이 있으면 bullets 중 1개에 회사명·섹터 맥락을 ‘점검’으로만 언급. 주당 순이익(EPS)/매출 숫자 과다 복창·매매 신호 금지.",
+          "지시: 48시간 이내 실적(kind=earnings)이 있으면 bullets 중 1개에 회사명·섹터 맥락을 ‘점검’으로만 언급. 주당 순이익(EPS)/매출/영업이익 숫자 과다 복창·매매 신호 금지.",
           "지시: 서프라이즈/미스는 Evidence결과(EPS) beatLabel이 있을 때만 그대로 사용. 라벨 없으면 숫자만 인용·극성(상회/하회/서프라이즈/미스) 단정 금지. 가이던스 실망을 실적 미스로 바꿔 쓰기 금지.",
-          "지시: 실적 해설은 일반 개미용. 「컨센서스」→「시장·애널리스트 평균 예상」. EPS는 「주당 순이익(EPS)」. 매출(회사 규모)과 주당 순이익을 같은 지표로 묶지 말 것. 단위(원·조원·$) 명시. 예상 대비 위/아래/비슷만 — 좋다/나쁘다·목표가·매수 암시 금지.",
-          "지시: 예상 vs 실제(또는 가이던스) 매출을 말할 때 Event UI·Evidence예상과 같은 단위(조원·억원·$B/$M)로 맞춰 써라. 서로 다른 자릿수(예: 3380000000000원과 3.4조원)를 나란히 쓰지 말 것. EPS는 원/주당(또는 $) 유지 — 매출 단위로 바꾸지 말 것.",
-          "★★ 이중서술(★이중서술필수 표시 시): 개미용 1불릿에 (1)매출·주당순이익(있으면) 숫자와 예상 대비 (2)Evidence뉴스의 가이던스/outlook/실망·주가·섹터 반응. 예: 「○사 주당순이익 $a vs 예상 $b — 뉴스상 가이던스 실망에 섹터 반응」.",
+          "지시: 실적 해설은 일반 개미용. 「컨센서스」→「시장·애널리스트 평균 예상」. EPS는 「주당 순이익(EPS)」. Evidence예상에 영업이익이 있으면 매출·영업이익(같은 회사 규모 단위)을 우선하고 EPS는 보조. 매출·영업이익과 주당 순이익을 같은 지표로 묶지 말 것. 단위(원·조원·$) 명시. 예상 대비 위/아래/비슷만 — 좋다/나쁘다·목표가·매수 암시 금지.",
+          "지시: 예상 vs 실제(또는 가이던스) 매출·영업이익을 말할 때 Event UI·Evidence예상과 같은 단위(조원·억원·$B/$M)로 맞춰 써라. 서로 다른 자릿수(예: 3380000000000원과 3.4조원)를 나란히 쓰지 말 것. EPS는 원/주당(또는 $) 유지 — 매출 단위로 바꾸지 말 것. Evidence에 없는 영업이익 숫자 창작 금지.",
+          "★★ 이중서술(★이중서술필수 표시 시): 개미용 1불릿에 (1)매출·영업이익(있으면)·주당순이익(보조) 숫자와 예상 대비 (2)Evidence뉴스의 가이던스/outlook/실망·주가·섹터 반응. 예: 「○사 주당순이익 $a vs 예상 $b — 뉴스상 가이던스 실망에 섹터 반응」.",
           "지시: 「혼조」「차익 실현」「섹터 밀림」만으로 가이던스 요약을 대체하지 말 것. Collector oneLiner 해석 복창 금지. 뉴스 없으면 풍부 반응 생략·must-cover면 「반응 근거 부족」만.",
         ]
       : []),

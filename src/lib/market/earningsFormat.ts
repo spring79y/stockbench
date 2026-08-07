@@ -45,3 +45,16 @@ export function epsDisplayLabel(
   if (region !== "KR" && region !== "US") return undefined;
   return formatEps(opts.epsAvg, region);
 }
+
+/** Operating profit uses the same company-scale units as revenue (조원/억원 · $B/$M). */
+export function operatingProfitDisplayLabel(
+  opts: { operatingProfitLabel?: string; operatingProfitAvg?: number },
+  region: MarketRegion | "GLOBAL",
+): string | undefined {
+  if (opts.operatingProfitLabel) return opts.operatingProfitLabel;
+  if (opts.operatingProfitAvg == null || !Number.isFinite(opts.operatingProfitAvg)) {
+    return undefined;
+  }
+  if (region !== "KR" && region !== "US") return undefined;
+  return formatRevenue(opts.operatingProfitAvg, region);
+}

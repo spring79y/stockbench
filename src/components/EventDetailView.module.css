@@ -106,6 +106,40 @@
   color: var(--ink, #0f172a);
 }
 
+.consensusFold {
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line, #e2e8f0);
+  font-size: 0.82rem;
+  color: var(--muted, #64748b);
+}
+
+.consensusFold summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.74rem;
+  color: var(--muted, #64748b);
+  list-style: none;
+}
+
+.consensusFold summary::-webkit-details-marker {
+  display: none;
+}
+
+.consensusFold summary::before {
+  content: "▸ ";
+  font-size: 0.7rem;
+}
+
+.consensusFold[open] summary::before {
+  content: "▾ ";
+}
+
+.consensusFold .consensusSecondary {
+  border-top: none;
+  padding-top: 0.25rem;
+  margin-top: 0.2rem;
+}
+
 .consensusSecondary strong {
   display: block;
   font-size: 0.74rem;

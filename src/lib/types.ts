@@ -45,6 +45,14 @@ export interface EarningsConsensus {
   epsLabel?: string;
   revenueAvg?: number;
   revenueLabel?: string;
+  /**
+   * 영업이익 시장 예상 (절대 통화 단위: KR 원 / US $).
+   * Collector만 설정 — Naver Finance quarter consensus 등. 없으면 생략(창작 금지).
+   */
+  operatingProfitAvg?: number;
+  operatingProfitLabel?: string;
+  /** Attribution for UI footer (e.g. yahoo / naver / yahoo+naver) */
+  sources?: Array<"yahoo" | "naver">;
   isEstimate?: boolean;
 }
 

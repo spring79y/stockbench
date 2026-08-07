@@ -1,4 +1,5 @@
 import type YahooFinance from "yahoo-finance2";
+import { revenueOpFactPhrase } from "@/lib/events/earningsCopy";
 import { kstCalendarDay } from "@/lib/events/upcomingRetention";
 import {
   earningsResultOneLiner,
@@ -11,6 +12,7 @@ import {
   type EarningsBridgeSymbol,
 } from "@/lib/market/earningsBridge";
 import { formatEps, formatRevenue } from "@/lib/market/earningsFormat";
+import { fetchNaverOpConsensus } from "@/lib/market/fetchNaverOpConsensus";
 import {
   MEGA_CAP_CANDIDATES_KR,
   MEGA_CAP_CANDIDATES_US,
@@ -83,6 +85,7 @@ function toConsensus(
     revenueAvg: raw.revenueAverage,
     revenueLabel:
       raw.revenueAverage != null ? formatRevenue(raw.revenueAverage, region) : undefined,
+    sources: ["yahoo"],
     isEstimate: raw.isEarningsDateEstimate ?? true,
   };
 }
@@ -95,7 +98,37 @@ function toReportedConsensus(
   return {
     epsAvg: epsEstimate,
     epsLabel: formatEps(epsEstimate, region),
+    sources: ["yahoo"],
     isEstimate: false,
+  };
+}
+
+/**
+ * Attach Naver 영업이익 (and same-period 매출) when quarter matches earnings date.
+ * Soft-fail keeps Yahoo-only consensus. Never invent OP.
+ */
+function mergeNaverOp(
+  consensus: EarningsConsensus | undefined,
+  op: Awaited<ReturnType<typeof fetchNaverOpConsensus>>,
+  region: MarketRegion,
+): EarningsConsensus | undefined {
+  if (!op) return consensus;
+  const base: EarningsConsensus = consensus ?? { isEstimate: true };
+  const sources = new Set(base.sources ?? []);
+  sources.add("naver");
+  if (base.epsAvg != null || base.revenueAvg != null) sources.add("yahoo");
+
+  return {
+    ...base,
+    // Same-period Naver 매출 when present — pairs with OP in company-scale units.
+    revenueAvg: op.revenueAvg ?? base.revenueAvg,
+    revenueLabel:
+      op.revenueAvg != null
+        ? formatRevenue(op.revenueAvg, region)
+        : base.revenueLabel,
+    operatingProfitAvg: op.operatingProfitAvg,
+    operatingProfitLabel: formatRevenue(op.operatingProfitAvg, region),
+    sources: [...sources],
   };
 }
 
@@ -189,6 +222,7 @@ async function fetchOne(
           };
 
           // Replace rolled-forward calendar consensus with the estimate we compared.
+          // OP omitted post-report — Naver consensus column may already be actuals.
           consensus = toReportedConsensus(epsEstimate, input.region);
         }
       } else if (consensus && currentQuarterEstimate != null) {
@@ -204,6 +238,16 @@ async function fetchOne(
           consensus = undefined;
         }
       }
+    }
+
+    // Pre-report (or thin past without print): attach Naver OP when quarter matches.
+    if (!actual) {
+      const naverOp = await fetchNaverOpConsensus({
+        symbol: input.symbol,
+        region: input.region,
+        earningsDateISO: dateISO,
+      });
+      consensus = mergeNaverOp(consensus, naverOp, input.region);
     }
 
     return {
@@ -298,15 +342,24 @@ function entryToEvent(entry: EarningsFetchEntry): MarketEvent {
       ? EARNINGS_BRIDGE_SYMBOLS.find((b) => b.id === entry.bridgeId)?.relatedMegaCapIds
       : undefined;
 
+  const opLabel = entry.consensus?.operatingProfitLabel;
+  const revLabel = entry.consensus?.revenueLabel;
+  const preLine =
+    !postLine && opLabel && revLabel
+      ? revenueOpFactPhrase(revLabel, opLabel)
+      : !postLine && entry.isEstimate
+        ? "실적 발표 예정 (일정·시장 예상 참고)"
+        : !postLine
+          ? "실적 발표 예정"
+          : null;
+
   return {
     id,
     dateLabel: formatEventDateLabel(entry.dateISO),
     region: entry.region,
     title: `${entry.name} 실적 발표`,
     level: levelForDate(entry.dateISO),
-    oneLiner:
-      postLine ??
-      (entry.isEstimate ? "실적 발표 예정 (일정·시장 예상 참고)" : "실적 발표 예정"),
+    oneLiner: postLine ?? preLine ?? "실적 발표 예정",
     kind: "earnings",
     symbol: entry.symbol,
     megaCapId: entry.megaCapId,

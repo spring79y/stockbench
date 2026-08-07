@@ -89,7 +89,7 @@ Briefing/Decision이 받는 구조화 근거. UI 대시보드가 아님.
 | 수급 | 전 거래일 수급(장전 요약용) + 수집 기준일 + 5거래일 합 |
 | 시총 상위 | 평균·분산(고−저)·상승/하락 수 |
 | 기대·경계 신호 | KS200·VIX 등 |
-| 일정 | 경제 캘린더 + **시총·섹터 브릿지 실적**(Yahoo 발표일·시장 예상 매출·주당순이익(EPS)·선택적 beatLabel·`contextNews`). UI는 쉬운 라벨·매출 우선. EventList oneLiner는 최소 사실+단위만 |
+| 일정 | 경제 캘린더 + **시총·섹터 브릿지 실적**(Yahoo 발표일·시장 예상 매출·주당순이익(EPS)·**선택적 영업이익(네이버 금융, 분기 매칭 시)**·선택적 beatLabel·`contextNews`). UI는 쉬운 라벨·매출(+영업이익) 우선·EPS 보조. EventList oneLiner는 최소 사실+단위만 |
 | 리스크·지정학 | 유가·VIX·환율 플래그 + Yahoo 지정학 헤드라인(숫자 연결 시에만). 정치 뉴스 올인원 아님 |
 | 직전 발행 | 이전 헤드라인(반복 방지) + **같은 시장 탭 직전 1건**의 구조화 연속성 |
 | 직전 연속성 | `scenarios` A/B 한 줄 · `checkItems` · 미결 `upcoming`. Collector가 due를 Evidence 사실로 해석(`carryForward`/`dueFollowUps`). **forceCite는 재평가 문장 필수**(키워드만 금지). 무관 due 드롭. 본문 덤프·멀티데이 스택 금지. 최대 5 · forceCite ≤3 · 무변화 2슬롯 드롭 |

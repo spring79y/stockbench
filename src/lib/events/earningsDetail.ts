@@ -11,6 +11,7 @@ import type { EventDetailContent } from "@/lib/events/catalog";
 import {
   GLOSS_CONSENSUS,
   LABEL_EPS_EXPECTED,
+  LABEL_OP_EXPECTED,
   LABEL_REVENUE_EXPECTED,
 } from "@/lib/events/earningsCopy";
 import type { MarketEvent } from "@/lib/types";
@@ -86,21 +87,27 @@ function consensusLines(event: MarketEvent): string[] {
     ];
   }
   const lines: string[] = [];
-  // KR retail scan: revenue (company scale) first, then per-share EPS — never equate units.
+  // When OP present: revenue + OP primary (same company-scale unit); EPS secondary.
   if (c.revenueLabel) {
     lines.push(`${LABEL_REVENUE_EXPECTED} (회사 규모): ${c.revenueLabel}`);
+  }
+  if (c.operatingProfitLabel) {
+    lines.push(`${LABEL_OP_EXPECTED} (회사 규모): ${c.operatingProfitLabel}`);
   }
   if (c.epsLabel) {
     const range =
       c.epsLow != null && c.epsHigh != null
         ? ` (범위 ${event.region === "KR" ? `${Math.round(c.epsLow).toLocaleString()}~${Math.round(c.epsHigh).toLocaleString()}원` : `$${c.epsLow.toFixed(2)}~$${c.epsHigh.toFixed(2)}`})`
         : "";
-    lines.push(`${LABEL_EPS_EXPECTED}: ${c.epsLabel}${range}`);
+    const epsNote = c.operatingProfitLabel ? " · 보조(서프라이즈 참고)" : "";
+    lines.push(`${LABEL_EPS_EXPECTED}: ${c.epsLabel}${range}${epsNote}`);
   }
   // 실제 발표가 잡혀 있으면 “추정치” 안내는 혼선을 줄이기 위해 생략
   if (c.isEstimate && !event.actual) lines.push("일정·숫자는 추정치일 수 있습니다.");
   lines.push(
-    "시장 예상 대비 위·아래 여부는 ‘점검’용이며, 매수·매도 신호가 아닙니다. 매출(회사 규모)과 주당 순이익은 다른 지표입니다.",
+    c.operatingProfitLabel
+      ? "시장 예상 대비 위·아래 여부는 ‘점검’용이며, 매수·매도 신호가 아닙니다. 매출·영업이익(회사 규모)과 주당 순이익(EPS)은 다른 지표입니다."
+      : "시장 예상 대비 위·아래 여부는 ‘점검’용이며, 매수·매도 신호가 아닙니다. 매출(회사 규모)과 주당 순이익은 다른 지표입니다.",
   );
   return lines;
 }
@@ -196,7 +203,9 @@ export function buildEarningsDetail(event: MarketEvent): EventDetailContent {
       : null;
 
   return {
-    meaning: `${name}의 분기 실적 발표 일정입니다. 먼저 시장 예상 매출(회사 규모)을 보고, 이어서 주당 순이익(EPS)이 시장 예상과 얼마나 다른지 점검합니다. 두 숫자의 단위(조원 vs 원)는 다릅니다.`,
+    meaning: event.consensus?.operatingProfitLabel
+      ? `${name}의 분기 실적 발표 일정입니다. 먼저 시장 예상 매출·영업이익(같은 회사 규모 단위)을 보고, 주당 순이익(EPS)은 보조로 점검합니다. 서프라이즈/미스는 EPS 기준입니다.`
+      : `${name}의 분기 실적 발표 일정입니다. 먼저 시장 예상 매출(회사 규모)을 보고, 이어서 주당 순이익(EPS)이 시장 예상과 얼마나 다른지 점검합니다. 두 숫자의 단위(조원 vs 원)는 다릅니다.`,
     whyItMatters:
       event.region === "KR" || event.region === "GLOBAL"
         ? "국내 메모리·반도체·성장주 분위기와 연결해 볼 수 있는 체크포인트입니다. 종목 추천이 아니라, 오늘 브리핑·시나리오에서 ‘무엇을 관찰할지’ 잡는 용도입니다."
