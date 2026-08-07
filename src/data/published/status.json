@@ -1,9 +1,9 @@
 {
-  "updatedAt": "2026-08-07T08:50:43.248Z",
+  "updatedAt": "2026-08-07T09:32:51.973Z",
   "slot": "kr-post",
-  "ok": false,
+  "ok": true,
   "mode": "full",
-  "error": "keep-previous: blocked: carry-forward-omission, carry-forward-omission, carry-forward-no-reeval",
-  "guardOk": false,
-  "guardSummary": "blocked: carry-forward-omission, carry-forward-omission, carry-forward-no-reeval"
+  "guardOk": true,
+  "guardSummary": "degraded · carry-forward-omission, carry-forward-no-reeval",
+  "degraded": true
 }
