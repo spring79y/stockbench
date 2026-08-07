@@ -186,10 +186,12 @@ export function buildThinEvidenceDrafts(
         : `일정 · ${ev.title} (Evidence 일정 앵커).`;
     });
 
-  const riskBullet =
-    pack?.risk?.elevated && pack.risk.headlines[0]?.title
-      ? `리스크 플래그 · ${pack.risk.headlines[0].title.slice(0, 64)} — Evidence 헤드라인.`
-      : null;
+  // KR/all: Korean cue only — never dump English geopolitics headlines.
+  const riskBullet = pack?.risk?.elevated
+    ? scope === "us"
+      ? "리스크 elevated — 유가·VIX 점검 (Evidence · 영문 헤드라인 생략)."
+      : "지정학·공급 리스크 플래그(Evidence) — 유가·환율만 짧게 연결 (영문 헤드라인 생략)."
+    : null;
 
   const bullets = [
     ...indexBullets,

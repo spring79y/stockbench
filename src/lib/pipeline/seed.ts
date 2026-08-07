@@ -7,16 +7,16 @@ export function seedBriefing(snapshot: CollectorSnapshot, scope: MarketScope): B
   const fx = snapshot.macros.find((m) => m.id === "usdkkrw");
   const wti = snapshot.macros.find((m) => m.id === "wti");
   const riskElevated = Boolean(snapshot.evidence?.risk?.elevated);
-  const riskHint = snapshot.evidence?.risk?.headlines[0]?.title;
   const sharp =
     (kospi?.priorSessionChangePercent ?? kospi?.changePercent ?? 0) <= -3;
   const usUp =
     (nasdaq?.priorSessionChangePercent ?? nasdaq?.changePercent ?? 0) >= 0.3;
 
+  // KR/all: never dump English geopolitics headlines — Korean cue ≤1 bridge.
   const riskBullet = riskElevated
-    ? riskHint
-      ? `지정학·공급 리스크 헤드라인(예: ${riskHint})이 잡혀 있으면, 유가(${wti?.value ?? "WTI"})·VIX와 같이 ‘흔들림 원인 후보’로만 보세요. 전쟁 결과 예측은 하지 마세요.`
-      : "유가·변동성 숫자가 흔들릴 때는 중동·공급 같은 지정학 리스크가 원인 후보일 수 있습니다. 단정하지 말고 점검 포인트로만 두세요."
+    ? scope === "us"
+      ? `지정학·공급 리스크 플래그(Evidence) — 유가(${wti?.value ?? "WTI"})·VIX와 흔들림 원인 후보로만 짧게. 전쟁 결과 예측 금지.`
+      : `지정학·공급 리스크 플래그(Evidence) — 유가(${wti?.value ?? "WTI"})·환율·VIX와 흔들림 원인 후보로만 짧게 (영문 헤드라인 생략). 전쟁 결과 예측 금지.`
     : null;
   const isPre = snapshot.slot === "kr-pre" || snapshot.slot === "us-pre";
   const isPost = snapshot.slot === "kr-post" || snapshot.slot === "us-post";

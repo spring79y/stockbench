@@ -313,6 +313,19 @@ function hasEarningsActualNumbers(ev: MarketEvent): boolean {
   return hasStructuredEarningsActual(ev.actual);
 }
 
+/**
+ * Never label as 「임박」 when structured actual, pending oneLiner,
+ * or same-KST-day announced status is already known.
+ */
+function mustNotSayImminentEarnings(ev: MarketEvent, now: Date): boolean {
+  if (hasStructuredEarningsActual(ev.actual)) return true;
+  if (isPendingResultOneLiner(ev.oneLiner)) return true;
+  if (!ev.dateISO) return false;
+  return (
+    isEarningsSameKstDay(ev.dateISO, now) && isEarningsAnnounced(ev, now)
+  );
+}
+
 function isImminentEarningsWindow(
   ev: MarketEvent,
   now: number,
@@ -322,13 +335,120 @@ function isImminentEarningsWindow(
   const hours = (new Date(ev.dateISO).getTime() - now) / (60 * 60 * 1000);
   const sameDay = isEarningsSameKstDay(ev.dateISO, nowDate);
   const announced = isEarningsAnnounced(ev, nowDate);
+  const hasActual = hasStructuredEarningsActual(ev.actual);
   const withinPostHorizon =
-    sameDay || (hours < 0 && hours >= -36) || (hours >= 0 && hours <= 12 && announced);
+    sameDay ||
+    (hours < 0 && hours >= -36) ||
+    (hours >= 0 && hours <= 12 && announced) ||
+    (hasActual && hours >= -36 && hours <= 48);
 
   // Post: structured actual, pending aggregation, or same-day news already printed.
-  const isPost = announced && withinPostHorizon;
+  const isPost =
+    (announced && withinPostHorizon) ||
+    (hasActual && (sameDay || (hours >= -36 && hours <= 48)));
   const isPre = !isPost && hours >= 0 && hours <= 48;
   return { ok: isPre || isPost, isPost };
+}
+
+function formatOpRevenueActualCue(ev: MarketEvent): string | null {
+  const a = ev.actual;
+  if (!a) return null;
+  const parts: string[] = [];
+  if (a.revenueActualLabel) parts.push(`매출 ${a.revenueActualLabel}`);
+  if (a.operatingProfitActualLabel) {
+    parts.push(`영업이익 ${a.operatingProfitActualLabel}`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/** Guard patch bullet for one earnings event — never 「임박」 once announced. */
+export function buildEarningsPatchBullet(ev: MarketEvent, now: number = Date.now()): string {
+  const nameCore = earningsNameCore(ev);
+  const nowDate = new Date(now);
+  const news = hasEarningsContextNews(ev);
+  const postish =
+    mustNotSayImminentEarnings(ev, nowDate) || isPostEarningsResult(ev, now);
+
+  if (postish) {
+    if (ev.actual?.beatLabel) {
+      return `${nameCore} 실적 발표됨 · 결과(주당순이익 ${ev.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
+    }
+    if (ev.actual?.epsActual != null && ev.actual?.epsEstimate != null) {
+      const a = ev.actual.epsActual;
+      const est = ev.actual.epsEstimate;
+      const region = ev.region === "KR" ? "KR" : "US";
+      const fmt = (v: number) =>
+        region === "KR"
+          ? `${Math.round(v).toLocaleString("ko-KR")}원`
+          : `$${Number(v.toFixed(2))}`;
+      if (news) {
+        return `${nameCore} 실적 발표됨 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — Evidence뉴스 반응·가이던스 점검 (서프라이즈/미스 단정 금지)`;
+      }
+      return `${nameCore} 실적 발표됨 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — 반응 근거 부족`;
+    }
+    const opRev = formatOpRevenueActualCue(ev);
+    if (opRev) {
+      return news
+        ? `${nameCore} 실적 발표됨 · ${opRev} — Evidence뉴스 반응·가이던스 점검 (방향 예측 금지)`
+        : `${nameCore} 실적 발표됨 · ${opRev} — 결과/반응 점검`;
+    }
+    if (
+      isPendingResultOneLiner(ev.oneLiner) ||
+      contextNewsSuggestsPrinted(ev.contextNews)
+    ) {
+      return news
+        ? `${nameCore} 실적 발표됨 · 결과/반응 점검 — Evidence뉴스 참고 (숫자 창작 금지)`
+        : `${nameCore} 실적 발표됨 · 결과/반응 점검 — 반응 근거 부족`;
+    }
+    return `${nameCore} 실적 발표됨 · 결과/반응 점검`;
+  }
+
+  if (news) {
+    return `${nameCore} 실적 임박 — Evidence뉴스 참고해 가이던스·섹터 맥락만 짧게 (방향 예측 금지)`;
+  }
+  return `${nameCore} 실적 발표 임박 — 섹터 온도 점검만 (가이던스 추측·방향 예측 금지)`;
+}
+
+/** Rewrite false 「실적 임박」 when Evidence already shows announced. */
+export function scrubFalseImminentEarningsLabels(
+  briefing: BriefingDraft,
+  snapshot: CollectorSnapshot,
+  scope: MarketScope = "all",
+): BriefingDraft {
+  const now = Date.now();
+  const nowDate = new Date(now);
+  const announced = (snapshot.events ?? []).filter(
+    (e) =>
+      e.kind === "earnings" &&
+      earningsInScope(e, scope) &&
+      mustNotSayImminentEarnings(e, nowDate),
+  );
+  if (announced.length === 0) return briefing;
+
+  const rewrite = (text: string): string => {
+    let out = text;
+    for (const e of announced) {
+      if (!/실적\s*(발표\s*)?임박/.test(out)) continue;
+      const tokens = earningsIdentityTokens(e);
+      const hit = tokens.some((t) =>
+        /[A-Za-z]/.test(t) ? out.toLowerCase().includes(t.toLowerCase()) : out.includes(t),
+      );
+      if (!hit) continue;
+      // Prefer full Evidence-grounded post line when the bullet is a patch-style 임박 line.
+      if (/실적\s*(발표\s*)?임박\s*—/.test(out)) {
+        out = buildEarningsPatchBullet(e, now);
+        continue;
+      }
+      out = out.replace(/실적\s*발표\s*임박|실적\s*임박/g, "실적 발표됨 · 결과/반응 점검");
+    }
+    return out;
+  };
+
+  return {
+    ...briefing,
+    headline: rewrite(briefing.headline),
+    bullets: briefing.bullets.map(rewrite),
+  };
 }
 
 function isPostEarningsResult(ev: MarketEvent, now: number): boolean {
@@ -1079,7 +1199,8 @@ export function ensureImminentEarningsMentioned(
   scope: MarketScope = "all",
 ): BriefingDraft {
   const now = Date.now();
-  const prose = [briefing.headline, ...briefing.bullets].join("\n");
+  const scrubbed = scrubFalseImminentEarningsLabels(briefing, snapshot, scope);
+  const prose = [scrubbed.headline, ...scrubbed.bullets].join("\n");
   const proseLower = prose.toLowerCase();
   const missing = listImminentEarnings(snapshot.events ?? [], now, scope).filter((e) => {
     const hasCore = proseMentionsEarningsIdentity(prose, proseLower, e);
@@ -1089,43 +1210,14 @@ export function ensureImminentEarningsMentioned(
     return !hasCore || !hasBeat;
   });
 
-  if (missing.length === 0) return briefing;
+  if (missing.length === 0) return scrubbed;
 
-  const extra = missing.slice(0, 2).map((e) => {
-    const nameCore = earningsNameCore(e);
-    if (e.actual?.beatLabel && isPostEarningsResult(e, now)) {
-      return `${nameCore} 실적 결과(주당순이익 ${e.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
-    }
-    if (isPostEarningsResult(e, now) && e.actual?.epsActual != null && e.actual?.epsEstimate != null) {
-      const a = e.actual.epsActual;
-      const est = e.actual.epsEstimate;
-      const region = e.region === "KR" ? "KR" : "US";
-      const fmt = (v: number) =>
-        region === "KR" ? `${Math.round(v).toLocaleString("ko-KR")}원` : `$${Number(v.toFixed(2))}`;
-      if (hasEarningsContextNews(e)) {
-        return `${nameCore} 실적 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — Evidence뉴스 반응·가이던스 참고 (서프라이즈/미스 단정 금지)`;
-      }
-      return `${nameCore} 실적 발표됨 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — 반응 근거 부족`;
-    }
-    if (
-      isPostEarningsResult(e, now) &&
-      (isPendingResultOneLiner(e.oneLiner) || contextNewsSuggestsPrinted(e.contextNews))
-    ) {
-      if (hasEarningsContextNews(e)) {
-        return `${nameCore} 실적 발표됨 · 결과 집계 대기 — Evidence뉴스로 반응·가이던스만 (숫자 창작 금지)`;
-      }
-      return `${nameCore} 실적 발표됨 · 결과 집계 대기 — 반응 근거 부족`;
-    }
-    if (hasEarningsContextNews(e)) {
-      return `${nameCore} 실적 임박 — Evidence뉴스 참고해 가이던스·섹터 맥락만 짧게 (방향 예측 금지)`;
-    }
-    return `${nameCore} 실적 발표 임박 — 섹터 온도 점검만 (가이던스 추측·방향 예측 금지)`;
-  });
+  const extra = missing.slice(0, 2).map((e) => buildEarningsPatchBullet(e, now));
 
   return {
-    ...briefing,
+    ...scrubbed,
     // 실적 보강 불릿이 잘리지 않도록 자리를 확보 (최대 5)
-    bullets: [...briefing.bullets.slice(0, Math.max(0, 5 - extra.length)), ...extra],
+    bullets: [...scrubbed.bullets.slice(0, Math.max(0, 5 - extra.length)), ...extra],
   };
 }
 
@@ -1234,7 +1326,7 @@ export function findingsToRepairHints(findings: GuardFinding[]): string[] {
     "earnings-reaction-omission":
       "숫자+Evidence뉴스면 1불릿에 매출/주당순이익+예상대비 + 가이던스·반응 이중 서술.",
     "missed-earnings":
-      "임박/직후 실적을 bullets에 회사명으로 1줄 점검 포함.",
+      "임박/직후 실적을 bullets에 회사명으로 1줄 점검 포함. Evidence에 발표됨·actual이면 「임박」 금지·「발표됨 · 결과/반응 점검」.",
     "slot-tone-mismatch":
       "이 슬롯 JOB에 맞는 톤으로. 장중·점검은 관측 틀 갱신(장후 리캡·개장 예측 금지).",
     "fact-mismatch":

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { runGuard } from "./guard";
+import {
+  ensureImminentEarningsMentioned,
+  runGuard,
+  scrubFalseImminentEarningsLabels,
+} from "./guard";
 import type {
   BriefingDraft,
   CollectorSnapshot,
@@ -403,6 +407,150 @@ describe("guard earnings polarity omit", () => {
     assert.equal(
       okReport.findings.filter((f) => f.code === "earnings-reaction-omission").length,
       0,
+    );
+  });
+});
+
+describe("ensureImminentEarningsMentioned post vs 임박", () => {
+  it("never says 임박 when KR OP/revenue actual exists (even without EPS)", () => {
+    const dateISO = new Date().toISOString();
+    const events: CollectorSnapshot["events"] = [
+      {
+        id: "earnings-naver",
+        dateLabel: "오늘",
+        region: "KR",
+        title: "NAVER 실적 발표",
+        level: "high",
+        oneLiner: "발표됨 · 매출 약 3.4조원 · 영업이익 약 5,203억원",
+        kind: "earnings",
+        symbol: "035420.KS",
+        megaCapId: "naver",
+        dateISO,
+        actual: {
+          operatingProfitActual: 520_300_000_000,
+          operatingProfitActualLabel: "약 5,203억원",
+          revenueActual: 3_388_800_000_000,
+          revenueActualLabel: "약 3.4조원",
+        },
+        contextNews: [
+          {
+            title: "네이버 2분기 실적 '선방' 매출 3.4조원 사상 최대",
+            publisher: "매일경제",
+            publishedAt: new Date().toISOString(),
+            snippet: "네이버 2분기 실적 '선방' 매출 3.4조원 사상 최대",
+          },
+        ],
+      },
+    ];
+    const briefing: BriefingDraft = {
+      headline: "코스피 장후 약세 정리",
+      bullets: [
+        "코스피 약세, 시총 상위 혼조",
+        "원/달러·수급 점검",
+        "외국인 순매도 지속 여부",
+      ],
+      evidenceIds: ["usdkkrw"],
+    };
+    const patched = ensureImminentEarningsMentioned(
+      briefing,
+      baseSnapshot(events),
+      "kr",
+    );
+    const joined = patched.bullets.join("\n");
+    assert.equal(/실적\s*(발표\s*)?임박/.test(joined), false);
+    assert.ok(
+      patched.bullets.some((b) => /NAVER|네이버/.test(b) && /발표됨/.test(b)),
+      `expected 발표됨 patch, got: ${joined}`,
+    );
+    assert.ok(
+      patched.bullets.some((b) => /5,203|3\.4조/.test(b)),
+      `expected Evidence OP/revenue numbers, got: ${joined}`,
+    );
+  });
+
+  it("scrubs false NAVER 실적 임박 when actual already present", () => {
+    const dateISO = new Date().toISOString();
+    const events: CollectorSnapshot["events"] = [
+      {
+        id: "earnings-naver",
+        dateLabel: "오늘",
+        region: "KR",
+        title: "NAVER 실적 발표",
+        level: "high",
+        oneLiner: "발표됨 · 매출 약 3.4조원 · 영업이익 약 5,203억원",
+        kind: "earnings",
+        symbol: "035420.KS",
+        megaCapId: "naver",
+        dateISO,
+        actual: {
+          operatingProfitActual: 520_300_000_000,
+          operatingProfitActualLabel: "약 5,203억원",
+          revenueActual: 3_388_800_000_000,
+          revenueActualLabel: "약 3.4조원",
+        },
+        contextNews: [
+          {
+            title: "네이버 실적 관련",
+            publisher: "test",
+            publishedAt: new Date().toISOString(),
+            snippet: "관련",
+          },
+        ],
+      },
+    ];
+    const briefing: BriefingDraft = {
+      headline: "국내 세션 마감",
+      bullets: [
+        "지수·체감 정리",
+        "NAVER 실적 임박 — Evidence뉴스 참고해 가이던스·섹터 맥락만 짧게 (방향 예측 금지)",
+      ],
+      evidenceIds: [],
+    };
+    const scrubbed = scrubFalseImminentEarningsLabels(
+      briefing,
+      baseSnapshot(events),
+      "kr",
+    );
+    assert.equal(/실적\s*(발표\s*)?임박/.test(scrubbed.bullets.join("\n")), false);
+    assert.ok(scrubbed.bullets.some((b) => /발표됨/.test(b)));
+  });
+
+  it("still allows 임박 for future pre-report earnings", () => {
+    const dateISO = new Date(Date.now() + 20 * 3600_000).toISOString();
+    const events: CollectorSnapshot["events"] = [
+      {
+        id: "earnings-brkb",
+        dateLabel: "일요일",
+        region: "US",
+        title: "버크셔 실적 발표",
+        level: "high",
+        oneLiner: "시장 예상 주당 순이익 $5.13",
+        kind: "earnings",
+        symbol: "BRK-B",
+        dateISO,
+        contextNews: [
+          {
+            title: "Berkshire earnings preview ahead of report",
+            publisher: "test",
+            publishedAt: new Date().toISOString(),
+            snippet: "preview ahead of earnings",
+          },
+        ],
+      },
+    ];
+    const briefing: BriefingDraft = {
+      headline: "미 장후 정리",
+      bullets: ["다우 약세", "금리·VIX 점검", "메가캡 혼조"],
+      evidenceIds: ["us10y"],
+    };
+    const patched = ensureImminentEarningsMentioned(
+      briefing,
+      { ...baseSnapshot(events), slot: "us-post" },
+      "us",
+    );
+    assert.ok(
+      patched.bullets.some((b) => /버크셔/.test(b) && /임박/.test(b)),
+      `expected pre 임박, got: ${patched.bullets.join(" | ")}`,
     );
   });
 });

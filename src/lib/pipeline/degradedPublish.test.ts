@@ -162,4 +162,121 @@ describe("degradedPublish demotion policy", () => {
     assert.equal(/사라|매수|매도 추천|서프라이즈|미스/.test(prose), false);
     assert.ok(prose.includes("코스피") || prose.includes("Evidence"));
   });
+
+  it("does not dump English geopolitics headlines on KR thin path", () => {
+    const snapshot: CollectorSnapshot = {
+      collectedAt: new Date().toISOString(),
+      slot: "kr-post",
+      indexes: [
+        {
+          id: "kospi",
+          name: "코스피",
+          shortName: "KOSPI",
+          region: "KR",
+          value: 2500,
+          change: -10,
+          changePercent: -0.4,
+          status: "closed",
+          changeBasis: "prior-close",
+        },
+      ],
+      macros: [
+        {
+          id: "usdkkrw",
+          name: "원/달러",
+          value: "1418",
+          changeLabel: "-3",
+          direction: "down",
+        },
+      ],
+      temperature: "국내 약세",
+      mood: "caution",
+      moodLabel: "주의",
+      asOfLabel: "test",
+      events: [],
+      evidence: {
+        session: {
+          slot: "kr-post",
+          slotLabel: "한국 장후",
+          collectedAt: new Date().toISOString(),
+          asOfLabel: "test",
+          focusHint: "post",
+        },
+        temperature: {
+          label: "국내 약세",
+          mood: "caution",
+          moodLabel: "주의",
+          krAvgPct: -0.4,
+          usAvgPct: null,
+          decouplingPct: 0,
+          decouplingNote: "",
+        },
+        indexes: {
+          kr: [
+            {
+              id: "kospi",
+              name: "코스피",
+              changePercent: -0.4,
+              status: "closed",
+              changeBasis: "prior-close",
+              priorSessionChangePercent: -1.1,
+            },
+          ],
+          us: [],
+        },
+        macros: [
+          {
+            id: "usdkkrw",
+            name: "원/달러",
+            value: "1418",
+            changeLabel: "-3",
+            direction: "down",
+          },
+        ],
+        flow: {
+          status: "pending",
+          asOfLabel: "",
+          todaySummary: "",
+          weekSummary: "",
+          foreignStreakNote: "",
+        },
+        megaCaps: {
+          summary: "",
+          items: [],
+          avgChangePct: null,
+          dispersionPct: null,
+          upCount: 0,
+          downCount: 0,
+          dispersionNote: "",
+        },
+        signals: { summary: "", ks200: "" },
+        events: [],
+        risk: {
+          elevated: true,
+          status: "live",
+          summary: "oil",
+          note: "",
+          flags: ["geopolitics"],
+          headlines: [
+            {
+              title:
+                "Investors scored on Iran war's oil market boom. Staying long the trade will get trickier",
+              publisher: "Reuters",
+              publishedAt: new Date().toISOString(),
+            },
+          ],
+        },
+        previous: {
+          slot: null,
+          publishedAt: null,
+          headlines: {},
+          continuity: {},
+        },
+      },
+    };
+    const thin = buildThinEvidenceDrafts(snapshot, "kr");
+    const joined = thin.briefing.bullets.join("\n");
+    assert.equal(/Iran|Investors scored/i.test(joined), false);
+    assert.ok(/지정학|리스크|Evidence/.test(joined));
+  });
 });
