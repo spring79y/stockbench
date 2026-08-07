@@ -1,4 +1,5 @@
 import { runGuard } from "@/lib/pipeline/guard";
+import { sanitizeEditorialView } from "@/lib/pipeline/publishSanitize";
 import type {
   BriefingDraft,
   CollectorSnapshot,
@@ -32,7 +33,7 @@ export function publishBundle(input: {
   const views = Object.fromEntries(
     (["all", "kr", "us"] as MarketScope[]).map((scope) => {
       const view = input.views[scope];
-      const editorial: EditorialView = {
+      const editorial: EditorialView = sanitizeEditorialView({
         briefing: {
           headline: view.briefing.headline,
           bullets: view.briefing.bullets,
@@ -40,7 +41,7 @@ export function publishBundle(input: {
         },
         scenarios: view.decision.scenarios,
         checkItems: view.decision.checkItems,
-      };
+      });
       return [scope, editorial];
     }),
   ) as Record<MarketScope, EditorialView>;

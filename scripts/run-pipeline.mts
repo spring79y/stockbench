@@ -43,6 +43,7 @@ import { runBriefingAgent } from "../src/lib/pipeline/runBriefingAgent";
 import { runDecisionAgent } from "../src/lib/pipeline/runDecisionAgent";
 import { ALL_PIPELINE_SLOTS, modeForSlot, scopesForSlot } from "../src/lib/pipeline/schedule";
 import { buildChangeLines } from "../src/lib/pipeline/briefingDelta";
+import { sanitizePublishedBundle } from "../src/lib/pipeline/publishSanitize";
 import type {
   BriefingDraft,
   DecisionDraft,
@@ -588,7 +589,7 @@ async function main() {
         })
       : summarizeGuard(guard);
 
-    const bundle: PublishedBundle = {
+    const bundle: PublishedBundle = sanitizePublishedBundle({
       version: 2,
       slot,
       publishedAt,
@@ -603,7 +604,7 @@ async function main() {
       views: views as PublishedBundle["views"],
       events: snapshot.events ?? previous?.events ?? defaultPipelineEvents(),
       guard,
-    };
+    });
 
     mkdirSync(dirname(latestPath), { recursive: true });
     if (previous) {

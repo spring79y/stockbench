@@ -150,7 +150,7 @@ describe("guard earnings polarity omit", () => {
       bullets: [
         "나스닥 장전 약세, 반도체 지수 되밀림",
         "미 10년물·VIX 안정 속 NFP 대기",
-        "샌디스크 EPS $39.25 vs 예상 $34.52 발표 후 Evidence뉴스상 가이던스 실망으로 섹터 되밀림",
+        "샌디스크 EPS $39.25 vs 예상 $34.52 발표 후 뉴스상 가이던스 실망으로 섹터 되밀림",
       ],
       evidenceIds: [],
     };
@@ -241,7 +241,7 @@ describe("guard earnings polarity omit", () => {
       bullets: [
         "나스닥 장전 약세, 반도체 지수 되밀림",
         "미 10년물·VIX 안정 속 NFP 대기",
-        "샌디스크 실적 발표됨 — Evidence뉴스상 가이던스 하회 언급 · 섹터 온도 점검",
+        "샌디스크 실적 발표됨 — 뉴스상 가이던스 하회 언급 · 섹터 온도",
       ],
       evidenceIds: ["vix"],
     };
@@ -393,7 +393,7 @@ describe("guard earnings polarity omit", () => {
       headline: "코스피 약세 속 네이버 실적 소화",
       bullets: [
         "코스피 약세, 시총 상위 평균 낙폭",
-        "NAVER 실적 발표됨 · 결과 집계 대기 — Evidence뉴스상 어닝 쇼크·비용 증가 언급, 섹터 반응 점검",
+        "NAVER 실적 발표 · 결과 집계 대기. 뉴스상 비용 증가·가이던스 언급",
         "원/달러·VIX 흔들림 점검",
       ],
       evidenceIds: [],
@@ -432,12 +432,20 @@ describe("ensureImminentEarningsMentioned post vs 임박", () => {
           revenueActual: 3_388_800_000_000,
           revenueActualLabel: "약 3.4조원",
         },
+        consensus: {
+          isEstimate: true,
+          revenueAvg: 3_365_900_000_000,
+          revenueLabel: "약 3.4조원",
+          operatingProfitAvg: 566_200_000_000,
+          operatingProfitLabel: "약 5,662억원",
+          sources: ["naver"],
+        },
         contextNews: [
           {
             title: "네이버 2분기 실적 '선방' 매출 3.4조원 사상 최대",
             publisher: "매일경제",
             publishedAt: new Date().toISOString(),
-            snippet: "네이버 2분기 실적 '선방' 매출 3.4조원 사상 최대",
+            snippet: "‘AI·비용 절감’ 통했다…영업이익은 '희비'",
           },
         ],
       },
@@ -459,13 +467,18 @@ describe("ensureImminentEarningsMentioned post vs 임박", () => {
     const joined = patched.bullets.join("\n");
     assert.equal(/실적\s*(발표\s*)?임박/.test(joined), false);
     assert.ok(
-      patched.bullets.some((b) => /NAVER|네이버/.test(b) && /발표됨/.test(b)),
-      `expected 발표됨 patch, got: ${joined}`,
+      patched.bullets.some((b) => /NAVER|네이버/.test(b) && /실적\s*발표/.test(b)),
+      `expected 실적 발표 patch, got: ${joined}`,
     );
     assert.ok(
       patched.bullets.some((b) => /5,203|3\.4조/.test(b)),
-      `expected Evidence OP/revenue numbers, got: ${joined}`,
+      `expected OP/revenue numbers, got: ${joined}`,
     );
+    assert.ok(
+      patched.bullets.some((b) => /시장 예상 하회/.test(b)),
+      `expected 시장 예상 하회, got: ${joined}`,
+    );
+    assert.equal(/Evidence|방향\s*예측\s*금지|가이던스\s*점검/.test(joined), false);
   });
 
   it("scrubs false NAVER 실적 임박 when actual already present", () => {
@@ -502,7 +515,7 @@ describe("ensureImminentEarningsMentioned post vs 임박", () => {
       headline: "국내 세션 마감",
       bullets: [
         "지수·체감 정리",
-        "NAVER 실적 임박 — Evidence뉴스 참고해 가이던스·섹터 맥락만 짧게 (방향 예측 금지)",
+        "NAVER 실적 임박 — 시장 예상·섹터 맥락",
       ],
       evidenceIds: [],
     };
