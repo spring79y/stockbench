@@ -124,10 +124,10 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 - **역할 분리:** Collector = 숫자·플래그·Evidence. Briefing LLM = 결과+시장 반응 서술. 숫자+`contextNews`면 **이중 서술**(예: EPS 숫자 + 가이던스 실망 → 주가/섹터 반응) 허용. 뉴스 없으면 반응 풍부 서술 생략·must-cover 강제 시 「반응 근거 부족」.
 - **가이던스·반응 Evidence:** Collector가 임박/직후 실적에 Google News RSS(KO·US EN) 헤드라인을 `contextNews`로 붙인다 (`fetchEarningsContextNews.ts`). 최소 근거: ≥1 헤드라인 + 숫자(또는 가격 반응). 뉴스 톤으로 beat/miss 창작 금지.
 - **발표됨·집계 대기:** Yahoo 시각 전이라도 같은 KST일 + 결과 헤드라인, 또는 시각 경과 후 API 숫자 없으면 EventList oneLiner는 「발표됨 · 결과 집계 대기」(숫자 창작 금지). pending+`contextNews`도 Briefing must-cover·이중 서술(뉴스 기반) 대상.
-- **영업이익 실제:** 네이버 `isConsensus≠Y` 분기 열이 생기면 `operatingProfitActual`로 붙인다. 컨센서스 열·헤드라인 파싱으로 실제 숫자를 채우지 않음.
+- **영업이익 실제:** 1순위는 네이버 `finance/quarter`에서 `isConsensus≠Y` 분기 열 → `operatingProfitActual`. 발표 직후 열이 아직 컨센서스(`isConsensus=Y`)만이면 2순위 **네이버 공정공시** `GET /api/stock/{code}/disclosure`(+ detail)의 **연결재무제표 영업(잠정)실적**만 사용 (`fetchNaverEarningsDisclosure.ts`). 조건: 연결 제목·단위 억원·당기 분기 키 일치·매출+영업이익 둘 다·컨센서스 대비 자릿수/규모(0.25×~4×) 검증. **별도** 잠정실적·모호한 헤드라인/뉴스 title regex로 실제 채우지 않음. 실패 시 soft-fail → 「발표됨 · 결과 집계 대기」.
 - **금지:** `quarterlies[0]` 폴백, 동일 시 미스 처리, Yahoo `calendarEvents.earningsAverage`가 다음 분기로 롤된 값을 이번 발표 컨센서스로 붙이기, UI/LLM이 beatLabel 재계산, Evidence에 없는 영업이익 창작.
 - Guard: `invented-event-result` · `unsupported-earnings-result` · `earnings-beat-polarity` · `unsupported-guidance-claim` · `earnings-reaction-omission`(숫자|집계대기+뉴스인데 가이던스/반응 누락 — forceCite/mustCover·라이브 due면 hard fail) · `carry-forward-no-reeval` · `slot-tone-mismatch` · `empty-briefing` (브리핑·시나리오·체크리스트 전부). 숫자+뉴스 이중 서술은 허용·필수. 재생성 시 `findingsToRepairHints`가 코드별 수정 지시를 프롬프트에 넣는다.
-- 단위 테스트: `npm run test:unit` (`earningsBeat.test.ts`, `earningsAnnounced.test.ts`, `fetchNaverOpConsensus.test.ts`, `guard.earnings.test.ts`, `guard.quality.test.ts`).
+- 단위 테스트: `npm run test:unit` (`earningsBeat.test.ts`, `earningsAnnounced.test.ts`, `fetchNaverOpConsensus.test.ts`, `fetchNaverEarningsDisclosure.test.ts`, `guard.earnings.test.ts`, `guard.quality.test.ts`).
 
 ### 오늘 브리핑 품질 (제품 베팅)
 

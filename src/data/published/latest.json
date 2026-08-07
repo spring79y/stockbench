@@ -281,7 +281,7 @@
       "region": "KR",
       "title": "NAVER 실적 발표",
       "level": "high",
-      "oneLiner": "발표됨 · 결과 집계 대기",
+      "oneLiner": "발표됨 · 매출 약 3.4조원 · 영업이익 약 5,203억원",
       "kind": "earnings",
       "symbol": "035420.KS",
       "megaCapId": "naver",
@@ -320,7 +320,13 @@
           "publishedAt": "2026-08-07T03:28:10.000Z",
           "snippet": "매출은 뛰고 이익은 멈췄다···네이버, 2분기 실적 '명암'"
         }
-      ]
+      ],
+      "actual": {
+        "operatingProfitActual": 520300000000,
+        "operatingProfitActualLabel": "약 5,203억원",
+        "revenueActual": 3388800000000,
+        "revenueActualLabel": "약 3.4조원"
+      }
     },
     {
       "id": "nfp",

@@ -20,6 +20,7 @@ import {
   fetchNaverOpForEarnings,
   type NaverOpConsensus,
 } from "@/lib/market/fetchNaverOpConsensus";
+import { fetchNaverDisclosureOpActual } from "@/lib/market/fetchNaverEarningsDisclosure";
 import {
   MEGA_CAP_CANDIDATES_KR,
   MEGA_CAP_CANDIDATES_US,
@@ -291,15 +292,21 @@ async function fetchOne(
       earningsDateISO: dateISO,
     });
 
-    // Reported Naver OP (non-consensus column only) — attach when print window.
-    if (tryPostPrint && naver.actual) {
-      actual = attachNaverActualFields(actual, naver.actual, input.region);
-    }
+    // Always keep Naver OP/매출 on consensus (expected block). Never put consensus into actual.
+    consensus = mergeNaverOp(consensus, naver.consensus, input.region);
 
-    // Pre-report (or awaiting print without structured actual): attach Naver OP consensus.
-    // Do not merge consensus OP once we already have structured actuals (avoids estimate-as-actual).
-    if (!actual) {
-      consensus = mergeNaverOp(consensus, naver.consensus, input.region);
+    // Reported: finance/quarter non-consensus column first; else 공정공시 잠정실적.
+    let naverActual = naver.actual;
+    if (tryPostPrint && !naverActual) {
+      naverActual = await fetchNaverDisclosureOpActual({
+        symbol: input.symbol,
+        region: input.region,
+        earningsDateISO: dateISO,
+        consensus: naver.consensus,
+      });
+    }
+    if (tryPostPrint && naverActual) {
+      actual = attachNaverActualFields(actual, naverActual, input.region);
     }
 
     return {

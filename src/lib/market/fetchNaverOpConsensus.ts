@@ -5,6 +5,8 @@ import type { MarketRegion } from "@/lib/types";
  * Naver Finance quarterly consensus — operating profit (영업이익) for KR.
  * Source: m.stock.naver.com `/api/stock/{code}/finance/quarter`
  * Units: KR columns are 억원 → convert to 원 (×1e8). Never invent; omit on parse/match miss.
+ * Reported actuals: only `isConsensus≠Y` columns here. When still consensus-only after print,
+ * Collector falls back to 공정공시 (`fetchNaverEarningsDisclosure.ts`).
  */
 
 export type NaverOpConsensus = {
@@ -234,6 +236,8 @@ export async function fetchNaverOpConsensus(opts: {
 /**
  * Single Naver finance/quarter fetch → consensus and/or reported OP for the period.
  * Prefer this in Collector to avoid duplicate network calls.
+ * When the quarter column is still consensus-only, Collector may also call
+ * `fetchNaverDisclosureOpActual` (공정공시) as a secondary source.
  */
 export async function fetchNaverOpForEarnings(opts: {
   symbol: string;
