@@ -1,8 +1,9 @@
 {
-  "updatedAt": "2026-08-07T05:10:16.647Z",
+  "updatedAt": "2026-08-07T05:47:07.455Z",
   "slot": "kr-mid",
-  "ok": true,
+  "ok": false,
   "mode": "full",
-  "guardOk": true,
-  "guardSummary": "ok · 18 warn"
+  "error": "keep-previous: blocked: carry-forward-no-reeval, carry-forward-no-reeval, carry-forward-omission",
+  "guardOk": false,
+  "guardSummary": "blocked: carry-forward-no-reeval, carry-forward-no-reeval, carry-forward-omission"
 }
