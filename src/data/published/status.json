@@ -1,9 +1,9 @@
 {
-  "updatedAt": "2026-08-07T07:19:17.007Z",
-  "slot": "kr-mid",
+  "updatedAt": "2026-08-07T07:57:04.893Z",
+  "slot": "kr-post",
   "ok": false,
   "mode": "full",
-  "error": "keep-previous: blocked: carry-forward-no-reeval, carry-forward-no-reeval, carry-forward-no-reeval",
+  "error": "keep-previous: blocked: carry-forward-omission, carry-forward-omission, carry-forward-no-reeval",
   "guardOk": false,
-  "guardSummary": "blocked: carry-forward-no-reeval, carry-forward-no-reeval, carry-forward-no-reeval"
+  "guardSummary": "blocked: carry-forward-omission, carry-forward-omission, carry-forward-no-reeval"
 }
