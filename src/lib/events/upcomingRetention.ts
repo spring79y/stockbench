@@ -1,5 +1,10 @@
 import type { MarketEvent } from "@/lib/types";
 import { epsFactPhrase } from "@/lib/events/earningsCopy";
+import {
+  PENDING_RESULT_ONELINER,
+  contextNewsSuggestsPrinted,
+  isPendingResultOneLiner,
+} from "@/lib/market/earningsAnnounced";
 
 const KST = "Asia/Seoul";
 
@@ -56,7 +61,9 @@ export function eventResultComment(event: MarketEvent): string | null {
   const hasOp =
     event.actual?.operatingProfitActual != null ||
     Boolean(event.actual?.operatingProfitActualLabel);
-  const pending = /결과\s*집계\s*대기|결과\s*미확인/.test(event.oneLiner ?? "");
+  const pending =
+    isPendingResultOneLiner(event.oneLiner) ||
+    (contextNewsSuggestsPrinted(event.contextNews) && !hasEps && !hasOp);
   if (!event.actual?.beatLabel && !hasEps && !hasOp && !pending) return null;
   const line = event.oneLiner?.trim();
   if (
@@ -93,7 +100,12 @@ export function eventResultComment(event: MarketEvent): string | null {
         : `$${Number(v.toFixed(2))}`;
     return `발표됨 · ${epsFactPhrase(fmt(event.actual!.epsActual!), fmt(event.actual!.epsEstimate!))}`;
   }
-  if (pending) return event.oneLiner?.trim() || "발표됨 · 결과 집계 대기";
+  if (pending) {
+    if (isPendingResultOneLiner(event.oneLiner)) {
+      return event.oneLiner!.trim();
+    }
+    return PENDING_RESULT_ONELINER;
+  }
   return "발표됨 · 결과 미확인";
 }
 

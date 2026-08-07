@@ -10,6 +10,14 @@ import {
   LABEL_REVENUE_EXPECTED,
   consensusNoteFor,
 } from "@/lib/events/earningsCopy";
+import {
+  earningsResultLines,
+  shouldShowEarningsResult,
+} from "@/lib/events/earningsDetail";
+import {
+  hasStructuredEarningsActual,
+  isEarningsAnnounced,
+} from "@/lib/market/earningsAnnounced";
 import type { MarketEvent } from "@/lib/types";
 import styles from "./EventDetailView.module.css";
 
@@ -71,6 +79,16 @@ export function EventDetailView({
         </div>
         <h1 className={styles.title}>{event.title}</h1>
         <p className={styles.oneliner}>{event.oneLiner}</p>
+        {event.kind === "earnings" && shouldShowEarningsResult(event) ? (
+          <div className={styles.result} aria-label="실적 결과">
+            <p className={styles.resultHeading}>결과</p>
+            {earningsResultLines(event).map((line) => (
+              <p key={line} className={styles.resultLine}>
+                {line}
+              </p>
+            ))}
+          </div>
+        ) : null}
         {event.kind === "earnings" && event.consensus ? (
           <div className={styles.consensus}>
             {event.consensus.revenueLabel ? (
@@ -113,7 +131,11 @@ export function EventDetailView({
               )
             ) : null}
             <p className={styles.consensusNote}>
-              {consensusNoteFor(event.consensus)}
+              {consensusNoteFor({
+                ...event.consensus,
+                postReport:
+                  isEarningsAnnounced(event) || hasStructuredEarningsActual(event.actual),
+              })}
             </p>
           </div>
         ) : null}

@@ -71,6 +71,33 @@
   color: var(--muted, #64748b);
 }
 
+
+.result {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--brand, #1d4f91);
+  background: #fff;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.resultHeading {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--brand, #1d4f91);
+}
+
+.resultLine {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--ink, #0f172a);
+}
+
 .consensus {
   margin-top: 0.75rem;
   padding: 0.65rem 0.75rem;

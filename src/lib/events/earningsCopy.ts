@@ -30,14 +30,23 @@ export const NOTE_CONSENSUS_UI =
 export const NOTE_CONSENSUS_UI_WITH_OP =
   "시장·애널리스트 평균 예상(컨센서스) · 매출·영업이익 네이버 금융 참고 · EPS Yahoo 참고 · 발표 전 추정치 · 매매 신호 아님";
 
+export const NOTE_CONSENSUS_UI_POST =
+  "시장·애널리스트 평균 예상(컨센서스) · Yahoo 참고 · 발표 후 참고용 · 매매 신호 아님";
+
+export const NOTE_CONSENSUS_UI_WITH_OP_POST =
+  "시장·애널리스트 평균 예상(컨센서스) · 매출·영업이익 네이버 금융 참고 · EPS Yahoo 참고 · 발표 후 참고용 · 매매 신호 아님";
+
 export function consensusNoteFor(opts: {
   operatingProfitLabel?: string;
   sources?: Array<"yahoo" | "naver">;
+  /** When true, drop 「발표 전」 wording so post-print UI is not misleading. */
+  postReport?: boolean;
 }): string {
-  if (opts.operatingProfitLabel || opts.sources?.includes("naver")) {
-    return NOTE_CONSENSUS_UI_WITH_OP;
+  const withOp = Boolean(opts.operatingProfitLabel || opts.sources?.includes("naver"));
+  if (opts.postReport) {
+    return withOp ? NOTE_CONSENSUS_UI_WITH_OP_POST : NOTE_CONSENSUS_UI_POST;
   }
-  return NOTE_CONSENSUS_UI;
+  return withOp ? NOTE_CONSENSUS_UI_WITH_OP : NOTE_CONSENSUS_UI;
 }
 
 /** Minimal EventList / Collector oneLiner fact prefix (not a friendly essay). */

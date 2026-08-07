@@ -14,6 +14,12 @@ import {
   LABEL_OP_EXPECTED,
   LABEL_REVENUE_EXPECTED,
 } from "@/lib/events/earningsCopy";
+import {
+  PENDING_RESULT_ONELINER,
+  hasStructuredEarningsActual,
+  isEarningsAnnounced,
+  isPendingResultOneLiner,
+} from "@/lib/market/earningsAnnounced";
 import type { MarketEvent } from "@/lib/types";
 
 function resolveName(event: MarketEvent): string {
@@ -102,8 +108,10 @@ function consensusLines(event: MarketEvent): string[] {
     const epsNote = c.operatingProfitLabel ? " · 보조(서프라이즈 참고)" : "";
     lines.push(`${LABEL_EPS_EXPECTED}: ${c.epsLabel}${range}${epsNote}`);
   }
-  // 실제 발표가 잡혀 있으면 “추정치” 안내는 혼선을 줄이기 위해 생략
-  if (c.isEstimate && !event.actual) lines.push("일정·숫자는 추정치일 수 있습니다.");
+  // 실제 발표·집계 대기가 있으면 “추정치” 안내는 혼선을 줄이기 위해 생략
+  if (c.isEstimate && !hasStructuredEarningsActual(event.actual) && !isPendingResultOneLiner(event.oneLiner)) {
+    lines.push("일정·숫자는 추정치일 수 있습니다.");
+  }
   lines.push(
     c.operatingProfitLabel
       ? "시장 예상 대비 위·아래 여부는 ‘점검’용이며, 매수·매도 신호가 아닙니다. 매출·영업이익(회사 규모)과 주당 순이익(EPS)은 다른 지표입니다."
@@ -112,9 +120,20 @@ function consensusLines(event: MarketEvent): string[] {
   return lines;
 }
 
-function actualLines(event: MarketEvent): string[] {
+/** True when UI should show a dedicated 결과 block (numbers or pending). */
+export function shouldShowEarningsResult(event: MarketEvent, now: Date = new Date()): boolean {
+  if (event.kind !== "earnings") return false;
+  if (hasStructuredEarningsActual(event.actual)) return true;
+  if (isPendingResultOneLiner(event.oneLiner)) return true;
+  return isEarningsAnnounced(event, now);
+}
+
+/** Fact lines for the 결과 block / watch list — never invent numbers. */
+export function earningsResultLines(event: MarketEvent, now: Date = new Date()): string[] {
   const a = event.actual;
-  const pending = /결과\s*집계\s*대기|결과\s*미확인/.test(event.oneLiner ?? "");
+  const pending =
+    isPendingResultOneLiner(event.oneLiner) ||
+    (isEarningsAnnounced(event, now) && !hasStructuredEarningsActual(a));
   const lines: string[] = [];
 
   if (a?.operatingProfitActualLabel || a?.revenueActualLabel) {
@@ -156,10 +175,14 @@ function actualLines(event: MarketEvent): string[] {
 
   if (lines.length === 0 && pending) {
     lines.push(
-      "발표됨 · 결과 집계 대기 — Yahoo/네이버 구조화 숫자가 아직 없습니다. 아래 뉴스만 참고하고 숫자를 짐작하지 마세요.",
+      `${PENDING_RESULT_ONELINER} — Yahoo/네이버 구조화 숫자가 아직 없습니다. 아래 뉴스만 참고하고 숫자를 짐작하지 마세요.`,
     );
   }
   return lines;
+}
+
+function actualLines(event: MarketEvent): string[] {
+  return earningsResultLines(event);
 }
 
 function contextNewsWatchPoints(event: MarketEvent): string[] {
@@ -218,10 +241,17 @@ export function buildEarningsDetail(event: MarketEvent): EventDetailContent {
           .join(", ")}`
       : null;
 
-  return {
-    meaning: event.consensus?.operatingProfitLabel
+  const announced = isEarningsAnnounced(event);
+  const meaning = announced
+    ? hasStructuredEarningsActual(event.actual)
+      ? `${name}의 분기 실적 결과가 Evidence에 잡혀 있습니다. 아래 「결과」에서 매출·영업이익·주당 순이익을 확인하고, 시장 예상은 참고로만 보세요.`
+      : `${name}의 분기 실적은 발표된 것으로 보이지만, Yahoo/네이버 구조화 숫자는 아직 집계 중입니다. 「결과」의 대기 안내와 아래 뉴스를 참고하고 숫자를 짐작하지 마세요.`
+    : event.consensus?.operatingProfitLabel
       ? `${name}의 분기 실적 발표 일정입니다. 먼저 시장 예상 매출·영업이익(같은 회사 규모 단위)을 보고, 주당 순이익(EPS)은 보조로 점검합니다. 서프라이즈/미스는 EPS 기준입니다.`
-      : `${name}의 분기 실적 발표 일정입니다. 먼저 시장 예상 매출(회사 규모)을 보고, 이어서 주당 순이익(EPS)이 시장 예상과 얼마나 다른지 점검합니다. 두 숫자의 단위(조원 vs 원)는 다릅니다.`,
+      : `${name}의 분기 실적 발표 일정입니다. 먼저 시장 예상 매출(회사 규모)을 보고, 이어서 주당 순이익(EPS)이 시장 예상과 얼마나 다른지 점검합니다. 두 숫자의 단위(조원 vs 원)는 다릅니다.`;
+
+  return {
+    meaning,
     whyItMatters:
       event.region === "KR" || event.region === "GLOBAL"
         ? "국내 메모리·반도체·성장주 분위기와 연결해 볼 수 있는 체크포인트입니다. 종목 추천이 아니라, 오늘 브리핑·시나리오에서 ‘무엇을 관찰할지’ 잡는 용도입니다."

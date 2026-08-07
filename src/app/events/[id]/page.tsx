@@ -5,6 +5,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { findEventById, getEventDetail } from "@/lib/events/catalog";
 import { fetchLiveUpcomingEvents } from "@/lib/events/fetchLiveUpcomingEvents";
+import { mergePublishedEarningsEvidence } from "@/lib/events/mergePublishedEarnings";
 import { fetchEventIndicatorCharts } from "@/lib/market/fetchEventCharts";
 import { probeMarketLive } from "@/lib/market/probeMarketLive";
 import { loadPublishedBoard } from "@/lib/pipeline/loadPublished";
@@ -18,7 +19,8 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
-  const [, events] = await Promise.all([loadPublishedBoard(), fetchLiveUpcomingEvents()]);
+  const [board, liveEvents] = await Promise.all([loadPublishedBoard(), fetchLiveUpcomingEvents()]);
+  const events = mergePublishedEarningsEvidence(liveEvents, board.events);
   const event = findEventById(id, events);
   return {
     title: event ? `${event.title} — StockBench` : "일정 — StockBench",
@@ -28,7 +30,8 @@ export async function generateMetadata({ params }: PageProps) {
 export default async function EventPage({ params, searchParams }: PageProps) {
   const { id } = await params;
   const { from } = await searchParams;
-  const [, events] = await Promise.all([loadPublishedBoard(), fetchLiveUpcomingEvents()]);
+  const [board, liveEvents] = await Promise.all([loadPublishedBoard(), fetchLiveUpcomingEvents()]);
+  const events = mergePublishedEarningsEvidence(liveEvents, board.events);
   const event = findEventById(id, events);
   if (!event) notFound();
 
