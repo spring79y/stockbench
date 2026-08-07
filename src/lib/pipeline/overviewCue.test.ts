@@ -52,7 +52,7 @@ describe("overviewCue", () => {
     );
   });
 
-  it("slims to base title + ≤2 checks without briefing clone", () => {
+  it("slims to base title + ≤2 checks; briefing kept by slimBoard caller", () => {
     const slim = slimOverviewDecision(sample);
     assert.equal(slim.briefing.headline, "");
     assert.equal(slim.briefing.bullets.length, 0);

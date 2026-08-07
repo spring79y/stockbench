@@ -3,6 +3,24 @@ import type { BoardEditorial } from "@/lib/pipeline/loadPublished";
 import { slimOverviewDecision } from "@/lib/pipeline/overviewCue";
 import type { EditorialView } from "@/lib/pipeline/types";
 
+/** Overview: short dual brief + Decision cue (base title + check ≤2). No full A/B. */
+function briefForOverview(view: EditorialView): EditorialView {
+  const decision = slimOverviewDecision(view);
+  return {
+    briefing: {
+      headline: view.briefing.headline,
+      bullets: view.briefing.bullets.slice(0, 2),
+      evidenceIds: [],
+    },
+    scenarios: decision.scenarios,
+    checkItems: decision.checkItems,
+    publishedAt: view.publishedAt,
+    slot: view.slot,
+    mode: view.mode,
+    changeLines: view.changeLines,
+  };
+}
+
 function emptyView(): EditorialView {
   return {
     briefing: { headline: "", bullets: [], evidenceIds: [] },
@@ -17,7 +35,6 @@ export function slimBoardForScope(
   scope: MarketScope,
 ): BoardEditorial {
   if (scope === "all") {
-    // Overview: Decision cue + check ≤2 per market — not full A/B or briefing clone.
     return {
       slot: board.slot,
       publishedAt: board.publishedAt,
@@ -25,8 +42,8 @@ export function slimBoardForScope(
       events: board.events,
       views: {
         all: emptyView(),
-        kr: slimOverviewDecision(board.views.kr),
-        us: slimOverviewDecision(board.views.us),
+        kr: briefForOverview(board.views.kr),
+        us: briefForOverview(board.views.us),
       },
     };
   }
