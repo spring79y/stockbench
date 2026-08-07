@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  isConsolidatedEarningsDisclosureTitle,
   isPlausibleVsConsensus,
   parseNaverEarningsDisclosureActual,
   periodKeyFromDisclosureText,
   rankEarningsDisclosureCandidates,
+  resetDisclosureSoftFailCounts,
 } from "./fetchNaverEarningsDisclosure";
 
 const CONSOLIDATED_HTML = `
@@ -41,6 +43,29 @@ describe("isPlausibleVsConsensus", () => {
   it("rejects wild unit mix-ups", () => {
     assert.equal(isPlausibleVsConsensus(5_203, 566_200_000_000), false);
     assert.equal(isPlausibleVsConsensus(52_030_000_000_000, 566_200_000_000), false);
+  });
+});
+
+describe("isConsolidatedEarningsDisclosureTitle", () => {
+  it("accepts looser 연결 variants and rejects 별도", () => {
+    assert.equal(
+      isConsolidatedEarningsDisclosureTitle(
+        "네이버(주) 연결재무제표기준영업(잠정)실적(공정공시)",
+      ),
+      true,
+    );
+    assert.equal(
+      isConsolidatedEarningsDisclosureTitle("삼성전자 연결재무제표 잠정실적(공정공시)"),
+      true,
+    );
+    assert.equal(
+      isConsolidatedEarningsDisclosureTitle("네이버(주) 영업(잠정)실적(공정공시)"),
+      false,
+    );
+    assert.equal(
+      isConsolidatedEarningsDisclosureTitle("별도재무제표기준 영업(잠정)실적(공정공시)"),
+      false,
+    );
   });
 });
 
@@ -111,6 +136,7 @@ describe("parseNaverEarningsDisclosureActual", () => {
 
 describe("rankEarningsDisclosureCandidates", () => {
   it("keeps only 연결재무제표 on earnings KST day (별도 제외)", () => {
+    resetDisclosureSoftFailCounts();
     const ranked = rankEarningsDisclosureCandidates(
       [
         {
@@ -133,5 +159,19 @@ describe("rankEarningsDisclosureCandidates", () => {
     );
     assert.equal(ranked.length, 1);
     assert.equal(ranked[0]!.disclosureId, 2);
+  });
+
+  it("accepts 연결재무제표 잠정실적 without 영업 immediately before", () => {
+    const ranked = rankEarningsDisclosureCandidates(
+      [
+        {
+          disclosureId: 9,
+          title: "삼성전자 연결재무제표 잠정실적(공정공시)",
+          datetime: "2026-08-07T08:00:00",
+        },
+      ],
+      { earningsDateISO: "2026-08-07T06:00:00.000Z" },
+    );
+    assert.equal(ranked.length, 1);
   });
 });

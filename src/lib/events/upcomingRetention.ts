@@ -1,9 +1,12 @@
 import type { MarketEvent } from "@/lib/types";
-import { epsFactPhrase } from "@/lib/events/earningsCopy";
+import { epsFactPhrase, revenueOpActualFactPhrase } from "@/lib/events/earningsCopy";
+import { earningsResultOneLiner } from "@/lib/market/earningsBeat";
 import {
   PENDING_RESULT_ONELINER,
   contextNewsSuggestsPrinted,
+  hasStructuredEarningsActual,
   isPendingResultOneLiner,
+  looksPreReportOneLiner,
 } from "@/lib/market/earningsAnnounced";
 
 const KST = "Asia/Seoul";
@@ -49,9 +52,48 @@ export function shouldRetainUpcomingEvent(
   return day >= kstCalendarDay(now);
 }
 
+function stripLegacyJudgmentCopy(line: string): string {
+  return line
+    .replace(/\s*·\s*판정\s*보류(?:\s*\([^)]*\))?/g, "")
+    .replace(/\s*—\s*점검용(?:\s*\([^)]*\))?/g, "")
+    .replace(/\s*\(점검용(?:\s*·\s*매매\s*신호\s*아님)?\)/g, "")
+    .trim();
+}
+
+/**
+ * True when oneLiner is clearly post-result (not pre-report consensus copy).
+ * Bare `/매출|영업이익/` while still `시장 예상…` is NOT post.
+ */
+export function isClearlyPostResultOneLiner(oneLiner: string | undefined | null): boolean {
+  if (!oneLiner?.trim()) return false;
+  const line = oneLiner.trim();
+  if (isPendingResultOneLiner(line)) return true;
+  if (looksPreReportOneLiner(line)) return false;
+  if (/발표됨|발표\s*결과|결과\s*미확인|집계\s*대기/.test(line)) return true;
+  if (/주당순이익\(EPS\)|EPS\s*[\$\d]/.test(line)) return true;
+  return false;
+}
+
+function buildPostResultFromActual(event: MarketEvent): string | null {
+  const a = event.actual;
+  if (!a) return null;
+  if (!hasStructuredEarningsActual(a) && !a.beatLabel) return null;
+  const companyScaleActualLine = revenueOpActualFactPhrase({
+    revenueLabel: a.revenueActualLabel,
+    opLabel: a.operatingProfitActualLabel,
+  });
+  return earningsResultOneLiner(a.beatLabel, {
+    epsActual: a.epsActual,
+    epsEstimate: a.epsEstimate,
+    region: event.region === "KR" ? "KR" : "US",
+    companyScaleActualLine,
+  });
+}
+
 /**
  * Result comment from structured fields only — never invent.
- * Prefer existing `oneLiner` when Collector already encoded a post-result line.
+ * Prefer clearly post `oneLiner`; else build from structured actual.
+ * Do not surface pre-report `시장 예상…` as a result line.
  * Facts only: announced?, 매출/영업이익, 주당순이익(EPS), dual-source beatLabel, or pending.
  * No 「판정 보류」.
  */
@@ -65,21 +107,15 @@ export function eventResultComment(event: MarketEvent): string | null {
     isPendingResultOneLiner(event.oneLiner) ||
     (contextNewsSuggestsPrinted(event.contextNews) && !hasEps && !hasOp);
   if (!event.actual?.beatLabel && !hasEps && !hasOp && !pending) return null;
+
   const line = event.oneLiner?.trim();
-  if (
-    line &&
-    (/발표\s*결과|발표됨|미확인|결과\s*미확인|집계\s*대기|EPS|주당|영업이익|매출/.test(
-      line,
-    ) ||
-      event.actual?.beatLabel)
-  ) {
-    // Strip legacy Collector judgment copy if still present in published JSON.
-    return line
-      .replace(/\s*·\s*판정\s*보류(?:\s*\([^)]*\))?/g, "")
-      .replace(/\s*—\s*점검용(?:\s*\([^)]*\))?/g, "")
-      .replace(/\s*\(점검용(?:\s*·\s*매매\s*신호\s*아님)?\)/g, "")
-      .trim();
+  if (line && isClearlyPostResultOneLiner(line)) {
+    return stripLegacyJudgmentCopy(line);
   }
+
+  const fromActual = buildPostResultFromActual(event);
+  if (fromActual) return fromActual;
+
   if (event.actual?.beatLabel) {
     return hasEps
       ? (() => {

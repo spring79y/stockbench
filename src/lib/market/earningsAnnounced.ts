@@ -61,6 +61,14 @@ export function isPendingResultOneLiner(oneLiner: string | undefined | null): bo
   return /결과\s*집계\s*대기|결과\s*미확인/.test(oneLiner);
 }
 
+/** True when oneLiner still reads as pre-report consensus / schedule copy. */
+export function looksPreReportOneLiner(oneLiner: string | undefined | null): boolean {
+  if (!oneLiner) return true;
+  if (isPendingResultOneLiner(oneLiner)) return false;
+  if (/발표됨|발표\s*결과|주당순이익\(EPS\)\s+\d/.test(oneLiner)) return false;
+  return /시장\s*예상|실적\s*발표\s*예정|예정\s*\(/.test(oneLiner);
+}
+
 /**
  * Announced for product purposes: clock past, structured actual, or same-KST-day
  * news that already reports results (KR morning print vs Yahoo afternoon stamp).
