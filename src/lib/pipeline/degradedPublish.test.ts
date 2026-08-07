@@ -109,6 +109,20 @@ describe("degradedPublish demotion policy", () => {
     );
   });
 
+  it("marks thin-evidence view with 제한 연속성 only (no Evidence chrome jargon)", () => {
+    const view: EditorialView = {
+      briefing: { headline: "h", bullets: ["b"], evidenceIds: ["vix"] },
+      scenarios: [],
+      checkItems: [],
+      publishedAt: "2026-08-07T06:40:00.000Z",
+      slot: "kr-post",
+      mode: "full",
+    };
+    const marked = markDegradedView(view, "thin-evidence");
+    assert.equal(marked.degradedLabel, "제한 연속성");
+    assert.equal(/Evidence/.test(marked.degradedLabel ?? ""), false);
+  });
+
   it("summarizes degraded status for status.json", () => {
     const summary = summarizeDegradedPublish({
       degraded: true,
@@ -161,7 +175,8 @@ describe("degradedPublish demotion policy", () => {
     assert.equal(thin.decision.checkItems.length, 0);
     const prose = [thin.briefing.headline, ...thin.briefing.bullets].join(" ");
     assert.equal(/사라|매수|매도 추천|서프라이즈|미스/.test(prose), false);
-    assert.ok(prose.includes("코스피") || prose.includes("Evidence"));
+    assert.ok(prose.includes("코스피"));
+    assert.equal(/Evidence|연결합니다|플래그\s*\(\s*Evidence\s*\)/.test(prose), false);
     assert.match(thin.briefing.headline, /코스피/);
     assert.match(thin.briefing.headline, /-0\.40%/);
     assert.match(thin.briefing.bullets[0] ?? "", /마감/);
@@ -281,6 +296,7 @@ describe("degradedPublish demotion policy", () => {
     const thin = buildThinEvidenceDrafts(snapshot, "kr");
     const joined = thin.briefing.bullets.join("\n");
     assert.equal(/Iran|Investors scored/i.test(joined), false);
-    assert.ok(/지정학|리스크|Evidence/.test(joined));
+    assert.ok(/지정학|리스크|유가|VIX|환율/.test(joined));
+    assert.equal(/Evidence|연결합니다|플래그\s*\(\s*Evidence\s*\)/.test(joined), false);
   });
 });

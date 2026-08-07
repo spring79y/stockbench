@@ -14,6 +14,8 @@ import {
   buildPostCloseHeadline,
   resolvePostCloseIndexes,
 } from "@/lib/pipeline/sessionCloseLead";
+import { sanitizeEditorialView } from "@/lib/pipeline/publishSanitize";
+import { formatUserRiskCue } from "@/lib/pipeline/userFacingCopy";
 
 /**
  * Final-attempt demote (block→warn): continuity / soft quality only.
@@ -152,7 +154,7 @@ export function buildThinEvidenceDrafts(
       const prior = formatPct(q.priorSessionChangePercent);
       const live = formatPct(q.changePercent);
       if (isPre && prior) {
-        return `${q.name} 전일세션마감 ${prior} — 장중 숫자를 전일로 쓰지 않음 (Evidence 앵커).`;
+        return `${q.name} 전일세션마감 ${prior} — 장중 숫자를 전일로 쓰지 않는다.`;
       }
       // Post close lead is a dedicated first bullet — skip duplicates already covered
       if (isPost && "id" in q && typeof q.id === "string" && closeIds.has(q.id)) {
@@ -161,14 +163,14 @@ export function buildThinEvidenceDrafts(
       if (isPost && live) {
         const pct = q.changePercent ?? 0;
         const dir = pct > 0.05 ? "상승" : pct < -0.05 ? "하락" : "보합";
-        return `${q.name} 마감 ${dir} ${live} — Evidence 지수 사실.`;
+        return `${q.name} 마감 ${dir} ${live}.`;
       }
       if (prior && live) {
-        return `${q.name} 전일세션 ${prior} · 현재 ${live} — Evidence 앵커.`;
+        return `${q.name} 전일세션 ${prior} · 현재 ${live}.`;
       }
-      if (live) return `${q.name} 현재 ${live} — Evidence 앵커.`;
-      if (prior) return `${q.name} 전일세션 ${prior} — Evidence 앵커.`;
-      return `${q.name} — Evidence 지수 행 있음(등락 수치 없음).`;
+      if (live) return `${q.name} 현재 ${live}.`;
+      if (prior) return `${q.name} 전일세션 ${prior}.`;
+      return `${q.name} — 등락 수치 없음.`;
     })
     .filter((b): b is string => Boolean(b));
 
@@ -188,7 +190,7 @@ export function buildThinEvidenceDrafts(
         : m.id === "usdkkrw" || m.id === "us10y" || m.id === "vix" || m.id === "wti",
     )
     .slice(0, 2)
-    .map((m) => `${m.name} ${m.value} (${m.changeLabel}) — Evidence 매크로.`);
+    .map((m) => `${m.name} ${m.value} (${m.changeLabel}).`);
 
   const eventBullets = (pack?.events ?? snapshot.events ?? [])
     .filter((ev) => {
@@ -202,15 +204,11 @@ export function buildThinEvidenceDrafts(
       // Minimal fact only — never invent beat/miss beyond Evidence oneLiner
       return line
         ? `일정 · ${ev.title}: ${line.slice(0, 72)}`
-        : `일정 · ${ev.title} (Evidence 일정 앵커).`;
+        : `일정 · ${ev.title}.`;
     });
 
   // KR/all: Korean cue only — never dump English geopolitics headlines.
-  const riskBullet = pack?.risk?.elevated
-    ? scope === "us"
-      ? "리스크 elevated — 유가·VIX 점검 (Evidence · 영문 헤드라인 생략)."
-      : "지정학·공급 리스크 플래그(Evidence) — 유가·환율만 짧게 연결 (영문 헤드라인 생략)."
-    : null;
+  const riskBullet = pack?.risk?.elevated ? formatUserRiskCue(scope) : null;
 
   const bullets = [
     ...(closeLeadBullet ? [closeLeadBullet] : []),
@@ -224,7 +222,7 @@ export function buildThinEvidenceDrafts(
 
   const fallbackBullets = [
     closeLeadBullet ??
-      `${market} Evidence 앵커 요약 — 지수·매크로·일정 사실만 남김 (해석 최소).`,
+      `${market} 지수·매크로·일정 사실만 남긴 최소 브리핑.`,
     snapshot.asOfLabel
       ? `수집 시각 기준: ${snapshot.asOfLabel}.`
       : "슬롯 시각 갱신용 최소 브리핑.",
@@ -240,10 +238,10 @@ export function buildThinEvidenceDrafts(
   ].slice(0, 4);
 
   const headline = isPre
-    ? `${market} 전일 앵커 · 최소 Evidence 브리핑`
+    ? `${market} 전일 요약 · 최소 브리핑`
     : isPost
       ? buildPostCloseHeadline(closeRows, market)
-      : `${market} Evidence 앵커 · 최소 브리핑`;
+      : `${market} 최소 브리핑`;
 
   return {
     briefing: {
@@ -277,12 +275,11 @@ export function filterThinGuardFindings(findings: GuardFinding[]): GuardFinding[
 
 export function markDegradedView(
   view: EditorialView,
-  kind: "degraded-draft" | "thin-evidence",
+  _kind: "degraded-draft" | "thin-evidence",
 ): EditorialView {
-  const note =
-    kind === "thin-evidence"
-      ? `${DEGRADED_LABEL} · Evidence 앵커`
-      : DEGRADED_LABEL;
+  // Chrome badge only — never leak pipeline jargon (Evidence/forceCite) into UI label.
+  void _kind;
+  const note = DEGRADED_LABEL;
   const changeLines = [note, ...(view.changeLines ?? [])].slice(0, 3);
   return {
     ...view,
@@ -327,7 +324,7 @@ export function buildDegradedEditorialView(input: {
   kind: "degraded-draft" | "thin-evidence";
   carryStreaks?: EditorialView["carryStreaks"];
 }): EditorialView {
-  const draft: EditorialView = {
+  const draft: EditorialView = sanitizeEditorialView({
     briefing: {
       headline: input.briefing.headline,
       bullets: input.briefing.bullets,
@@ -339,6 +336,6 @@ export function buildDegradedEditorialView(input: {
     slot: input.slot,
     mode: input.mode,
     carryStreaks: input.carryStreaks,
-  };
+  });
   return markDegradedView(draft, input.kind);
 }

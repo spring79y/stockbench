@@ -86,7 +86,7 @@ export function formatCloseClause(row: CloseIndexRow): string {
 export function buildPostCloseFirstBullet(rows: CloseIndexRow[]): string | null {
   if (rows.length === 0) return null;
   const clauses = rows.map(formatCloseClause).join(", ");
-  return `${clauses} — Evidence 세션 마감 사실.`;
+  return `${clauses}.`;
 }
 
 export function buildPostCloseHeadline(
@@ -94,7 +94,7 @@ export function buildPostCloseHeadline(
   market: string,
 ): string {
   if (rows.length === 0) {
-    return `오늘 ${market} 세션 마감 · Evidence 지수 확인`;
+    return `오늘 ${market} 세션 마감`;
   }
   const lead = rows[0]!;
   const dir = directionWord(lead.changePercent);
@@ -176,7 +176,7 @@ export function ensurePostCloseLead(
     ? briefing.headline
     : buildPostCloseHeadline(rows, market);
 
-  // Drop checklist/boilerplate openers that the close line replaces
+  // Drop checklist/boilerplate / pipeline-meta openers that the close line replaces
   const rest = briefing.bullets.filter(
     (b) =>
       b !== firstBullet &&
@@ -184,7 +184,9 @@ export function ensurePostCloseLead(
         b,
       ) &&
       !/무엇을\s*흐름을\s*주도했는지\s*봅니다/.test(b) &&
-      !/^오늘\s+(?:국내|미국|한·미)\s+세션은\s+지수와/.test(b),
+      !/^오늘\s+(?:국내|미국|한·미)\s+세션은\s+지수와/.test(b) &&
+      !/Evidence\s*세션\s*마감/.test(b) &&
+      !/짧게\s*연결합니다|로만\s*짧게|플래그\s*\(\s*Evidence\s*\)/.test(b),
   );
 
   return {

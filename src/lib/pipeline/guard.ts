@@ -27,6 +27,7 @@ import type {
   GuardReport,
   MarketScope,
 } from "@/lib/pipeline/types";
+import { formatUserEarningsBullet } from "@/lib/pipeline/userFacingCopy";
 import type { MarketEvent } from "@/lib/types";
 
 const RECOMMENDATION_PATTERNS = [
@@ -355,63 +356,12 @@ function isImminentEarningsWindow(
   return { ok: isPre || isPost, isPost };
 }
 
-function formatOpRevenueActualCue(ev: MarketEvent): string | null {
-  const a = ev.actual;
-  if (!a) return null;
-  const parts: string[] = [];
-  if (a.revenueActualLabel) parts.push(`매출 ${a.revenueActualLabel}`);
-  if (a.operatingProfitActualLabel) {
-    parts.push(`영업이익 ${a.operatingProfitActualLabel}`);
-  }
-  return parts.length > 0 ? parts.join(" · ") : null;
-}
-
-/** Guard patch bullet for one earnings event — never 「임박」 once announced. */
-export function buildEarningsPatchBullet(ev: MarketEvent, now: number = Date.now()): string {
-  const nameCore = earningsNameCore(ev);
-  const nowDate = new Date(now);
-  const news = hasEarningsContextNews(ev);
-  const postish =
-    mustNotSayImminentEarnings(ev, nowDate) || isPostEarningsResult(ev, now);
-
-  if (postish) {
-    if (ev.actual?.beatLabel) {
-      return `${nameCore} 실적 발표됨 · 결과(주당순이익 ${ev.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
-    }
-    if (ev.actual?.epsActual != null && ev.actual?.epsEstimate != null) {
-      const a = ev.actual.epsActual;
-      const est = ev.actual.epsEstimate;
-      const region = ev.region === "KR" ? "KR" : "US";
-      const fmt = (v: number) =>
-        region === "KR"
-          ? `${Math.round(v).toLocaleString("ko-KR")}원`
-          : `$${Number(v.toFixed(2))}`;
-      if (news) {
-        return `${nameCore} 실적 발표됨 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — Evidence뉴스 반응·가이던스 점검 (서프라이즈/미스 단정 금지)`;
-      }
-      return `${nameCore} 실적 발표됨 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — 반응 근거 부족`;
-    }
-    const opRev = formatOpRevenueActualCue(ev);
-    if (opRev) {
-      return news
-        ? `${nameCore} 실적 발표됨 · ${opRev} — Evidence뉴스 반응·가이던스 점검 (방향 예측 금지)`
-        : `${nameCore} 실적 발표됨 · ${opRev} — 결과/반응 점검`;
-    }
-    if (
-      isPendingResultOneLiner(ev.oneLiner) ||
-      contextNewsSuggestsPrinted(ev.contextNews)
-    ) {
-      return news
-        ? `${nameCore} 실적 발표됨 · 결과/반응 점검 — Evidence뉴스 참고 (숫자 창작 금지)`
-        : `${nameCore} 실적 발표됨 · 결과/반응 점검 — 반응 근거 부족`;
-    }
-    return `${nameCore} 실적 발표됨 · 결과/반응 점검`;
-  }
-
-  if (news) {
-    return `${nameCore} 실적 임박 — Evidence뉴스 참고해 가이던스·섹터 맥락만 짧게 (방향 예측 금지)`;
-  }
-  return `${nameCore} 실적 발표 임박 — 섹터 온도 점검만 (가이던스 추측·방향 예측 금지)`;
+/** Guard patch bullet — ant-facing only (delegates to userFacingCopy). */
+export function buildEarningsPatchBullet(
+  ev: MarketEvent,
+  now: number = Date.now(),
+): string {
+  return formatUserEarningsBullet(ev, now);
 }
 
 /** Rewrite false 「실적 임박」 when Evidence already shows announced. */
@@ -444,7 +394,7 @@ export function scrubFalseImminentEarningsLabels(
         out = buildEarningsPatchBullet(e, now);
         continue;
       }
-      out = out.replace(/실적\s*발표\s*임박|실적\s*임박/g, "실적 발표됨 · 결과/반응 점검");
+      out = out.replace(/실적\s*발표\s*임박|실적\s*임박/g, "실적 발표됨");
     }
     return out;
   };
@@ -558,13 +508,12 @@ function pushCarryForwardOmissionFindings(
   }
 }
 
+/** EPS 극성 단어만 — 「시장 예상 상회/하회」(매출·영업이익 숫자 대비)는 허용 */
 const RESULT_CLAIM_RE =
-  /서프라이즈|미스|어닝\s*비트|어닝\s*쇼크|컨센서스\s*(상회|하회)|예상\s*(상회|하회)/;
+  /서프라이즈|미스|어닝\s*비트|어닝\s*쇼크|컨센서스\s*(상회|하회)/;
 /** EPS 결과 극성 — 가이던스 실망을 실적 미스로 단정하는 표현 포함 */
-const BEAT_CLAIM_RE =
-  /서프라이즈|어닝\s*비트|컨센서스\s*상회|예상\s*상회/;
-const MISS_CLAIM_RE =
-  /어닝\s*쇼크|(?:어닝\s*)?미스|컨센서스\s*하회|예상\s*하회/;
+const BEAT_CLAIM_RE = /서프라이즈|어닝\s*비트|컨센서스\s*상회/;
+const MISS_CLAIM_RE = /어닝\s*쇼크|(?:어닝\s*)?미스|컨센서스\s*하회/;
 /** 가이던스·전망 결과 단정 — Evidence contextNews 없이 쓰면 hard fail */
 const GUIDANCE_CLAIM_RE =
   /가이던스\s*(?:를\s*)?(?:하회|상회|하향|상향|실망|미달|부진|양호|호조|컷|컷트)|가이딩\s*(?:컷|미스)|향후\s*(?:실적\s*)?전망\s*(?:하회|실망|부진|상향|하향)|어닝\s*콜\s*(?:실망|호조|부정|긍정)|guidance\s*(?:cut|miss|beat|soft|weak|raise|lower)|outlook\s*(?:cut|miss|beat|soft|weak)/i;
@@ -1334,7 +1283,7 @@ export function findingsToRepairHints(findings: GuardFinding[]): string[] {
     "post-missing-session-recap":
       "장후: 오늘 마감·장중·세션 결과와 촉발 요인 1개를 헤드라인/불릿에.",
     "post-missing-index-close":
-      "장후: 헤드라인과 첫 불릿에 Evidence 지수 마감 상승/하락 + 등락%를 먼저. ‘정리합니다/봅니다/금지’ 체크리스트 톤 금지.",
+      "장후: 헤드라인과 첫 불릿에 지수 마감 상승/하락 + 등락%를 먼저. ‘정리합니다/봅니다/금지/연결합니다’ 체크리스트·Evidence 접미 톤 금지.",
     "carry-forward-omission":
       "forceCite due를 Evidence 사실로 브리핑에 반영 (생략 금지).",
     "carry-forward-no-reeval":
@@ -1350,7 +1299,7 @@ export function findingsToRepairHints(findings: GuardFinding[]): string[] {
     "earnings-reaction-omission":
       "숫자+Evidence뉴스면 1불릿에 매출/주당순이익+예상대비 + 가이던스·반응 이중 서술.",
     "missed-earnings":
-      "임박/직후 실적을 bullets에 회사명으로 1줄 점검 포함. Evidence에 발표됨·actual이면 「임박」 금지·「발표됨 · 결과/반응 점검」.",
+      "임박/직후 실적을 bullets에 회사명·숫자(+뉴스 so-what) 1줄 포함. 발표됨·actual이면 「임박」 금지. 본문에 Evidence/금지 강의 금지.",
     "slot-tone-mismatch":
       "이 슬롯 JOB에 맞는 톤으로. 장중·점검은 관측 틀 갱신(장후 리캡·개장 예측 금지).",
     "fact-mismatch":

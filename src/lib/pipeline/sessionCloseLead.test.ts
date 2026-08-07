@@ -95,7 +95,21 @@ describe("sessionCloseLead / kr-post quality", () => {
     assert.equal(/전쟁\s*결과\s*예측\s*금지/.test(draft.bullets.join("\n")), false);
   });
 
-  it("thin post headline+first bullet use Evidence close", () => {
+  it("seed/thin post bullets stay ant-facing (no Evidence meta)", () => {
+    const seed = seedBriefing(krPostSnapshot(), "kr");
+    const thin = buildThinEvidenceDrafts(krPostSnapshot(), "kr");
+    const forbid =
+      /Evidence|플래그\s*\(\s*Evidence\s*\)|연결합니다|로만\s*짧게|방향\s*예측\s*금지/;
+    for (const draft of [seed, thin.briefing]) {
+      const prose = [draft.headline, ...draft.bullets].join("\n");
+      assert.equal(forbid.test(prose), false, prose);
+    }
+    assert.match(seed.bullets[0] ?? "", /코스피 마감 하락 -0\.60%/);
+    assert.match(seed.bullets[0] ?? "", /코스닥 마감 하락 -0\.36%/);
+    assert.equal(/\.\s*$/.test(seed.bullets[0] ?? ""), true);
+  });
+
+  it("thin post headline+first bullet use session close", () => {
     const thin = buildThinEvidenceDrafts(krPostSnapshot(), "kr");
     assert.match(thin.briefing.headline, /코스피/);
     assert.match(thin.briefing.headline, /-0\.60%/);
@@ -130,7 +144,7 @@ describe("sessionCloseLead / kr-post quality", () => {
     assert.ok(hints.some((h) => /마감 상승\/하락/.test(h)));
   });
 
-  it("patch injects Evidence close into checklist briefing", () => {
+  it("patch injects session close into checklist briefing", () => {
     const briefing: BriefingDraft = {
       headline: "오늘 국내 세션 마감 정리 · 지수와 체감의 차이",
       bullets: [
