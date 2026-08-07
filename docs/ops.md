@@ -46,6 +46,34 @@
 
 GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest.json` / `status.json`이 신호다.
 
+## Publish briefing (GitHub Actions)
+
+워크플로: [`.github/workflows/pipeline.yml`](../.github/workflows/pipeline.yml) · 이름 **Publish briefing**.
+
+### 스케줄은 서로 독립
+
+각 cron(`us-post`+`kr-pre`, `us-noon`+`kr-mid`, `kr-post`, `us-pre`, `us-mid`)은 **별도 `schedule` 트리거**다. 이전 실행이 실패해도 다음 슬롯 cron이 막히지 않는다.  
+(단, GitHub 측 **스케줄 지연·누락**은 별개 이슈이며, “이전 실패 → 다음 스킵”과는 다르다.)
+
+수동 실행: Actions → Publish briefing → **Run workflow** → `morning` / `noon` / 개별 슬롯 / `all`.
+
+### Hosted runner 미획득 · Internal server error
+
+앱·파이프라인 코드가 돌기 **전에** job이 죽을 수 있다. 증상 예:
+
+- `Internal server error. Correlation ID: …`
+- `The job was not acquired by Runner of type hosted even after multiple attempts`
+
+원인: GitHub **hosted runner 풀 고갈·인프라 ISE** (저장소/ANTHROPIC 키/pipeline 버그가 아님). Checkout·`npm ci`·`npm run pipeline` 로그가 없으면 이 케이스다.
+
+대응 (앱에서 runner 풀을 고칠 수 없음):
+
+1. 해당 run에서 **Re-run all jobs** (또는 Re-run failed jobs)
+2. 아침 슬롯이 비었으면 **Run workflow** → `morning` (`us-post` → `kr-pre`)
+3. YAML로 “runner 미획득만 자동 재시도”는 사실상 불가 → 위 수동 재실행이 정답
+
+동시 실행: `concurrency.group: publish-briefing`, `cancel-in-progress: false` — 겹치면 대기하고, 진행 중 run을 취소해 슬롯을 버리지 않는다. `timeout-minutes: 60`.
+
 웹 푸시 순서: pipeline → `latest.json` 커밋·push → `/api/published`로 프로덕션 반영 대기 → `push:slot`. 로컬 파이프라인 직후 푸시하지 않는다.
 
 홈(PWA·브라우저)이 백그라운드에서 돌아올 때는 발행 버전 비교 없이 `location.reload()`로 셸을 갱신한다(짧은 탭 blip·자기 reload 루프는 제외). Cache API는 백그라운드에서 비우지 않는다. 알림 클릭 hard navigate는 그대로.
