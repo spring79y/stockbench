@@ -9,6 +9,11 @@ import type {
   PipelineMode,
   PipelineSlot,
 } from "@/lib/pipeline/types";
+import {
+  buildPostCloseFirstBullet,
+  buildPostCloseHeadline,
+  resolvePostCloseIndexes,
+} from "@/lib/pipeline/sessionCloseLead";
 
 /**
  * Final-attempt demote (block→warn): continuity / soft quality only.
@@ -46,6 +51,7 @@ export const HARD_NEVER_DEMOTE_CODES = new Set([
   "pre-missing-observable-watch",
   "prior-session-without-anchor",
   "post-missing-session-recap",
+  "post-missing-index-close",
   "missed-earnings",
   "earnings-reaction-omission",
 ]);
@@ -129,29 +135,42 @@ export function buildThinEvidenceDrafts(
     )
     .slice(0, 3)
     .map((q) => ({
+      id: q.id,
       name: q.name,
       changePercent: q.changePercent,
       priorSessionChangePercent: q.priorSessionChangePercent ?? null,
     }));
 
   const indexRows = packIndexRows.length > 0 ? packIndexRows : snapIndexRows;
+  const closeRows = isPost ? resolvePostCloseIndexes(snapshot, scope) : [];
+  const closeLeadBullet = isPost ? buildPostCloseFirstBullet(closeRows) : null;
+  const closeIds = new Set(closeRows.map((r) => r.id));
 
-  const indexBullets = indexRows.slice(0, 3).map((q) => {
-    const prior = formatPct(q.priorSessionChangePercent);
-    const live = formatPct(q.changePercent);
-    if (isPre && prior) {
-      return `${q.name} 전일세션마감 ${prior} — 장중 숫자를 전일로 쓰지 않음 (Evidence 앵커).`;
-    }
-    if (isPost && live) {
-      return `${q.name} 세션 ${live} — Evidence 지수 사실 요약.`;
-    }
-    if (prior && live) {
-      return `${q.name} 전일세션 ${prior} · 현재 ${live} — Evidence 앵커.`;
-    }
-    if (live) return `${q.name} 현재 ${live} — Evidence 앵커.`;
-    if (prior) return `${q.name} 전일세션 ${prior} — Evidence 앵커.`;
-    return `${q.name} — Evidence 지수 행 있음(등락 수치 없음).`;
-  });
+  const indexBullets = indexRows
+    .slice(0, 3)
+    .map((q) => {
+      const prior = formatPct(q.priorSessionChangePercent);
+      const live = formatPct(q.changePercent);
+      if (isPre && prior) {
+        return `${q.name} 전일세션마감 ${prior} — 장중 숫자를 전일로 쓰지 않음 (Evidence 앵커).`;
+      }
+      // Post close lead is a dedicated first bullet — skip duplicates already covered
+      if (isPost && "id" in q && typeof q.id === "string" && closeIds.has(q.id)) {
+        return null;
+      }
+      if (isPost && live) {
+        const pct = q.changePercent ?? 0;
+        const dir = pct > 0.05 ? "상승" : pct < -0.05 ? "하락" : "보합";
+        return `${q.name} 마감 ${dir} ${live} — Evidence 지수 사실.`;
+      }
+      if (prior && live) {
+        return `${q.name} 전일세션 ${prior} · 현재 ${live} — Evidence 앵커.`;
+      }
+      if (live) return `${q.name} 현재 ${live} — Evidence 앵커.`;
+      if (prior) return `${q.name} 전일세션 ${prior} — Evidence 앵커.`;
+      return `${q.name} — Evidence 지수 행 있음(등락 수치 없음).`;
+    })
+    .filter((b): b is string => Boolean(b));
 
   const macroSource =
     pack?.macros ??
@@ -194,6 +213,7 @@ export function buildThinEvidenceDrafts(
     : null;
 
   const bullets = [
+    ...(closeLeadBullet ? [closeLeadBullet] : []),
     ...indexBullets,
     ...macroBullets,
     ...eventBullets,
@@ -203,7 +223,8 @@ export function buildThinEvidenceDrafts(
     .slice(0, 5);
 
   const fallbackBullets = [
-    `${market} Evidence 앵커 요약 — 지수·매크로·일정 사실만 남김 (해석 최소).`,
+    closeLeadBullet ??
+      `${market} Evidence 앵커 요약 — 지수·매크로·일정 사실만 남김 (해석 최소).`,
     snapshot.asOfLabel
       ? `수집 시각 기준: ${snapshot.asOfLabel}.`
       : "슬롯 시각 갱신용 최소 브리핑.",
@@ -221,7 +242,7 @@ export function buildThinEvidenceDrafts(
   const headline = isPre
     ? `${market} 전일 앵커 · 최소 Evidence 브리핑`
     : isPost
-      ? `${market} 세션 앵커 · 최소 Evidence 브리핑`
+      ? buildPostCloseHeadline(closeRows, market)
       : `${market} Evidence 앵커 · 최소 브리핑`;
 
   return {

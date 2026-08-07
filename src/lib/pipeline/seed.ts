@@ -1,4 +1,9 @@
 import type { BriefingDraft, CollectorSnapshot, DecisionDraft, MarketScope } from "@/lib/pipeline/types";
+import {
+  buildPostCloseFirstBullet,
+  buildPostCloseHeadline,
+  resolvePostCloseIndexes,
+} from "@/lib/pipeline/sessionCloseLead";
 
 /** LLM 실패 시 — 복창 없이 해석 톤 유지 */
 export function seedBriefing(snapshot: CollectorSnapshot, scope: MarketScope): BriefingDraft {
@@ -13,10 +18,11 @@ export function seedBriefing(snapshot: CollectorSnapshot, scope: MarketScope): B
     (nasdaq?.priorSessionChangePercent ?? nasdaq?.changePercent ?? 0) >= 0.3;
 
   // KR/all: never dump English geopolitics headlines — Korean cue ≤1 bridge.
+  // No “예측 금지” lecture as lead tone — facts first.
   const riskBullet = riskElevated
     ? scope === "us"
-      ? `지정학·공급 리스크 플래그(Evidence) — 유가(${wti?.value ?? "WTI"})·VIX와 흔들림 원인 후보로만 짧게. 전쟁 결과 예측 금지.`
-      : `지정학·공급 리스크 플래그(Evidence) — 유가(${wti?.value ?? "WTI"})·환율·VIX와 흔들림 원인 후보로만 짧게 (영문 헤드라인 생략). 전쟁 결과 예측 금지.`
+      ? `지정학·공급 리스크 플래그(Evidence) — 유가(${wti?.value ?? "WTI"})·VIX와 흔들림 원인 후보로만 짧게.`
+      : `지정학·공급 리스크 플래그(Evidence) — 유가(${wti?.value ?? "WTI"})·환율·VIX와 흔들림 원인 후보로만 짧게.`
     : null;
   const isPre = snapshot.slot === "kr-pre" || snapshot.slot === "us-pre";
   const isPost = snapshot.slot === "kr-post" || snapshot.slot === "us-post";
@@ -35,8 +41,8 @@ export function seedBriefing(snapshot: CollectorSnapshot, scope: MarketScope): B
       bullets: [
         priorLine,
         scope === "us"
-          ? "전 거래일 미 금리와 VIX가 지수·메가캡 움직임에 어떤 차이를 만들었는지 봅니다."
-          : "전 거래일 국내 수급과 코스피200이 지수 움직임과 같은 방향이었는지 봅니다.",
+          ? "전 거래일 미 금리와 VIX가 지수·메가캡 움직임에 어떤 차이를 만들었는지 요약합니다."
+          : "전 거래일 국내 수급과 코스피200이 지수 움직임과 같은 방향이었는지 요약합니다.",
         "다가올 실적·매크로 일정은 방향 예측이 아니라 변동성 맥락으로만 둡니다.",
         scope === "us"
           ? "장 초반 미 금리·VIX 반응과 메가캡 흐름의 유지 여부를 관측합니다."
@@ -50,16 +56,20 @@ export function seedBriefing(snapshot: CollectorSnapshot, scope: MarketScope): B
 
   if (isPost) {
     const market = scope === "us" ? "미국" : scope === "kr" ? "국내" : "한·미";
+    const closeRows = resolvePostCloseIndexes(snapshot, scope);
+    const closeBullet = buildPostCloseFirstBullet(closeRows);
+    const headline = buildPostCloseHeadline(closeRows, market);
     return {
-      headline: `오늘 ${market} 세션 마감 정리 · 지수와 체감의 차이`,
+      headline,
       bullets: [
-        `오늘 ${market} 세션은 지수와 시장 폭·시총 상위 체감이 같은 방향이었는지부터 정리합니다.`,
+        closeBullet ??
+          `오늘 ${market} 세션 마감 — Evidence 지수 등락을 확인하지 못해 방향·수치 없이 요약합니다.`,
         scope === "us"
-          ? "장중 미 금리·VIX와 메가캡 움직임 중 무엇이 흐름을 주도했는지 봅니다."
-          : "장중 외국인·기관 수급과 코스피200 중 무엇이 흐름을 주도했는지 봅니다.",
+          ? "장중 미 금리·VIX와 메가캡 움직임이 지수 체감과 같았는지 짧게 연결합니다."
+          : "장중 외국인·기관 수급과 코스피200이 지수 방향과 같았는지 짧게 연결합니다.",
         riskBullet ??
           "장중 주요 일정·섹터 이슈는 지수와 체감에 실제로 연결된 촉발 요인만 남깁니다.",
-        "다음 세션은 방향을 단정하지 않고 환율·금리·변동성 반응을 연결 포인트로 둡니다.",
+        "다음 세션 연결은 환율·금리·변동성 반응만 점검합니다.",
       ],
       evidenceIds: riskElevated
         ? ["usdkkrw", "wti", "vix"]

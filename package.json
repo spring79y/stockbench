@@ -11,7 +11,7 @@
     "pipeline:schedule": "tsx scripts/schedule-pipeline.mts",
     "push:slot": "tsx scripts/send-slot-push.mts",
     "wait:published-live": "tsx scripts/wait-published-live.mts",
-    "test:unit": "node --import tsx --test src/lib/market/earningsBeat.test.ts src/lib/market/earningsFormat.test.ts src/lib/market/fetchNaverOpConsensus.test.ts src/lib/market/fetchNaverEarningsDisclosure.test.ts src/lib/market/earningsAnnounced.test.ts src/lib/events/mergePublishedEarnings.test.ts src/lib/events/upcomingRetention.test.ts src/lib/events/attachEventDetailSummaries.test.ts src/lib/pipeline/overviewCue.test.ts src/lib/pipeline/guard.earnings.test.ts src/lib/pipeline/guard.quality.test.ts src/lib/pipeline/degradedPublish.test.ts src/lib/market/fetchEarningsContextNews.test.ts src/lib/pipeline/catchup.test.ts src/lib/pipeline/schedule.test.ts",
+    "test:unit": "node --import tsx --test src/lib/market/earningsBeat.test.ts src/lib/market/earningsFormat.test.ts src/lib/market/fetchNaverOpConsensus.test.ts src/lib/market/fetchNaverEarningsDisclosure.test.ts src/lib/market/earningsAnnounced.test.ts src/lib/events/mergePublishedEarnings.test.ts src/lib/events/upcomingRetention.test.ts src/lib/events/attachEventDetailSummaries.test.ts src/lib/pipeline/overviewCue.test.ts src/lib/pipeline/guard.earnings.test.ts src/lib/pipeline/guard.quality.test.ts src/lib/pipeline/degradedPublish.test.ts src/lib/pipeline/sessionCloseLead.test.ts src/lib/market/fetchEarningsContextNews.test.ts src/lib/pipeline/catchup.test.ts src/lib/pipeline/schedule.test.ts",
     "catchup:watchdog": "tsx scripts/catchup-watchdog.mts"
   },
   "dependencies": {

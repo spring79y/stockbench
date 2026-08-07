@@ -52,6 +52,7 @@ describe("degradedPublish demotion policy", () => {
     assert.equal(FINAL_ATTEMPT_DEMOTE_CODES.has("prior-label-mismatch"), false);
     assert.equal(FINAL_ATTEMPT_DEMOTE_CODES.has("recommendation-or-prediction"), false);
     assert.equal(FINAL_ATTEMPT_DEMOTE_CODES.has("earnings-beat-polarity"), false);
+    assert.equal(HARD_NEVER_DEMOTE_CODES.has("post-missing-index-close"), true);
   });
 
   it("classifies soft-only final attempt as degraded-draft", () => {
@@ -161,6 +162,9 @@ describe("degradedPublish demotion policy", () => {
     const prose = [thin.briefing.headline, ...thin.briefing.bullets].join(" ");
     assert.equal(/사라|매수|매도 추천|서프라이즈|미스/.test(prose), false);
     assert.ok(prose.includes("코스피") || prose.includes("Evidence"));
+    assert.match(thin.briefing.headline, /코스피/);
+    assert.match(thin.briefing.headline, /-0\.40%/);
+    assert.match(thin.briefing.bullets[0] ?? "", /마감/);
   });
 
   it("does not dump English geopolitics headlines on KR thin path", () => {

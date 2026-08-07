@@ -168,13 +168,13 @@ const SLOT_PRIORITY_PICK: Record<PipelineSlot, string> = {
   "kr-mid":
     "1) 장중(당일) 사실 변화 2) forceCite 재평가 3) 오후 관측 신호 4) 임박 일정/실적 5) 미 브릿지≤1",
   "kr-post":
-    "1) 오늘 세션 결과·촉발 1개 2) 수급·시총 체감 3) forceCite 재평가 4) 밤 미장 점검≤1",
+    "1) Evidence 지수 마감 방향·% 2) 수급·시총 체감 3) forceCite 재평가 4) 밤 미장 점검≤1",
   "us-pre":
     "1) 전일세션마감 미 지수·메가캡 2) forceCite due 사실 3) 오늘 관측 신호 4) 임박 일정/실적 5) 국내 브릿지≤1",
   "us-mid":
     "1) 미 장중 사실 변화 2) forceCite 재평가 3) 남은 구간 신호 4) 임박 일정/실적 5) 국내 브릿지≤1",
   "us-post":
-    "1) 오늘 미 세션 결과·촉발 1개 2) 메가캡 체감 3) forceCite 재평가 4) 국내 장전 연결≤1",
+    "1) Evidence 미 지수 마감 방향·% 2) 메가캡 체감 3) forceCite 재평가 4) 국내 장전 연결≤1",
   "us-noon":
     "1) 직전 미 세션·오버나잇 사실 2) forceCite(실적·매크로 due) 재평가 3) 저녁 장전 관측 신호 4) 임박 일정",
 };

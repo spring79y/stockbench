@@ -14,6 +14,11 @@ import {
   forceCiteTokens,
   type CarryForwardItem,
 } from "@/lib/pipeline/carryForward";
+import {
+  ensurePostCloseLead,
+  missingPostCloseLeads,
+  resolvePostCloseIndexes,
+} from "@/lib/pipeline/sessionCloseLead";
 import type {
   BriefingDraft,
   CollectorSnapshot,
@@ -839,6 +844,22 @@ export function runGuard(input: {
     });
   }
 
+  // kr-post / us-post: headline+first bullet must state Evidence index close direction/%
+  if (input.snapshot.slot === "kr-post" || input.snapshot.slot === "us-post") {
+    const closeRows = resolvePostCloseIndexes(input.snapshot, scope);
+    const missing = missingPostCloseLeads(input.briefing, closeRows);
+    if (missing.length > 0) {
+      const names = missing.map((r) => r.name).join("/");
+      findings.push({
+        severity: "block",
+        code: "post-missing-index-close",
+        message:
+          `장후 헤드라인·첫 불릿에 Evidence ${names} 마감 상승/하락(등락%)이 없음. ` +
+          "체크리스트(봅니다/정리합니다)보다 세션 마감 사실을 먼저.",
+      });
+    }
+  }
+
   for (const text of texts) {
     for (const pattern of RECOMMENDATION_PATTERNS) {
       if (pattern.test(text)) {
@@ -1226,13 +1247,14 @@ export function ensurePriorSessionAnchored(briefing: BriefingDraft): BriefingDra
   return briefing;
 }
 
-/** 최종 재시도용 — 실적 누락만 보강. 전일 앵커 강제 삽입 금지(시점 둔갑 방지) */
+/** 최종 재시도용 — 마감 리드·실적 누락 보강. 전일 앵커 강제 삽입 금지(시점 둔갑 방지) */
 export function patchBriefingForGuardRetry(
   briefing: BriefingDraft,
   snapshot: CollectorSnapshot,
   scope: MarketScope = "all",
 ): BriefingDraft {
-  return ensureImminentEarningsMentioned(briefing, snapshot, scope);
+  const withClose = ensurePostCloseLead(briefing, snapshot, scope);
+  return ensureImminentEarningsMentioned(withClose, snapshot, scope);
 }
 
 /** 장중 리프레시용 — 브리핑만 검사. 동결된 시나리오·점검 경고는 무시 */
@@ -1311,6 +1333,8 @@ export function findingsToRepairHints(findings: GuardFinding[]): string[] {
       "지수·수급·시총 숫자에 전일/직전 마감 시점 표시를 같은 문장에.",
     "post-missing-session-recap":
       "장후: 오늘 마감·장중·세션 결과와 촉발 요인 1개를 헤드라인/불릿에.",
+    "post-missing-index-close":
+      "장후: 헤드라인과 첫 불릿에 Evidence 지수 마감 상승/하락 + 등락%를 먼저. ‘정리합니다/봅니다/금지’ 체크리스트 톤 금지.",
     "carry-forward-omission":
       "forceCite due를 Evidence 사실로 브리핑에 반영 (생략 금지).",
     "carry-forward-no-reeval":
