@@ -26,12 +26,28 @@ import type { DailyBriefing, MarketEvent } from "@/lib/types";
 
 const MarketFlashNews = dynamic(
   () => import("@/components/MarketFlashNews").then((m) => m.MarketFlashNews),
-  { loading: () => <section className="board-block">속보 준비 중…</section> },
+  {
+    loading: () => (
+      <section className="board-block skeleton-pulse" aria-busy="true">
+        <div className="skeleton-line skeleton-line--md" />
+        <div className="skeleton-line" />
+        <div className="skeleton-line skeleton-line--sm" />
+      </section>
+    ),
+  },
 );
 
 const RetailScanPanel = dynamic(
   () => import("@/components/RetailScanPanel").then((m) => m.RetailScanPanel),
-  { loading: () => <section className="board-block">지표 불러오는 중…</section> },
+  {
+    loading: () => (
+      <section className="board-block skeleton-pulse" aria-busy="true">
+        <div className="skeleton-line skeleton-line--md" />
+        <div className="skeleton-line" />
+        <div className="skeleton-line skeleton-line--sm" />
+      </section>
+    ),
+  },
 );
 
 function filterEvents(events: MarketEvent[], scope: MarketScope): MarketEvent[] {

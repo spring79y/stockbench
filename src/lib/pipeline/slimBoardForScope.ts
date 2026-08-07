@@ -1,22 +1,7 @@
 import type { MarketScope } from "@/lib/market/scope";
 import type { BoardEditorial } from "@/lib/pipeline/loadPublished";
+import { slimOverviewDecision } from "@/lib/pipeline/overviewCue";
 import type { EditorialView } from "@/lib/pipeline/types";
-
-function briefOnly(view: EditorialView): EditorialView {
-  return {
-    briefing: {
-      headline: view.briefing.headline,
-      bullets: view.briefing.bullets.slice(0, 2),
-      evidenceIds: [],
-    },
-    scenarios: [],
-    checkItems: [],
-    publishedAt: view.publishedAt,
-    slot: view.slot,
-    mode: view.mode,
-    changeLines: view.changeLines,
-  };
-}
 
 function emptyView(): EditorialView {
   return {
@@ -32,16 +17,16 @@ export function slimBoardForScope(
   scope: MarketScope,
 ): BoardEditorial {
   if (scope === "all") {
-    // Overview: dual brief + events only — no scenarios/checklists.
+    // Overview: Decision cue + check ≤2 per market — not full A/B or briefing clone.
     return {
       slot: board.slot,
       publishedAt: board.publishedAt,
       fromPipeline: board.fromPipeline,
       events: board.events,
       views: {
-        all: briefOnly(board.views.all),
-        kr: briefOnly(board.views.kr),
-        us: briefOnly(board.views.us),
+        all: emptyView(),
+        kr: slimOverviewDecision(board.views.kr),
+        us: slimOverviewDecision(board.views.us),
       },
     };
   }

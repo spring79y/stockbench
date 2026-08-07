@@ -79,8 +79,9 @@ export function EventList({
           return (
             <li key={event.id}>
               <Link
-                href={`/events/${event.id}?from=${encodeURIComponent(from)}`}
+                href={`/events/${encodeURIComponent(event.id)}?from=${encodeURIComponent(from)}`}
                 className={styles.row}
+                prefetch
               >
                 <div className={styles.main}>
                   <div className={styles.meta}>

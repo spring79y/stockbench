@@ -57,10 +57,8 @@ function splitBullets(text: string | undefined): string[] {
     .slice(0, 2);
 }
 
+/** Always rebuild from Evidence facts — stale published boilerplate must not stick. */
 function resolveSummary(event: MarketEvent): EventDetailSummary {
-  if (event.detailSummary && Object.values(event.detailSummary).some(Boolean)) {
-    return event.detailSummary;
-  }
   return buildEventDetailSummary(event);
 }
 
@@ -174,7 +172,7 @@ export function EventDetailView({
           <p className={styles.empty}>시장 기대 숫자가 아직 없습니다.</p>
         )}
 
-        <h3 className={styles.sub}>이 일정의 의미</h3>
+        <h3 className={styles.sub}>점검 포인트</h3>
         {meaningLines.length > 0 ? (
           <ul className={styles.scanList}>
             {meaningLines.map((line) => (
@@ -216,7 +214,7 @@ export function EventDetailView({
             <p className={styles.empty}>반응 근거 부족</p>
           )}
 
-          <h3 className={styles.sub}>이 결과가 의미하는 것</h3>
+          <h3 className={styles.sub}>발표 후 점검</h3>
           {implicationLines.length > 0 ? (
             <ul className={styles.scanList}>
               {implicationLines.map((line) => (

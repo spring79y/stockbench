@@ -24,12 +24,13 @@ describe("buildEventDetailSummary", () => {
     };
     const s = buildEventDetailSummary(event, new Date("2026-08-01T00:00:00.000Z"));
     assert.match(s.expectation ?? "", /시장 예상/);
-    assert.ok(s.meaning);
+    assert.match(s.meaning ?? "", /^점검 포인트는/);
+    assert.doesNotMatch(s.meaning ?? "", /단정|매수|매도/);
     assert.equal(s.result, undefined);
     assert.equal(s.reaction, undefined);
   });
 
-  it("posts result + news reaction; implication only with Evidence", () => {
+  it("posts result + news reaction; implication with Evidence", () => {
     const now = new Date("2026-08-07T07:00:00.000Z");
     const event: MarketEvent = {
       id: "earnings-naver",
@@ -57,19 +58,21 @@ describe("buildEventDetailSummary", () => {
           snippet: "매출은 뛰고 이익은 멈췄다···네이버, 2분기 실적 '명암'",
         },
         {
-          title: "네이버, 2분기 실적 발표…AI 팩토리",
+          title: "네이버 주가 급락…실적 후 반응",
           publisher: "x",
           publishedAt: "2026-08-07T03:29:00.000Z",
-          snippet: "네이버, 2분기 실적 발표…AI 팩토리",
+          snippet: "네이버 주가 급락…실적 후 반응",
         },
       ],
     };
     const s = buildEventDetailSummary(event, now);
     assert.match(s.result ?? "", /5,203/);
     assert.ok(s.reaction);
+    assert.match(s.reaction!, /시장 반응/);
     assert.ok((s.reaction!.split("\n").length) <= 2);
-    assert.ok(s.implication);
-    assert.doesNotMatch(s.implication!, /매수|매도/);
+    assert.doesNotMatch(s.reaction!, /단정|매수|매도/);
+    assert.match(s.implication ?? "", /^점검 포인트는/);
+    assert.doesNotMatch(s.implication!, /단정|매수|매도/);
   });
 
   it("uses 반응 근거 부족 when post without news", () => {
@@ -89,7 +92,7 @@ describe("buildEventDetailSummary", () => {
     assert.equal(s.implication, undefined);
   });
 
-  it("templates macro meaning", () => {
+  it("templates macro meaning as 점검 포인트", () => {
     const event: MarketEvent = {
       id: "nfp",
       dateLabel: "08.07 (금)",
@@ -101,6 +104,7 @@ describe("buildEventDetailSummary", () => {
       dateISO: "2026-08-07T12:30:00-04:00",
     };
     const [out] = attachEventDetailSummaries([event]);
+    assert.match(out!.detailSummary?.meaning ?? "", /^점검 포인트는/);
     assert.match(out!.detailSummary?.meaning ?? "", /고용/);
     assert.equal(out!.detailSummary?.expectation, event.oneLiner);
   });

@@ -276,11 +276,10 @@ export function getEventDetail(event: MarketEvent): EventDetailContent {
   return DETAILS[event.id] ?? GENERIC;
 }
 
-export function formatBriefingUpdatedAt(iso: string | null | undefined): string {
-  if (!iso) return "업데이트 기록 없음";
+function briefingKstParts(iso: string): Intl.DateTimeFormatPart[] | null {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "업데이트 기록 없음";
-  const parts = new Intl.DateTimeFormat("en-CA", {
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
     month: "2-digit",
     day: "2-digit",
@@ -288,7 +287,29 @@ export function formatBriefingUpdatedAt(iso: string | null | undefined): string 
     minute: "2-digit",
     hour12: false,
   }).formatToParts(d);
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((p) => p.type === type)?.value ?? "";
-  return `${get("month")}.${get("day")} ${get("hour")}:${get("minute")}`;
+}
+
+function partValue(
+  parts: Intl.DateTimeFormatPart[],
+  type: Intl.DateTimeFormatPartTypes,
+): string {
+  return parts.find((p) => p.type === type)?.value ?? "";
+}
+
+export function formatBriefingUpdatedAt(iso: string | null | undefined): string {
+  if (!iso) return "업데이트 기록 없음";
+  const parts = briefingKstParts(iso);
+  if (!parts) return "업데이트 기록 없음";
+  return `${partValue(parts, "month")}.${partValue(parts, "day")} ${partValue(parts, "hour")}:${partValue(parts, "minute")}`;
+}
+
+/** Overview stamp — `14:10` KST, or null when unknown. */
+export function formatBriefingClock(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const parts = briefingKstParts(iso);
+  if (!parts) return null;
+  const hour = partValue(parts, "hour");
+  const minute = partValue(parts, "minute");
+  if (!hour || !minute) return null;
+  return `${hour}:${minute}`;
 }

@@ -1,8 +1,9 @@
 import type { EditorialView } from "@/lib/pipeline/types";
-import { formatBriefingUpdatedAt } from "@/lib/events/catalog";
+import { buildOverviewMarketCue } from "@/lib/pipeline/overviewCue";
+import { formatBriefingClock } from "@/lib/events/catalog";
 import styles from "./OverviewDualBrief.module.css";
 
-/** 증시개요 — 한·미 짧은 브리핑을 나란히 */
+/** 증시개요 — Decision 1줄 큐 + 점검 ≤2 (한·미). 풀 A/B·풀 브리핑 복제 없음. */
 export function OverviewDualBrief({
   kr,
   us,
@@ -10,55 +11,91 @@ export function OverviewDualBrief({
   kr: EditorialView;
   us: EditorialView;
 }) {
+  const krCue = buildOverviewMarketCue(kr);
+  const usCue = buildOverviewMarketCue(us);
+  if (!krCue && !usCue) return null;
+
+  const krClock = formatBriefingClock(kr.publishedAt) ?? "";
+  const usClock = formatBriefingClock(us.publishedAt) ?? "";
+  const stampLine =
+    krClock && usClock
+      ? `한국 ${krClock} · 미국 ${usClock}`
+      : krClock
+        ? `한국 ${krClock}`
+        : usClock
+          ? `미국 ${usClock}`
+          : null;
+
   return (
-    <section className="board-block overview-dual" aria-labelledby="overview-brief-title">
+    <section className="board-block overview-dual" aria-labelledby="overview-cue-title">
       <div className="block-head">
         <div>
-          <h2 id="overview-brief-title" className="block-head__title">
-            한눈 브리핑
+          <h2 id="overview-cue-title" className="block-head__title">
+            그래서 뭘 보면 되지
           </h2>
-          <p className="block-head__sub">한국·미국 핵심만 · 자세한 내용은 각 탭</p>
+          <p className="block-head__sub">
+            {stampLine ? (
+              <>
+                <span className={styles.stampLine}>{stampLine}</span>
+                <span className={styles.stampSep}> · </span>
+              </>
+            ) : null}
+            한·미 각 1줄 · 자세한 시나리오는 각 탭
+          </p>
         </div>
       </div>
 
       <div className={styles.grid}>
-        <OverviewSideBrief
-          label="한국"
-          view={kr}
-          updated={formatBriefingUpdatedAt(kr.publishedAt)}
-        />
-        <OverviewSideBrief
-          label="미국"
-          view={us}
-          updated={formatBriefingUpdatedAt(us.publishedAt)}
-        />
+        {krCue ? (
+          <OverviewSideCue
+            label="한국"
+            cue={krCue.cue}
+            checks={krCue.checks}
+            clock={krClock}
+          />
+        ) : null}
+        {usCue ? (
+          <OverviewSideCue
+            label="미국"
+            cue={usCue.cue}
+            checks={usCue.checks}
+            clock={usClock}
+          />
+        ) : null}
       </div>
     </section>
   );
 }
 
-function OverviewSideBrief({
+function OverviewSideCue({
   label,
-  view,
-  updated,
+  cue,
+  checks,
+  clock,
 }: {
   label: string;
-  view: EditorialView;
-  updated: string;
+  cue: string;
+  checks: Array<{ id: string; text: string }>;
+  clock: string;
 }) {
-  const bullets = view.briefing.bullets.slice(0, 2);
   return (
     <article className={styles.card}>
       <header className={styles.head}>
         <h3 className={styles.label}>{label}</h3>
-        {updated ? <p className={styles.updated}>{updated}</p> : null}
+        {clock ? (
+          <p className={styles.updated} title="브리핑 발행 시각(KST)">
+            {clock}
+          </p>
+        ) : null}
       </header>
-      <p className={styles.headline}>{view.briefing.headline}</p>
-      <ul className={styles.bullets}>
-        {bullets.map((b) => (
-          <li key={b}>{b}</li>
-        ))}
-      </ul>
+      {cue ? <p className={styles.cueLine}>{cue}</p> : null}
+      {checks.length > 0 ? (
+        <ul className={styles.checks}>
+          {checks.map((c) => (
+            <li key={c.id}>{c.text}</li>
+          ))}
+        </ul>
+      ) : null}
     </article>
   );
 }

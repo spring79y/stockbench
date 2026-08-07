@@ -26,26 +26,40 @@
 
 .updated {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--brand, #1d4f91);
+  font-variant-numeric: tabular-nums;
+}
+
+.stampLine {
+  font-weight: 700;
+  color: var(--ink, #0f172a);
+  font-variant-numeric: tabular-nums;
+}
+
+.stampSep {
   color: var(--muted, #64748b);
 }
 
-.headline {
-  margin: 0 0 0.65rem;
-  font-size: 1.05rem;
-  font-weight: 650;
-  line-height: 1.35;
-  letter-spacing: -0.02em;
+.cueLine {
+  margin: 0 0 0.45rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--ink, #0f172a);
 }
 
-.bullets {
+.checks {
   margin: 0;
-  padding-left: 1.1rem;
+  padding-left: 1.05rem;
   display: grid;
-  gap: 0.35rem;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
   color: var(--muted, #475569);
-  font-size: 0.9rem;
-  line-height: 1.45;
 }
 
 @media (max-width: 720px) {

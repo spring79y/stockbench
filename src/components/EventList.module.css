@@ -6,10 +6,16 @@
   gap: 0;
 }
 
+.list > li {
+  display: block;
+}
+
 .row {
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  width: 100%;
+  box-sizing: border-box;
   padding: 0.75rem 0.55rem;
   border: none;
   border-bottom: 1px solid var(--line, #e2e8f0);
@@ -19,6 +25,8 @@
   transition: background 0.15s ease;
   text-decoration: none;
   color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .row:hover {

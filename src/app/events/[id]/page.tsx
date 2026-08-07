@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { EventDetailView } from "@/components/EventDetailView";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { attachEventDetailSummaries } from "@/lib/events/attachEventDetailSummaries";
 import { findEventById, getEventDetail } from "@/lib/events/catalog";
 import { fetchLiveUpcomingEvents } from "@/lib/events/fetchLiveUpcomingEvents";
 import { mergePublishedEarningsEvidence } from "@/lib/events/mergePublishedEarnings";
@@ -17,11 +18,21 @@ type PageProps = {
   searchParams: Promise<{ from?: string }>;
 };
 
+async function loadEvents() {
+  const [board, liveEvents] = await Promise.all([
+    loadPublishedBoard(),
+    fetchLiveUpcomingEvents(),
+  ]);
+  return attachEventDetailSummaries(
+    mergePublishedEarningsEvidence(liveEvents, board.events),
+  );
+}
+
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
-  const [board, liveEvents] = await Promise.all([loadPublishedBoard(), fetchLiveUpcomingEvents()]);
-  const events = mergePublishedEarningsEvidence(liveEvents, board.events);
-  const event = findEventById(id, events);
+  const decoded = decodeURIComponent(id);
+  const events = await loadEvents();
+  const event = findEventById(decoded, events);
   return {
     title: event ? `${event.title} — StockBench` : "일정 — StockBench",
   };
@@ -30,9 +41,9 @@ export async function generateMetadata({ params }: PageProps) {
 export default async function EventPage({ params, searchParams }: PageProps) {
   const { id } = await params;
   const { from } = await searchParams;
-  const [board, liveEvents] = await Promise.all([loadPublishedBoard(), fetchLiveUpcomingEvents()]);
-  const events = mergePublishedEarningsEvidence(liveEvents, board.events);
-  const event = findEventById(id, events);
+  const decoded = decodeURIComponent(id);
+  const events = await loadEvents();
+  const event = findEventById(decoded, events);
   if (!event) notFound();
 
   const detail = getEventDetail(event);
