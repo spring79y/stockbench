@@ -99,20 +99,47 @@ function pickRevenueRow(rows: NaverRow[]): NaverRow | undefined {
   return rows.find((r) => r.title === "매출액");
 }
 
+function readOpRevenueForKey(
+  payload: NaverFinanceQuarter,
+  opts: { periodKey: string; columnKey: string; region: MarketRegion },
+): NaverOpConsensus | null {
+  const info = payload.financeInfo ?? payload;
+  const rows = info.rowList ?? [];
+  const scale = scaleForUnit(payload.unit, opts.region);
+  if (scale == null) return null;
+
+  const opRow = pickOpRow(rows);
+  if (!opRow?.columns) return null;
+
+  const opRaw = parseSignedAmount(
+    opRow.columns[opts.columnKey]?.value,
+    opRow.columns[opts.columnKey]?.cx,
+  );
+  if (opRaw == null) return null;
+
+  const revRow = pickRevenueRow(rows);
+  const revRaw = revRow?.columns
+    ? parseSignedAmount(
+        revRow.columns[opts.columnKey]?.value,
+        revRow.columns[opts.columnKey]?.cx,
+      )
+    : null;
+
+  return {
+    operatingProfitAvg: opRaw * scale,
+    revenueAvg: revRaw != null ? revRaw * scale : undefined,
+    periodKey: opts.periodKey,
+    source: "naver",
+  };
+}
+
 export function parseNaverOpConsensus(
   payload: NaverFinanceQuarter,
   opts: { expectedPeriodKey: string; region: MarketRegion },
 ): NaverOpConsensus | null {
   const info = payload.financeInfo ?? payload;
   const titles = info.trTitleList ?? [];
-  const rows = info.rowList ?? [];
-  if (titles.length === 0 || rows.length === 0) return null;
-
-  const scale = scaleForUnit(payload.unit, opts.region);
-  if (scale == null) return null;
-
-  const opRow = pickOpRow(rows);
-  if (!opRow?.columns) return null;
+  if (titles.length === 0) return null;
 
   const consensusCols = titles.filter((t) => t.isConsensus === "Y" && t.key);
   const matched =
@@ -123,30 +150,65 @@ export function parseNaverOpConsensus(
   const periodKey = normalizeNaverPeriodKey(matched.key);
   if (!periodKey) return null;
 
-  const opRaw = parseSignedAmount(
-    opRow.columns[matched.key]?.value,
-    opRow.columns[matched.key]?.cx,
-  );
-  if (opRaw == null) return null;
-
-  const revRow = pickRevenueRow(rows);
-  const revRaw = revRow?.columns
-    ? parseSignedAmount(
-        revRow.columns[matched.key]?.value,
-        revRow.columns[matched.key]?.cx,
-      )
-    : null;
-
-  return {
-    operatingProfitAvg: opRaw * scale,
-    revenueAvg: revRaw != null ? revRaw * scale : undefined,
+  return readOpRevenueForKey(payload, {
     periodKey,
-    source: "naver",
-  };
+    columnKey: matched.key,
+    region: opts.region,
+  });
+}
+
+/**
+ * Reported (non-consensus) OP+매출 for the fiscal period.
+ * Only when Naver has flipped the quarter off `isConsensus=Y` — never treat consensus as actual.
+ */
+export function parseNaverOpActual(
+  payload: NaverFinanceQuarter,
+  opts: { expectedPeriodKey: string; region: MarketRegion },
+): NaverOpConsensus | null {
+  const info = payload.financeInfo ?? payload;
+  const titles = info.trTitleList ?? [];
+  if (titles.length === 0) return null;
+
+  const reportedCols = titles.filter((t) => t.isConsensus !== "Y" && t.key);
+  const matched =
+    reportedCols.find((t) => normalizeNaverPeriodKey(t.key!) === opts.expectedPeriodKey) ??
+    null;
+  if (!matched?.key) return null;
+
+  const periodKey = normalizeNaverPeriodKey(matched.key);
+  if (!periodKey) return null;
+
+  return readOpRevenueForKey(payload, {
+    periodKey,
+    columnKey: matched.key,
+    region: opts.region,
+  });
 }
 
 function naverKrUrl(code: string): string {
   return `https://m.stock.naver.com/api/stock/${code}/finance/quarter`;
+}
+
+async function fetchNaverFinanceQuarter(
+  symbol: string,
+  region: MarketRegion,
+): Promise<NaverFinanceQuarter | null> {
+  if (region !== "KR") return null;
+  const code = toKrItemCode(symbol);
+  if (!code) return null;
+  try {
+    const res = await fetch(naverKrUrl(code), {
+      headers: {
+        ...KR_HEADERS,
+        Referer: `https://m.stock.naver.com/domestic/stock/${code}`,
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as NaverFinanceQuarter;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -158,29 +220,40 @@ export async function fetchNaverOpConsensus(opts: {
   region: MarketRegion;
   earningsDateISO: string;
 }): Promise<NaverOpConsensus | null> {
-  if (opts.region !== "KR") return null;
-
-  const code = toKrItemCode(opts.symbol);
-  if (!code) return null;
-
   const expectedPeriodKey = fiscalQuarterEndKeyFromEarningsDate(opts.earningsDateISO);
   if (!expectedPeriodKey) return null;
 
-  try {
-    const res = await fetch(naverKrUrl(code), {
-      headers: {
-        ...KR_HEADERS,
-        Referer: `https://m.stock.naver.com/domestic/stock/${code}`,
-      },
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const payload = (await res.json()) as NaverFinanceQuarter;
-    return parseNaverOpConsensus(payload, {
+  const payload = await fetchNaverFinanceQuarter(opts.symbol, opts.region);
+  if (!payload) return null;
+  return parseNaverOpConsensus(payload, {
+    expectedPeriodKey,
+    region: opts.region,
+  });
+}
+
+/**
+ * Single Naver finance/quarter fetch → consensus and/or reported OP for the period.
+ * Prefer this in Collector to avoid duplicate network calls.
+ */
+export async function fetchNaverOpForEarnings(opts: {
+  symbol: string;
+  region: MarketRegion;
+  earningsDateISO: string;
+}): Promise<{ consensus: NaverOpConsensus | null; actual: NaverOpConsensus | null }> {
+  const empty = { consensus: null, actual: null };
+  const expectedPeriodKey = fiscalQuarterEndKeyFromEarningsDate(opts.earningsDateISO);
+  if (!expectedPeriodKey) return empty;
+
+  const payload = await fetchNaverFinanceQuarter(opts.symbol, opts.region);
+  if (!payload) return empty;
+  return {
+    consensus: parseNaverOpConsensus(payload, {
       expectedPeriodKey,
-      region: "KR",
-    });
-  } catch {
-    return null;
-  }
+      region: opts.region,
+    }),
+    actual: parseNaverOpActual(payload, {
+      expectedPeriodKey,
+      region: opts.region,
+    }),
+  };
 }

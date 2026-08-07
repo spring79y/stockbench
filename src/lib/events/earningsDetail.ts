@@ -113,35 +113,51 @@ function consensusLines(event: MarketEvent): string[] {
 }
 
 function actualLines(event: MarketEvent): string[] {
-  const epsActual = event.actual?.epsActual;
-  const epsEstimate = event.actual?.epsEstimate;
-  if (epsActual == null || epsEstimate == null) return [];
-  const a = event.actual!;
-  const region = event.region === "KR" ? "KR" : "US";
+  const a = event.actual;
+  const pending = /결과\s*집계\s*대기|결과\s*미확인/.test(event.oneLiner ?? "");
+  const lines: string[] = [];
 
-  const formatEps = (v: number) => {
-    if (region === "KR") return `${Math.round(v).toLocaleString()}원`;
-    return `$${v.toFixed(2)}`;
-  };
+  if (a?.operatingProfitActualLabel || a?.revenueActualLabel) {
+    if (a.revenueActualLabel) {
+      lines.push(`발표 결과(매출): ${a.revenueActualLabel}`);
+    }
+    if (a.operatingProfitActualLabel) {
+      lines.push(`발표 결과(영업이익): ${a.operatingProfitActualLabel}`);
+    }
+  }
 
-  // Never re-derive beat in UI — only Evidence beatLabel (Collector-resolved).
-  // Thin-source omit must stay omitted even if raw EPS vs estimate looks like a beat.
-  const beat = a.beatLabel;
-  const pct =
-    beat && a.surprisePct != null && Number.isFinite(a.surprisePct)
-      ? a.surprisePct
-      : undefined;
-  const pctNote =
-    beat && pct != null && Number.isFinite(pct)
-      ? ` (괴리 ${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)`
-      : "";
+  const epsActual = a?.epsActual;
+  const epsEstimate = a?.epsEstimate;
+  if (epsActual != null && epsEstimate != null) {
+    const region = event.region === "KR" ? "KR" : "US";
+    const formatEps = (v: number) => {
+      if (region === "KR") return `${Math.round(v).toLocaleString()}원`;
+      return `$${v.toFixed(2)}`;
+    };
 
-  // Thin-source: numbers only — no qualitative Collector judgment in UI.
-  const lines = [
-    `발표 결과(주당 순이익): 실제 ${formatEps(epsActual)} · 시장 예상 ${formatEps(epsEstimate)}`,
-  ];
-  if (beat) {
-    lines.push(`시장 예상 대비(주당 순이익): ${beat}${pctNote}`);
+    // Never re-derive beat in UI — only Evidence beatLabel (Collector-resolved).
+    const beat = a!.beatLabel;
+    const pct =
+      beat && a!.surprisePct != null && Number.isFinite(a!.surprisePct)
+        ? a!.surprisePct
+        : undefined;
+    const pctNote =
+      beat && pct != null && Number.isFinite(pct)
+        ? ` (괴리 ${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)`
+        : "";
+
+    lines.push(
+      `발표 결과(주당 순이익): 실제 ${formatEps(epsActual)} · 시장 예상 ${formatEps(epsEstimate)}`,
+    );
+    if (beat) {
+      lines.push(`시장 예상 대비(주당 순이익): ${beat}${pctNote}`);
+    }
+  }
+
+  if (lines.length === 0 && pending) {
+    lines.push(
+      "발표됨 · 결과 집계 대기 — Yahoo/네이버 구조화 숫자가 아직 없습니다. 아래 뉴스만 참고하고 숫자를 짐작하지 마세요.",
+    );
   }
   return lines;
 }

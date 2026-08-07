@@ -2,6 +2,7 @@ import type { EarningsConsensus, IndexChangeBasis, IndexQuote, MacroChip, Market
 import {
   epsDisplayLabel,
   formatEps,
+  formatRevenue,
   operatingProfitDisplayLabel,
   revenueDisplayLabel,
 } from "@/lib/market/earningsFormat";
@@ -93,6 +94,10 @@ export type EvidencePack = {
       surprisePct?: number;
       beatLabel?: "서프라이즈" | "미스";
       reportedDateISO?: string;
+      operatingProfitActual?: number;
+      operatingProfitActualLabel?: string;
+      revenueActual?: number;
+      revenueActualLabel?: string;
     };
     /**
      * Structured consensus (raw + labels). Prompt text must use *Label / formatters —
@@ -412,14 +417,20 @@ function formatEarningsEventLine(e: EvidencePack["events"][number]): string {
   const when = e.dateISO ? ` · ${e.dateISO.slice(0, 10)}` : "";
   const region = e.region === "KR" || e.region === "US" ? e.region : undefined;
   const hasNews = Boolean(e.contextNews && e.contextNews.length > 0);
-  const hasNums =
+  const hasEps =
     e.actual?.epsActual != null && e.actual?.epsEstimate != null;
+  const hasOpActual =
+    e.actual?.operatingProfitActual != null ||
+    Boolean(e.actual?.operatingProfitActualLabel);
+  const pending = /결과\s*집계\s*대기|결과\s*미확인/.test(e.oneLiner ?? "");
   const dualFlag =
-    e.kind === "earnings" && hasNums && hasNews
+    e.kind === "earnings" && (hasEps || hasOpActual) && hasNews
       ? " · ★이중서술필수(숫자+뉴스)"
-      : e.kind === "earnings" && hasNums && !hasNews
-        ? " · 반응뉴스없음(풍부서술금지)"
-        : "";
+      : e.kind === "earnings" && pending && hasNews
+        ? " · ★이중서술필수(발표됨·집계대기+뉴스·숫자창작금지)"
+        : e.kind === "earnings" && (hasEps || hasOpActual) && !hasNews
+          ? " · 반응뉴스없음(풍부서술금지)"
+          : "";
 
   let consensusHint = "";
   if (e.kind === "earnings" && e.consensus) {
@@ -437,26 +448,53 @@ function formatEarningsEventLine(e: EvidencePack["events"][number]): string {
   }
 
   let result = "";
-  if (e.kind === "earnings" && e.actual) {
+  if (e.kind === "earnings" && (e.actual || pending)) {
+    const opAct =
+      e.actual?.operatingProfitActualLabel ??
+      (e.actual?.operatingProfitActual != null && region
+        ? formatRevenue(e.actual.operatingProfitActual, region)
+        : null);
+    const revAct =
+      e.actual?.revenueActualLabel ??
+      (e.actual?.revenueActual != null && region
+        ? formatRevenue(e.actual.revenueActual, region)
+        : null);
+    const companyParts: string[] = [];
+    if (revAct) companyParts.push(`매출실제=${revAct}`);
+    if (opAct) companyParts.push(`영업이익실제=${opAct}`);
+
     const epsActualFmt =
-      e.actual.epsActual != null && region
+      e.actual?.epsActual != null && region
         ? formatEps(e.actual.epsActual, region)
-        : e.actual.epsActual != null
+        : e.actual?.epsActual != null
           ? String(e.actual.epsActual)
           : null;
     const epsEstFmt =
-      e.actual.epsEstimate != null && region
+      e.actual?.epsEstimate != null && region
         ? formatEps(e.actual.epsEstimate, region)
-        : e.actual.epsEstimate != null
+        : e.actual?.epsEstimate != null
           ? String(e.actual.epsEstimate)
           : null;
-    if (e.actual.beatLabel) {
+
+    if (companyParts.length > 0) {
+      result = ` · Evidence결과: ${companyParts.join(" · ")}`;
+      if (e.actual?.beatLabel) {
+        result += ` · EPS ${e.actual.beatLabel}`;
+        if (epsActualFmt && epsEstFmt) {
+          result += ` actual=${epsActualFmt} est=${epsEstFmt}`;
+        }
+      } else if (epsActualFmt && epsEstFmt) {
+        result += ` · EPS숫자만 actual=${epsActualFmt} est=${epsEstFmt}`;
+      }
+    } else if (e.actual?.beatLabel) {
       result = ` · Evidence결과(EPS): ${e.actual.beatLabel}`;
       if (epsActualFmt && epsEstFmt) {
         result += ` actual=${epsActualFmt} est=${epsEstFmt}`;
       }
     } else if (epsActualFmt && epsEstFmt) {
       result = ` · Evidence결과(EPS): 숫자만(라벨없음) actual=${epsActualFmt} est=${epsEstFmt}`;
+    } else if (pending) {
+      result = " · Evidence결과: 발표됨·집계 대기(API 숫자 없음·창작 금지)";
     } else {
       result = " · Evidence결과(EPS): 미확인";
     }

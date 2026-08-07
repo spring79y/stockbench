@@ -26,18 +26,21 @@ describe("isEarningsContextNewsWindow", () => {
     );
   });
 
-  it("excludes macro and far-future earnings", () => {
+  it("includes post/awaiting window within 36h even without EPS numbers", () => {
+    const dateISO = new Date(Date.now() - 10 * 3600_000).toISOString();
     assert.equal(
-      isEarningsContextNewsWindow(
-        { kind: "macro", dateISO: new Date().toISOString() },
-        new Date(),
-      ),
-      false,
+      isEarningsContextNewsWindow({ kind: "earnings", dateISO }, new Date()),
+      true,
     );
-    const far = new Date(Date.now() + 5 * 24 * 3600_000).toISOString();
+  });
+
+  it("includes same KST calendar day even before Yahoo clock", () => {
+    // Build a same-KST-day afternoon stamp while "now" is morning KST.
+    const now = new Date("2026-08-07T01:00:00.000Z"); // 10:00 KST
+    const dateISO = "2026-08-07T06:00:00.000Z"; // 15:00 KST
     assert.equal(
-      isEarningsContextNewsWindow({ kind: "earnings", dateISO: far }, new Date()),
-      false,
+      isEarningsContextNewsWindow({ kind: "earnings", dateISO }, now),
+      true,
     );
   });
 });

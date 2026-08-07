@@ -338,4 +338,71 @@ describe("guard earnings polarity omit", () => {
     );
     assert.equal(report.ok, false);
   });
+
+  it("treats pending aggregation + contextNews as post must-cover (no invented numbers)", () => {
+    const dateISO = new Date(Date.now() + 4 * 3600_000).toISOString(); // Yahoo stamp still future
+    const events: CollectorSnapshot["events"] = [
+      {
+        id: "earnings-naver",
+        dateLabel: "오늘",
+        region: "KR",
+        title: "NAVER 실적 발표",
+        level: "high",
+        oneLiner: "발표됨 · 결과 집계 대기",
+        kind: "earnings",
+        symbol: "035420.KS",
+        megaCapId: "naver",
+        dateISO,
+        contextNews: [
+          {
+            title: "네이버, 2Q 영업익 5203억원…비용 증가에 '어닝 쇼크'",
+            publisher: "네이트",
+            publishedAt: new Date().toISOString(),
+            snippet: "네이버, 2Q 영업익 5203억원…비용 증가에 '어닝 쇼크'",
+          },
+        ],
+      },
+    ];
+    const briefingOmit: BriefingDraft = {
+      headline: "코스피 약세 속 대형주 온도 점검",
+      bullets: [
+        "코스피 약세, 시총 상위 평균 낙폭",
+        "원/달러·VIX 흔들림 점검",
+        "NAVER 실적 발표됨 — 점검만",
+      ],
+      evidenceIds: [],
+    };
+    const omitReport = runGuard({
+      snapshot: baseSnapshot(events),
+      briefing: briefingOmit,
+      decision: okDecision,
+      scope: "kr",
+    });
+    assert.ok(
+      omitReport.findings.some(
+        (f) => f.severity === "block" && f.code === "earnings-reaction-omission",
+      ),
+      `expected pending+news reaction omission, got: ${omitReport.findings.map((f) => `${f.severity}:${f.code}`).join(",")}`,
+    );
+
+    const briefingOk: BriefingDraft = {
+      headline: "코스피 약세 속 네이버 실적 소화",
+      bullets: [
+        "코스피 약세, 시총 상위 평균 낙폭",
+        "NAVER 실적 발표됨 · 결과 집계 대기 — Evidence뉴스상 어닝 쇼크·비용 증가 언급, 섹터 반응 점검",
+        "원/달러·VIX 흔들림 점검",
+      ],
+      evidenceIds: [],
+    };
+    const okReport = runGuard({
+      snapshot: baseSnapshot(events),
+      briefing: briefingOk,
+      decision: okDecision,
+      scope: "kr",
+    });
+    assert.equal(
+      okReport.findings.filter((f) => f.code === "earnings-reaction-omission").length,
+      0,
+    );
+  });
 });

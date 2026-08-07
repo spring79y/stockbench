@@ -1,3 +1,8 @@
+import {
+  contextNewsSuggestsPrinted,
+  hasStructuredEarningsActual,
+  isPendingResultOneLiner,
+} from "@/lib/market/earningsAnnounced";
 import type { EvidencePack } from "@/lib/pipeline/evidencePack";
 import type {
   EditorialView,
@@ -156,18 +161,27 @@ function resolveCheckAgainstEvidence(
         note: "실적 결과 Evidence 있음 → Briefing이 요약 (반응은 contextNews 있을 때)",
       };
     }
-    if (
-      hours < 0 &&
-      ev.actual?.epsActual != null &&
-      ev.actual?.epsEstimate != null
-    ) {
+    if (hours < 0 && hasStructuredEarningsActual(ev.actual)) {
       const hasNews = Array.isArray(ev.contextNews) && ev.contextNews.length > 0;
       return {
-        fact: ev.oneLiner || `${name} 실적 발표됨 · 주당순이익(EPS) 숫자 Evidence`,
+        fact: ev.oneLiner || `${name} 실적 발표됨 · Evidence 숫자`,
         status: "resolved",
         note: hasNews
           ? "숫자+Evidence뉴스 있음 → Briefing이 결과·시장 반응(이중 서술) 요약. beatLabel 없으면 서프라이즈/미스 단정 금지"
           : "숫자만 · 반응 근거 부족이면 「반응 근거 부족」1줄 또는 생략. 극성 단정 금지",
+      };
+    }
+    if (
+      (hours < 0 || contextNewsSuggestsPrinted(ev.contextNews)) &&
+      (isPendingResultOneLiner(ev.oneLiner) || contextNewsSuggestsPrinted(ev.contextNews))
+    ) {
+      const hasNews = Array.isArray(ev.contextNews) && ev.contextNews.length > 0;
+      return {
+        fact: ev.oneLiner || `${name} 실적 발표됨 · 결과 집계 대기`,
+        status: "due",
+        note: hasNews
+          ? "발표됨·집계 대기 + Evidence뉴스 → Briefing이 뉴스 기반 결과·반응 요약(숫자 창작 금지)"
+          : "실적 시점은 지났으나 Evidence에 결과 미확인 — 대기/생략 (창작 금지)",
       };
     }
     if (hours < 0 && !ev.actual?.beatLabel) {
@@ -228,18 +242,27 @@ function resolveUpcomingEvent(
         note: "도래한 실적+결과 Evidence 있음 → mustCover",
       };
     }
-    if (
-      ev.kind === "earnings" &&
-      ev.actual?.epsActual != null &&
-      ev.actual?.epsEstimate != null
-    ) {
+    if (ev.kind === "earnings" && hasStructuredEarningsActual(ev.actual)) {
       const hasNews = Array.isArray(ev.contextNews) && ev.contextNews.length > 0;
       return {
-        fact: ev.oneLiner || `${ev.title}: 주당순이익(EPS) 숫자 Evidence`,
+        fact: ev.oneLiner || `${ev.title}: Evidence 숫자`,
         status: "resolved",
         note: hasNews
           ? "숫자+뉴스 Evidence → mustCover · Briefing 이중 서술"
           : "숫자 Evidence → mustCover · 반응은 「반응 근거 부족」또는 생략",
+      };
+    }
+    if (
+      ev.kind === "earnings" &&
+      (isPendingResultOneLiner(ev.oneLiner) || contextNewsSuggestsPrinted(ev.contextNews))
+    ) {
+      const hasNews = Array.isArray(ev.contextNews) && ev.contextNews.length > 0;
+      return {
+        fact: ev.oneLiner || `${ev.title}: 발표됨 · 결과 집계 대기`,
+        status: "due",
+        note: hasNews
+          ? "발표됨·집계 대기+뉴스 → mustCover (뉴스 기반 · 숫자 창작 금지)"
+          : "실적 도래 · Evidence 결과 미확인 — 대기/생략",
       };
     }
     if (ev.kind === "earnings") {
@@ -251,6 +274,22 @@ function resolveUpcomingEvent(
     return {
       status: "due",
       note: "일정 도래 · Evidence 사실만 반영",
+    };
+  }
+  // Same-day morning print while Yahoo stamp still future
+  if (
+    hours >= 0 &&
+    hours <= 12 &&
+    ev.kind === "earnings" &&
+    (isPendingResultOneLiner(ev.oneLiner) || contextNewsSuggestsPrinted(ev.contextNews))
+  ) {
+    const hasNews = Array.isArray(ev.contextNews) && ev.contextNews.length > 0;
+    return {
+      fact: ev.oneLiner || `${ev.title}: 발표됨 · 결과 집계 대기`,
+      status: "due",
+      note: hasNews
+        ? "당일 발표(뉴스)·집계 대기 → mustCover (Yahoo 시각 전 · 숫자 창작 금지)"
+        : "당일 발표 신호 · 결과 미확인",
     };
   }
   if (hours <= 72) {
@@ -295,7 +334,7 @@ function isIrrelevantDue(
 }
 
 function priority(item: CarryForwardItem): number {
-  if (item.mustCover && item.status === "resolved") return 0;
+  if (item.mustCover) return 0;
   if (item.status === "resolved") return 1;
   if (item.status === "due") return 2;
   if (item.status === "refresh") return 3;
@@ -313,10 +352,13 @@ function hasLiveMustCover(
       return false;
     }
     const hours = hoursUntil(ev.dateISO, now);
-    const hasResult =
-      Boolean(ev.actual?.beatLabel) ||
-      (ev.actual?.epsActual != null && ev.actual?.epsEstimate != null);
-    return hours < 0 && hours >= -24 && hasResult;
+    const hasResult = hasStructuredEarningsActual(ev.actual);
+    const awaiting =
+      isPendingResultOneLiner(ev.oneLiner) || contextNewsSuggestsPrinted(ev.contextNews);
+    return (
+      ((hours < 0 && hours >= -24) || (hours >= 0 && hours <= 12 && awaiting)) &&
+      (hasResult || awaiting)
+    );
   }) || pack.risk.elevated;
 }
 
@@ -422,7 +464,8 @@ export function buildCarryForward(input: {
     if (raw.some((r) => r.priorText.includes(ev.title.slice(0, 8)))) continue;
 
     const mustCover =
-      Boolean(withCurrent.fact) && withCurrent.status === "resolved";
+      Boolean(withCurrent.fact) &&
+      (withCurrent.status === "resolved" || withCurrent.status === "due");
     raw.push({
       id: `upcoming-${ev.id}`,
       kind: "upcoming",

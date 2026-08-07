@@ -49,3 +49,15 @@ export function epsFactPhrase(actualFormatted: string, estimateFormatted: string
 export function revenueOpFactPhrase(revenueLabel: string, opLabel: string): string {
   return `시장 예상 매출 ${revenueLabel} · 영업이익 ${opLabel}`;
 }
+
+/** Post-report oneLiner from structured company-scale actuals (Collector only). */
+export function revenueOpActualFactPhrase(
+  opts: { revenueLabel?: string; opLabel?: string },
+): string | null {
+  if (opts.revenueLabel && opts.opLabel) {
+    return `발표됨 · 매출 ${opts.revenueLabel} · 영업이익 ${opts.opLabel}`;
+  }
+  if (opts.opLabel) return `발표됨 · 영업이익 ${opts.opLabel}`;
+  if (opts.revenueLabel) return `발표됨 · 매출 ${opts.revenueLabel}`;
+  return null;
+}

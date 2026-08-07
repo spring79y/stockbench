@@ -1,6 +1,10 @@
 import type YahooFinance from "yahoo-finance2";
-import { revenueOpFactPhrase } from "@/lib/events/earningsCopy";
+import {
+  revenueOpActualFactPhrase,
+  revenueOpFactPhrase,
+} from "@/lib/events/earningsCopy";
 import { kstCalendarDay } from "@/lib/events/upcomingRetention";
+import { PENDING_RESULT_ONELINER } from "@/lib/market/earningsAnnounced";
 import {
   earningsResultOneLiner,
   isConsensusLikelyRolledForward,
@@ -12,13 +16,16 @@ import {
   type EarningsBridgeSymbol,
 } from "@/lib/market/earningsBridge";
 import { formatEps, formatRevenue } from "@/lib/market/earningsFormat";
-import { fetchNaverOpConsensus } from "@/lib/market/fetchNaverOpConsensus";
+import {
+  fetchNaverOpForEarnings,
+  type NaverOpConsensus,
+} from "@/lib/market/fetchNaverOpConsensus";
 import {
   MEGA_CAP_CANDIDATES_KR,
   MEGA_CAP_CANDIDATES_US,
   type MegaCapCandidate,
 } from "@/lib/market/retailScan";
-import type { EarningsConsensus, MarketEvent, MarketRegion } from "@/lib/types";
+import type { EarningsActual, EarningsConsensus, MarketEvent, MarketRegion } from "@/lib/types";
 
 type CalendarEarnings = {
   earningsDate?: Date[];
@@ -54,6 +61,10 @@ export type EarningsFetchEntry = {
     surprisePct?: number;
     beatLabel?: "서프라이즈" | "미스";
     reportedDateISO?: string;
+    operatingProfitActual?: number;
+    operatingProfitActualLabel?: string;
+    revenueActual?: number;
+    revenueActualLabel?: string;
   };
   sector?: EarningsBridgeSymbol["sector"];
 };
@@ -94,12 +105,36 @@ function toConsensus(
 function toReportedConsensus(
   epsEstimate: number,
   region: MarketRegion,
+  extras?: { revenueAvg?: number; revenueLabel?: string },
 ): EarningsConsensus {
   return {
     epsAvg: epsEstimate,
     epsLabel: formatEps(epsEstimate, region),
+    revenueAvg: extras?.revenueAvg,
+    revenueLabel: extras?.revenueLabel,
     sources: ["yahoo"],
     isEstimate: false,
+  };
+}
+
+function attachNaverActualFields(
+  actual: EarningsActual | undefined,
+  naverActual: NaverOpConsensus | null,
+  region: MarketRegion,
+): EarningsActual | undefined {
+  if (!naverActual) return actual;
+  const opLabel = formatRevenue(naverActual.operatingProfitAvg, region);
+  const revLabel =
+    naverActual.revenueAvg != null
+      ? formatRevenue(naverActual.revenueAvg, region)
+      : undefined;
+  const base: EarningsActual = actual ?? {};
+  return {
+    ...base,
+    operatingProfitActual: naverActual.operatingProfitAvg,
+    operatingProfitActualLabel: opLabel,
+    revenueActual: naverActual.revenueAvg,
+    revenueActualLabel: revLabel,
   };
 }
 
@@ -109,7 +144,7 @@ function toReportedConsensus(
  */
 function mergeNaverOp(
   consensus: EarningsConsensus | undefined,
-  op: Awaited<ReturnType<typeof fetchNaverOpConsensus>>,
+  op: NaverOpConsensus | null,
   region: MarketRegion,
 ): EarningsConsensus | undefined {
   if (!op) return consensus;
@@ -177,6 +212,11 @@ async function fetchOne(
 
     const now = Date.now();
     const entryTime = new Date(dateISO).getTime();
+    const sameKstDay =
+      kstCalendarDay(new Date(dateISO)) === kstCalendarDay(new Date(now));
+    const clockPast = entryTime <= now;
+    // KR often prints in the morning while Yahoo stamps afternoon — try match on same KST day.
+    const tryPostPrint = clockPast || sameKstDay;
     const currentQuarterEstimate = parseFiniteNumber(
       result.earnings?.earningsChart?.currentQuarterEstimate,
     );
@@ -186,7 +226,7 @@ async function fetchOne(
       ? toConsensus(earnings, input.region)
       : undefined;
 
-    if (entryTime <= now) {
+    if (tryPostPrint) {
       const quarterlies = result.earnings?.earningsChart?.quarterly ?? [];
       const hit = matchQuarterlyForReport(quarterlies, entryTime);
 
@@ -222,10 +262,15 @@ async function fetchOne(
           };
 
           // Replace rolled-forward calendar consensus with the estimate we compared.
-          // OP omitted post-report — Naver consensus column may already be actuals.
-          consensus = toReportedConsensus(epsEstimate, input.region);
+          // Keep Yahoo revenue when present for company-scale detail.
+          const revAvg = parseFiniteNumber(earnings?.revenueAverage);
+          consensus = toReportedConsensus(epsEstimate, input.region, {
+            revenueAvg: revAvg,
+            revenueLabel:
+              revAvg != null ? formatRevenue(revAvg, input.region) : undefined,
+          });
         }
-      } else if (consensus && currentQuarterEstimate != null) {
+      } else if (clockPast && consensus && currentQuarterEstimate != null) {
         // Past date but no matched print: drop consensus if it already looks like next quarter.
         const calendarEps = parseFiniteNumber(earnings?.earningsAverage);
         if (
@@ -240,14 +285,21 @@ async function fetchOne(
       }
     }
 
-    // Pre-report (or thin past without print): attach Naver OP when quarter matches.
+    const naver = await fetchNaverOpForEarnings({
+      symbol: input.symbol,
+      region: input.region,
+      earningsDateISO: dateISO,
+    });
+
+    // Reported Naver OP (non-consensus column only) — attach when print window.
+    if (tryPostPrint && naver.actual) {
+      actual = attachNaverActualFields(actual, naver.actual, input.region);
+    }
+
+    // Pre-report (or awaiting print without structured actual): attach Naver OP consensus.
+    // Do not merge consensus OP once we already have structured actuals (avoids estimate-as-actual).
     if (!actual) {
-      const naverOp = await fetchNaverOpConsensus({
-        symbol: input.symbol,
-        region: input.region,
-        earningsDateISO: dateISO,
-      });
-      consensus = mergeNaverOp(consensus, naverOp, input.region);
+      consensus = mergeNaverOp(consensus, naver.consensus, input.region);
     }
 
     return {
@@ -327,13 +379,22 @@ function entryToEvent(entry: EarningsFetchEntry): MarketEvent {
     ? `earnings-${entry.megaCapId}`
     : `earnings-bridge-${entry.bridgeId ?? entry.symbol.toLowerCase()}`;
 
-  const hasActualNumbers =
+  const hasEps =
     entry.actual?.epsActual != null && entry.actual?.epsEstimate != null;
-  const postLine = hasActualNumbers
+  const companyScaleActualLine = revenueOpActualFactPhrase({
+    revenueLabel: entry.actual?.revenueActualLabel,
+    opLabel: entry.actual?.operatingProfitActualLabel,
+  });
+  const hasStructured =
+    hasEps ||
+    entry.actual?.operatingProfitActual != null ||
+    entry.actual?.revenueActual != null;
+  const postLine = hasStructured
     ? earningsResultOneLiner(entry.actual?.beatLabel, {
         epsActual: entry.actual?.epsActual,
         epsEstimate: entry.actual?.epsEstimate,
         region: entry.region,
+        companyScaleActualLine,
       })
     : null;
 
@@ -342,16 +403,20 @@ function entryToEvent(entry: EarningsFetchEntry): MarketEvent {
       ? EARNINGS_BRIDGE_SYMBOLS.find((b) => b.id === entry.bridgeId)?.relatedMegaCapIds
       : undefined;
 
+  const clockPast = new Date(entry.dateISO).getTime() <= Date.now();
   const opLabel = entry.consensus?.operatingProfitLabel;
   const revLabel = entry.consensus?.revenueLabel;
-  const preLine =
-    !postLine && opLabel && revLabel
-      ? revenueOpFactPhrase(revLabel, opLabel)
-      : !postLine && entry.isEstimate
-        ? "실적 발표 예정 (일정·시장 예상 참고)"
-        : !postLine
-          ? "실적 발표 예정"
-          : null;
+  let preLine: string | null = null;
+  if (!postLine && clockPast) {
+    // Due but APIs have no structured actual yet — never keep silent 「예정」.
+    preLine = PENDING_RESULT_ONELINER;
+  } else if (!postLine && opLabel && revLabel) {
+    preLine = revenueOpFactPhrase(revLabel, opLabel);
+  } else if (!postLine && entry.isEstimate) {
+    preLine = "실적 발표 예정 (일정·시장 예상 참고)";
+  } else if (!postLine) {
+    preLine = "실적 발표 예정";
+  }
 
   return {
     id,

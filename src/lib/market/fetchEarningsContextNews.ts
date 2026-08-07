@@ -4,6 +4,10 @@
  * LLM may summarize guidance/reaction only when these items exist.
  */
 import {
+  applyAnnouncedEarningsStatus,
+  isEarningsSameKstDay,
+} from "@/lib/market/earningsAnnounced";
+import {
   titleMatchesNewsTerms,
   type StockNewsItem,
 } from "@/lib/market/fetchStockNews";
@@ -175,15 +179,13 @@ export function isEarningsContextNewsWindow(
   now: Date = new Date(),
 ): boolean {
   if (event.kind !== "earnings" || !event.dateISO) return false;
+  // Same KST day always — covers KR morning print vs Yahoo afternoon stamp.
+  if (isEarningsSameKstDay(event.dateISO, now)) return true;
   const hours = (new Date(event.dateISO).getTime() - now.getTime()) / (60 * 60 * 1000);
-  const isPre = hours >= 0 && hours <= 48;
-  const hasNumbers =
-    event.actual?.epsActual != null && event.actual?.epsEstimate != null;
-  const isPost =
-    hours < 0 &&
-    hours >= -36 &&
-    (Boolean(event.actual?.beatLabel) || hasNumbers);
-  return isPre || isPost;
+  if (hours >= 0 && hours <= 48) return true;
+  // Post / awaiting aggregation (with or without structured actuals yet).
+  if (hours < 0 && hours >= -36) return true;
+  return false;
 }
 
 export async function fetchEarningsContextNewsForEvent(
@@ -241,7 +243,7 @@ export async function attachEarningsContextNews(
   now: Date = new Date(),
 ): Promise<MarketEvent[]> {
   const targets = events.filter((e) => isEarningsContextNewsWindow(e, now));
-  if (targets.length === 0) return events;
+  if (targets.length === 0) return applyAnnouncedEarningsStatus(events, now);
 
   const byId = new Map<string, EarningsContextNewsItem[]>();
   await Promise.all(
@@ -255,9 +257,10 @@ export async function attachEarningsContextNews(
     }),
   );
 
-  if (byId.size === 0) return events;
-  return events.map((e) => {
+  if (byId.size === 0) return applyAnnouncedEarningsStatus(events, now);
+  const withNews = events.map((e) => {
     const news = byId.get(e.id);
     return news ? { ...e, contextNews: news } : e;
   });
+  return applyAnnouncedEarningsStatus(withNews, now);
 }

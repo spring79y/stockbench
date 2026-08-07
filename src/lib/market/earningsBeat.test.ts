@@ -161,4 +161,16 @@ describe("earningsResultOneLiner", () => {
     assert.match(earningsResultOneLiner("서프라이즈"), /서프라이즈/);
     assert.doesNotMatch(earningsResultOneLiner("서프라이즈"), /판정\s*보류/);
   });
+
+  it("prefers company-scale actual line when provided", () => {
+    const line = earningsResultOneLiner(undefined, {
+      companyScaleActualLine: "발표됨 · 매출 약 3.4조원 · 영업이익 약 5,203억원",
+      epsActual: 3000,
+      epsEstimate: 3700,
+      region: "KR",
+    });
+    assert.match(line, /영업이익/);
+    assert.match(line, /주당순이익/);
+    assert.doesNotMatch(line, /서프라이즈|미스/);
+  });
 });

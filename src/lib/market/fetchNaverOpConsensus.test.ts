@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   fiscalQuarterEndKeyFromEarningsDate,
   normalizeNaverPeriodKey,
+  parseNaverOpActual,
   parseNaverOpConsensus,
 } from "./fetchNaverOpConsensus";
 
@@ -111,6 +112,43 @@ describe("parseNaverOpConsensus", () => {
         expectedPeriodKey: "202606",
         region: "US",
       }),
+      null,
+    );
+  });
+
+  it("parses reported (non-consensus) OP as actual — never consensus column", () => {
+    const payload = {
+      financeInfo: {
+        trTitleList: [
+          { isConsensus: "N", title: "2026.06.", key: "202606" },
+          { isConsensus: "Y", title: "2026.09.", key: "202609" },
+        ],
+        rowList: [
+          {
+            title: "매출액",
+            columns: {
+              "202606": { value: "33,000", cx: null },
+              "202609": { value: "34,000", cx: null },
+            },
+          },
+          {
+            title: "영업이익",
+            columns: {
+              "202606": { value: "5,203", cx: null },
+              "202609": { value: "5,800", cx: null },
+            },
+          },
+        ],
+      },
+    };
+    const actual = parseNaverOpActual(payload, {
+      expectedPeriodKey: "202606",
+      region: "KR",
+    });
+    assert.ok(actual);
+    assert.equal(actual!.operatingProfitAvg, 5_203 * 100_000_000);
+    assert.equal(
+      parseNaverOpConsensus(payload, { expectedPeriodKey: "202606", region: "KR" }),
       null,
     );
   });

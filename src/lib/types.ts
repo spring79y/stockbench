@@ -66,6 +66,15 @@ export interface EarningsActual {
    */
   beatLabel?: "서프라이즈" | "미스";
   reportedDateISO?: string;
+  /**
+   * 영업이익 실제 (절대 통화 단위). Collector만 — 네이버 금융 non-consensus 분기 열 등.
+   * 컨센서스 열·뉴스 헤드라인 파싱으로 채우지 않음.
+   */
+  operatingProfitActual?: number;
+  operatingProfitActualLabel?: string;
+  /** 매출 실제 (절대 통화 단위) — OP와 같은 출처·분기일 때만 */
+  revenueActual?: number;
+  revenueActualLabel?: string;
 }
 
 /**

@@ -1,3 +1,10 @@
+import {
+  contextNewsSuggestsPrinted,
+  hasStructuredEarningsActual,
+  isEarningsAnnounced,
+  isEarningsSameKstDay,
+  isPendingResultOneLiner,
+} from "@/lib/market/earningsAnnounced";
 import { EARNINGS_BRIDGE_SYMBOLS } from "@/lib/market/earningsBridge";
 import {
   MEGA_CAP_CANDIDATES_KR,
@@ -303,7 +310,7 @@ function proseMentionsEarningsIdentity(
 }
 
 function hasEarningsActualNumbers(ev: MarketEvent): boolean {
-  return ev.actual?.epsActual != null && ev.actual?.epsEstimate != null;
+  return hasStructuredEarningsActual(ev.actual);
 }
 
 function isImminentEarningsWindow(
@@ -311,13 +318,16 @@ function isImminentEarningsWindow(
   now: number,
 ): { ok: boolean; isPost: boolean } {
   if (ev.kind !== "earnings" || !ev.dateISO) return { ok: false, isPost: false };
+  const nowDate = new Date(now);
   const hours = (new Date(ev.dateISO).getTime() - now) / (60 * 60 * 1000);
-  const isPre = hours >= 0 && hours <= 48;
-  // Post window: matched print (beatLabel or EPS numbers). No quarterlies[0] guess upstream.
-  const isPost =
-    hours < 0 &&
-    hours >= -24 &&
-    (Boolean(ev.actual?.beatLabel) || hasEarningsActualNumbers(ev));
+  const sameDay = isEarningsSameKstDay(ev.dateISO, nowDate);
+  const announced = isEarningsAnnounced(ev, nowDate);
+  const withinPostHorizon =
+    sameDay || (hours < 0 && hours >= -36) || (hours >= 0 && hours <= 12 && announced);
+
+  // Post: structured actual, pending aggregation, or same-day news already printed.
+  const isPost = announced && withinPostHorizon;
+  const isPre = !isPost && hours >= 0 && hours <= 48;
   return { ok: isPre || isPost, isPost };
 }
 
@@ -462,8 +472,13 @@ function earningsIsForceOrMustCover(
 ): boolean {
   const items = continuityForScope(snapshot, scope);
   if (items.length === 0) {
-    // 연속성 없으면 라이브 due(숫자+뉴스)는 must-cover 급으로 취급 → noon 발행 차단
-    return hasEarningsActualNumbers(ev) && hasEarningsContextNews(ev);
+    // 연속성 없으면 라이브 due(구조화 숫자 또는 집계대기 + 뉴스)는 must-cover 급
+    return (
+      hasEarningsContextNews(ev) &&
+      (hasEarningsActualNumbers(ev) ||
+        isPendingResultOneLiner(ev.oneLiner) ||
+        contextNewsSuggestsPrinted(ev.contextNews))
+    );
   }
   return items.some((item) => {
     if (!item.forceCite && !item.mustCover) return false;
@@ -985,11 +1000,16 @@ export function runGuard(input: {
     }
   }
 
-  // due 실적에 숫자+뉴스가 있는데 반응·가이던스 요약이 없으면
-  // forceCite/mustCover(또는 연속성 없는 라이브 due) → hard fail / regenerate
+  // due 실적에 (숫자|집계대기)+뉴스가 있는데 반응·가이던스 요약이 없으면
+  // forceCite/mustCover(또는 연속성 없는 라이브 due) → hard fail / warn
   for (const ev of imminentEarnings) {
     if (!isPostEarningsResult(ev, now)) continue;
-    if (!hasEarningsActualNumbers(ev) || !hasEarningsContextNews(ev)) continue;
+    const hasNews = hasEarningsContextNews(ev);
+    const hasFacts =
+      hasEarningsActualNumbers(ev) ||
+      isPendingResultOneLiner(ev.oneLiner) ||
+      contextNewsSuggestsPrinted(ev.contextNews);
+    if (!hasFacts || !hasNews) continue;
     if (!proseMentionsEarningsIdentity(prose, proseLower, ev)) continue;
     const related = [input.briefing.headline, ...input.briefing.bullets].filter((t) =>
       proseMentionsEarningsIdentity(t, t.toLowerCase(), ev),
@@ -997,14 +1017,20 @@ export function runGuard(input: {
     if (briefingHasEarningsReactionCue(related, ev)) continue;
     const hard = earningsIsForceOrMustCover(input.snapshot, scope, ev);
     const needsGuidance = contextNewsHasGuidanceTheme(ev);
+    const pendingOnly =
+      !hasEarningsActualNumbers(ev) &&
+      (isPendingResultOneLiner(ev.oneLiner) || contextNewsSuggestsPrinted(ev.contextNews));
     findings.push({
       severity: hard ? "block" : "warn",
       code: "earnings-reaction-omission",
-      message: needsGuidance
-        ? `숫자+Evidence뉴스(가이던스·반응) 있는데 가이던스/실망 요약 누락: ${ev.title}. ` +
-          "Briefing이 숫자+가이던스·시장 반응 이중 서술을 1불릿에 넣을 것."
-        : `숫자+Evidence뉴스 있는데 반응·가이던스 요약 누락: ${ev.title}. ` +
-          "Briefing이 숫자+뉴스 이중 서술을 1불릿에 넣을 것.",
+      message: pendingOnly
+        ? `발표됨·결과 집계 대기 + Evidence뉴스인데 가이던스/반응 요약 누락: ${ev.title}. ` +
+          "API 숫자 창작 금지 · Evidence뉴스로 결과·반응 1불릿 필수."
+        : needsGuidance
+          ? `숫자+Evidence뉴스(가이던스·반응) 있는데 가이던스/실망 요약 누락: ${ev.title}. ` +
+            "Briefing이 숫자+가이던스·시장 반응 이중 서술을 1불릿에 넣을 것."
+          : `숫자+Evidence뉴스 있는데 반응·가이던스 요약 누락: ${ev.title}. ` +
+            "Briefing이 숫자+뉴스 이중 서술을 1불릿에 넣을 것.",
     });
   }
 
@@ -1070,9 +1096,9 @@ export function ensureImminentEarningsMentioned(
     if (e.actual?.beatLabel && isPostEarningsResult(e, now)) {
       return `${nameCore} 실적 결과(주당순이익 ${e.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
     }
-    if (isPostEarningsResult(e, now) && hasEarningsActualNumbers(e)) {
-      const a = e.actual!.epsActual!;
-      const est = e.actual!.epsEstimate!;
+    if (isPostEarningsResult(e, now) && e.actual?.epsActual != null && e.actual?.epsEstimate != null) {
+      const a = e.actual.epsActual;
+      const est = e.actual.epsEstimate;
       const region = e.region === "KR" ? "KR" : "US";
       const fmt = (v: number) =>
         region === "KR" ? `${Math.round(v).toLocaleString("ko-KR")}원` : `$${Number(v.toFixed(2))}`;
@@ -1080,6 +1106,15 @@ export function ensureImminentEarningsMentioned(
         return `${nameCore} 실적 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — Evidence뉴스 반응·가이던스 참고 (서프라이즈/미스 단정 금지)`;
       }
       return `${nameCore} 실적 발표됨 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — 반응 근거 부족`;
+    }
+    if (
+      isPostEarningsResult(e, now) &&
+      (isPendingResultOneLiner(e.oneLiner) || contextNewsSuggestsPrinted(e.contextNews))
+    ) {
+      if (hasEarningsContextNews(e)) {
+        return `${nameCore} 실적 발표됨 · 결과 집계 대기 — Evidence뉴스로 반응·가이던스만 (숫자 창작 금지)`;
+      }
+      return `${nameCore} 실적 발표됨 · 결과 집계 대기 — 반응 근거 부족`;
     }
     if (hasEarningsContextNews(e)) {
       return `${nameCore} 실적 임박 — Evidence뉴스 참고해 가이던스·섹터 맥락만 짧게 (방향 예측 금지)`;

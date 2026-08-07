@@ -144,6 +144,7 @@ export function resolveEarningsBeat(input: {
 /**
  * EventList oneLiner — Collector facts only (announced?, numbers, dual-source beatLabel).
  * No 「판정 보류」/호재·악재. Reaction/guidance narrative belongs in Briefing.
+ * Prefer company-scale OP/매출 actual when present; EPS secondary.
  */
 export function earningsResultOneLiner(
   beatLabel: BeatLabel | undefined,
@@ -151,6 +152,8 @@ export function earningsResultOneLiner(
     epsActual?: number;
     epsEstimate?: number;
     region?: "KR" | "US";
+    /** Pre-formatted company-scale actual line (매출·영업이익) from Collector */
+    companyScaleActualLine?: string | null;
   },
 ): string {
   const formatEps = (v: number) => {
@@ -164,6 +167,14 @@ export function earningsResultOneLiner(
     Number.isFinite(opts.epsEstimate)
       ? epsFactPhrase(formatEps(opts.epsActual), formatEps(opts.epsEstimate))
       : null;
+
+  const company = opts?.companyScaleActualLine?.trim() || null;
+  if (company) {
+    if (beatLabel && nums) return `${company} · ${nums} · ${beatLabel}`;
+    if (nums) return `${company} · ${nums}`;
+    if (beatLabel) return `${company} · 주당순이익(EPS) ${beatLabel}`;
+    return company;
+  }
 
   if (!beatLabel) {
     return nums ? `발표됨 · ${nums}` : "발표됨 · 결과 미확인";

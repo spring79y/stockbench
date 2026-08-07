@@ -47,16 +47,23 @@ export function shouldRetainUpcomingEvent(
 /**
  * Result comment from structured fields only — never invent.
  * Prefer existing `oneLiner` when Collector already encoded a post-result line.
- * Facts only: announced?, 주당순이익(EPS) digits, dual-source beatLabel. No 「판정 보류」.
+ * Facts only: announced?, 매출/영업이익, 주당순이익(EPS), dual-source beatLabel, or pending.
+ * No 「판정 보류」.
  */
 export function eventResultComment(event: MarketEvent): string | null {
-  const hasNumbers =
+  const hasEps =
     event.actual?.epsActual != null && event.actual?.epsEstimate != null;
-  if (!event.actual?.beatLabel && !hasNumbers) return null;
+  const hasOp =
+    event.actual?.operatingProfitActual != null ||
+    Boolean(event.actual?.operatingProfitActualLabel);
+  const pending = /결과\s*집계\s*대기|결과\s*미확인/.test(event.oneLiner ?? "");
+  if (!event.actual?.beatLabel && !hasEps && !hasOp && !pending) return null;
   const line = event.oneLiner?.trim();
   if (
     line &&
-    (/발표\s*결과|발표됨|미확인|결과\s*미확인|EPS|주당/.test(line) ||
+    (/발표\s*결과|발표됨|미확인|결과\s*미확인|집계\s*대기|EPS|주당|영업이익|매출/.test(
+      line,
+    ) ||
       event.actual?.beatLabel)
   ) {
     // Strip legacy Collector judgment copy if still present in published JSON.
@@ -67,7 +74,7 @@ export function eventResultComment(event: MarketEvent): string | null {
       .trim();
   }
   if (event.actual?.beatLabel) {
-    return hasNumbers
+    return hasEps
       ? (() => {
           const region = event.region === "KR" ? "KR" : "US";
           const fmt = (v: number) =>
@@ -78,7 +85,7 @@ export function eventResultComment(event: MarketEvent): string | null {
         })()
       : `발표됨 · 주당순이익(EPS) ${event.actual.beatLabel}`;
   }
-  if (hasNumbers) {
+  if (hasEps) {
     const region = event.region === "KR" ? "KR" : "US";
     const fmt = (v: number) =>
       region === "KR"
@@ -86,6 +93,7 @@ export function eventResultComment(event: MarketEvent): string | null {
         : `$${Number(v.toFixed(2))}`;
     return `발표됨 · ${epsFactPhrase(fmt(event.actual!.epsActual!), fmt(event.actual!.epsEstimate!))}`;
   }
+  if (pending) return event.oneLiner?.trim() || "발표됨 · 결과 집계 대기";
   return "발표됨 · 결과 미확인";
 }
 
