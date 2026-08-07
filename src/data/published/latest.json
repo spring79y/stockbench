@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "slot": "us-pre",
-  "publishedAt": "2026-08-07T14:01:22.852Z",
+  "slot": "kr-post",
+  "publishedAt": "2026-08-07T14:42:16.092Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 약세 · 미국 강세",
     "mood": "mixed",
     "moodLabel": "혼조",
-    "asOfLabel": "2026. 08. 07. 23:01 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 07. 23:42 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -303,16 +303,16 @@
           "snippet": "네이버 실적 발표를 통해 본'AI 인프라 삼각동맹'의 실체"
         },
         {
+          "title": "댓글 : 네이버 실적 발표를 통해 본'AI 인프라 삼각동맹'의 실체",
+          "publisher": "네이버 프리미엄콘텐츠",
+          "publishedAt": "2026-08-07T10:11:00.000Z",
+          "snippet": "댓글 : 네이버 실적 발표를 통해 본'AI 인프라 삼각동맹'의 실체"
+        },
+        {
           "title": "[네이버 종합] 네이버, 2분기 실적 발표 소식 외",
           "publisher": "게임뷰",
           "publishedAt": "2026-08-07T09:55:18.000Z",
           "snippet": "[네이버 종합] 네이버, 2분기 실적 발표 소식 외"
-        },
-        {
-          "title": "네이버, 2분기 매출 3조3천888억원 기록…전년比 16.2%↑ '실적 견조'",
-          "publisher": "파이낸셜신문",
-          "publishedAt": "2026-08-07T09:13:38.000Z",
-          "snippet": "네이버, 2분기 매출 3조3천888억원 기록…전년比 16.2%↑ '실적 견조'"
         }
       ],
       "detailSummary": {
@@ -375,7 +375,7 @@
         },
         {
           "title": "Berkshire Hathaway Inc expected to post earnings of $7,373.37 a share - Earnings Preview",
-          "publisher": "TradingView",
+          "publisher": "tradingview.com",
           "publishedAt": "2026-08-06T14:02:09.000Z",
           "snippet": "Berkshire Hathaway Inc expected to post earnings of $7,373.37 a share - Earnings Preview"
         }
@@ -655,6 +655,16 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdoWZ6LbKnNio9dWiNcRA\"}): seed essays not published; kept previous briefing"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdoZfvATVjQmGf9N8C3nA\"}): seed essays not published; kept previous briefing"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdoZfw23yCfbq2VpHYnLj\"}): seed essays not published; kept previous briefing"
       }
     ]
   }
