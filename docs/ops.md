@@ -57,6 +57,8 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 
 수동 실행: Actions → Publish briefing → **Run workflow** → `morning` / `noon` / 개별 슬롯 / `all`.
 
+**오늘(또는 방금) noon이 비었을 때:** Actions에 `us-noon`/`kr-mid` run이 없고 latest가 아침(`kr-pre`/`us-post`)에 멈춰 있으면 → **Run workflow → `noon`**. Catch-up watchdog는 remote에 있어야 자동 복구한다(로컬만 있으면 push 필요).
+
 ### Hosted runner 미획득 · Internal server error
 
 앱·파이프라인 코드가 돌기 **전에** job이 죽을 수 있다. 증상 예:

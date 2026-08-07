@@ -212,33 +212,71 @@ export type NextSlotInfo = {
   mode: PipelineMode;
 };
 
-/** 이 탭을 갱신하는 다음 슬롯 (평일 기준 · 주말이면 다음 월요일) */
+/** 탭에 표시된 가장 최근 발행(슬롯·시각) — 다음 슬롯 계산에 사용 */
+export type LastPublishedSlot = {
+  slot: PipelineSlot;
+  publishedAt: string;
+};
+
+function candidatesForScope(scope: MarketScope): PipelineSlot[] {
+  if (scope === "kr") return ["kr-pre", "kr-mid", "kr-post"];
+  if (scope === "us") return ["us-mid", "us-post", "us-noon", "us-pre"];
+  return ["us-mid", "us-post", "kr-pre", "us-noon", "kr-mid", "kr-post", "us-pre"];
+}
+
+/**
+ * 오늘 이미 소화된 슬롯의 목표 시각 상한(분).
+ * 최신 발행이 오늘·이 탭 후보 슬롯이면 그 시각 이하를 완료로 본다.
+ * (latest.json은 슬롯 이력 없이 최신만 있으므로, 그보다 이른 당일 슬롯은 발행된 것으로 간주)
+ */
+function satisfiedThroughMins(
+  candidates: PipelineSlot[],
+  todayYmd: string,
+  last?: LastPublishedSlot | null,
+): number {
+  if (!last?.slot || !last.publishedAt) return -1;
+  if (!candidates.includes(last.slot)) return -1;
+  const publishedDay = seoulDateParts(new Date(last.publishedAt));
+  if (publishedDay.ymd !== todayYmd) return -1;
+  return slotTargetMins(last.slot);
+}
+
+/**
+ * 이 탭을 갱신하는 다음 슬롯 (평일 기준 · 주말이면 다음 월요일).
+ *
+ * 벽시계만 보면 12:30이 지난 뒤 미발행 noon을 건너뛰고 15:40을 보여 준다.
+ * `lastPublished`가 있으면 당일 미발행 슬롯(지연·누락 포함)을 다음으로 유지한다.
+ * 예: kr-pre 발행 후 · noon 미발행 · 14:00 → kr-mid 12:30.
+ */
 export function nextSlotForScope(
   scope: MarketScope,
   now = new Date(),
+  lastPublished?: LastPublishedSlot | null,
 ): NextSlotInfo | null {
-  const candidates: PipelineSlot[] =
-    scope === "kr"
-      ? ["kr-pre", "kr-mid", "kr-post"]
-      : scope === "us"
-        ? ["us-mid", "us-post", "us-noon", "us-pre"]
-        : ["us-mid", "us-post", "kr-pre", "us-noon", "kr-mid", "kr-post", "us-pre"];
-
+  const candidates = candidatesForScope(scope);
   const parts = seoulDateParts(now);
+  const doneThrough = satisfiedThroughMins(candidates, parts.ymd, lastPublished);
 
   for (let dayOffset = 0; dayOffset < 8; dayOffset += 1) {
     const probe = new Date(now.getTime() + dayOffset * 24 * 60 * 60 * 1000);
     const day = seoulDateParts(probe);
     if (day.weekend) continue;
 
-    const dayMins = dayOffset === 0 ? parts.mins : -1;
     const sorted = [...candidates].sort(
       (a, b) => slotTargetMins(a) - slotTargetMins(b),
     );
 
     for (const slot of sorted) {
       const target = slotTargetMins(slot);
-      if (dayOffset === 0 && target <= dayMins) continue;
+      if (dayOffset === 0) {
+        if (doneThrough >= 0) {
+          // 당일 최신 발행 이후 슬롯만 (시각이 지났어도 미발행이면 유지)
+          if (target <= doneThrough) continue;
+        } else {
+          // 발행 증거 없음 → 벽시계 기준 (기존 동작)
+          if (target <= parts.mins) continue;
+        }
+      }
 
       const label = SLOT_SCHEDULE[slot].label;
       const md = day.ymd.slice(5).replace("-", ".");

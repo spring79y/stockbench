@@ -20,6 +20,7 @@ export function TodayBriefing({
   refreshLabel,
   scope,
   slot,
+  publishedAt,
   mode,
 }: {
   briefing: DailyBriefing;
@@ -30,6 +31,8 @@ export function TodayBriefing({
   refreshLabel?: boolean;
   scope?: MarketScope;
   slot?: PipelineSlot | null;
+  /** ISO — 당일 미발행 noon 등을 다음 슬롯으로 유지할 때 사용 */
+  publishedAt?: string | null;
   mode?: PipelineMode | null;
 }) {
   const evidenceIdSet = new Set(briefing.evidenceIds);
@@ -39,7 +42,13 @@ export function TodayBriefing({
   ];
 
   const marketScope = scope === "kr" || scope === "us" ? scope : null;
-  const next = marketScope ? nextSlotForScope(marketScope) : null;
+  const next = marketScope
+    ? nextSlotForScope(
+        marketScope,
+        new Date(),
+        slot && publishedAt ? { slot, publishedAt } : null,
+      )
+    : null;
   const slotLabel = slot ? (SLOT_LABEL[slot] ?? slot) : null;
   const isRefresh = mode === "refresh" || Boolean(refreshLabel);
 

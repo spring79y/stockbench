@@ -277,6 +277,7 @@ export function HomeBoard({
               refreshLabel={viewMode === "refresh"}
               scope={activeScope}
               slot={view.slot}
+              publishedAt={view.publishedAt}
               mode={viewMode}
             />
             <ScenarioPanel scenarios={view.scenarios} />
