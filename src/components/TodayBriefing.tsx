@@ -22,6 +22,8 @@ export function TodayBriefing({
   slot,
   publishedAt,
   mode,
+  degraded,
+  degradedLabel,
 }: {
   briefing: DailyBriefing;
   macros: MacroChip[];
@@ -34,6 +36,9 @@ export function TodayBriefing({
   /** ISO — 당일 미발행 noon 등을 다음 슬롯으로 유지할 때 사용 */
   publishedAt?: string | null;
   mode?: PipelineMode | null;
+  /** Guard soft demote / thin evidence publish */
+  degraded?: boolean;
+  degradedLabel?: string | null;
 }) {
   const evidenceIdSet = new Set(briefing.evidenceIds);
   const chips = [
@@ -80,6 +85,9 @@ export function TodayBriefing({
             ) : null}
             {fromPipeline === false ? " · 목 데이터" : null}
             {isRefresh ? <span className={styles.tag}>헤드라인만 갱신</span> : null}
+            {degraded ? (
+              <span className={styles.tagMuted}>{degradedLabel ?? "제한 연속성"}</span>
+            ) : null}
           </p>
           {next ? (
             <p className={styles.nextLine}>

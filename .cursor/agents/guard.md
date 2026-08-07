@@ -12,15 +12,15 @@ Discuss에서 말한 BriefGuard 역할은 **별도 에이전트가 아니라 이
 - `prior-label-mismatch` — 「전일/마감」라벨에 장중·현재 수치를 붙인 경우
 - `prior-session-fact-mismatch` — 전일 서술 수치가 Evidence 전일세션과 크게 어긋남
 - `pre-session-forecast` — 개장 방향 예측 표현
-- `carry-forward-omission` — due+Evidence 사실이 있는데 브리핑이 생략
-- `carry-forward-no-reeval` — forceCite를 키워드만 넣거나 직전 문구 복창(Evidence 숫자 재평가 없음)
-- `invented-event-result` — Evidence 없이 실적/이벤트 결과 단정
-- `unsupported-earnings-result` — beatLabel 없는 실적에 서프라이즈/미스 단정
-- `earnings-beat-polarity` — Evidence beatLabel 극성 뒤집기
-- `unsupported-guidance-claim` — Evidence contextNews 없이 가이던스·전망 결과 단정
-- `earnings-reaction-omission` — 숫자+contextNews인데 가이던스/반응 요약 누락 (forceCite·mustCover·라이브 due면 **hard fail**)
-- `empty-briefing` — 공허 일반론
-- `slot-tone-mismatch` — 장중·점검에 장후 리캡/개장 예측 톤
+- `carry-forward-omission` — due+Evidence 사실이 있는데 브리핑이 생략 (**최종 5회차만** warn demote → degraded publish)
+- `carry-forward-no-reeval` — forceCite를 키워드만 넣거나 직전 문구 복창(Evidence 숫자 재평가 없음) (**최종 5회차만** warn demote → degraded publish)
+- `invented-event-result` — Evidence 없이 실적/이벤트 결과 단정 (**영구 hard**)
+- `unsupported-earnings-result` — beatLabel 없는 실적에 서프라이즈/미스 단정 (**영구 hard**)
+- `earnings-beat-polarity` — Evidence beatLabel 극성 뒤집기 (**영구 hard**)
+- `unsupported-guidance-claim` — Evidence contextNews 없이 가이던스·전망 결과 단정 (**영구 hard**)
+- `earnings-reaction-omission` — 숫자+contextNews인데 가이던스/반응 요약 누락 (forceCite·mustCover·라이브 due면 **hard fail · 영구**)
+- `empty-briefing` — 공허 일반론 (**영구 hard**)
+- `slot-tone-mismatch` — 장중·점검에 장후 리캡/개장 예측 톤 (**영구 hard**)
 
 정책 메모: beatLabel은 Collector 이중 출처(분기 quarterly + 같은 분기 calendar)일 때만. thin Yahoo path는 숫자만(라벨 생략) — EventList에 「판정 보류」 쓰지 않음.
 가이던스·반응 문장은 Collector가 붙인 contextNews가 있을 때만 Briefing이 요약(숫자+뉴스 이중 서술 허용·필수).
@@ -30,8 +30,9 @@ Discuss에서 말한 BriefGuard 역할은 **별도 에이전트가 아니라 이
 
 정책:
 - scope당 최대 5회 재생성 — `findingsToRepairHints`가 코드별 **구체 수정 지시**를 Briefing/Decision 프롬프트에 주입
-- 전부 거절이면 **latest.json을 덮지 않고 직전 발행 유지**
+- 1~4회: 위 hard 유지. **최종 시도:** continuity soft만 남으면 demote → **degraded publish**(새 slot·publishedAt · 「제한 연속성」 · `status.json` degraded). 사실 hard만 남으면 **Evidence 앵커 thin publish**. thin도 실패 → **latest.json 유지(keep-previous)**
 - 실적 누락만 기계 보강. 전일 앵커를 장중 숫자에 강제로 붙이지 않음
+- 구현: `src/lib/pipeline/degradedPublish.ts`
 
 추가 경고:
 - 헤드라인·불릿·시나리오·why 길이 초과

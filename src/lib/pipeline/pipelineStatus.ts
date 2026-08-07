@@ -13,6 +13,11 @@ export type PipelineStatus = {
   guardOk?: boolean;
   /** Short guard summary, e.g. "ok" or "blocked: code1, code2" */
   guardSummary?: string;
+  /**
+   * true = slot published with demoted continuity soft (or thin evidence).
+   * false/omit on clean pass or keep-previous block.
+   */
+  degraded?: boolean;
 };
 
 export function pipelineStatusPath(cwd: string): string {

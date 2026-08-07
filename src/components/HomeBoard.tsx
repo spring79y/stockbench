@@ -295,14 +295,20 @@ export function HomeBoard({
               slot={view.slot}
               publishedAt={view.publishedAt}
               mode={viewMode}
+              degraded={view.degraded}
+              degradedLabel={view.degradedLabel}
             />
-            <ScenarioPanel scenarios={view.scenarios} />
-            <CheckList
-              key={`check-${activeScope}-${view.publishedAt ?? ""}`}
-              items={view.checkItems}
-              scope={activeScope}
-              issuedAt={view.publishedAt}
-            />
+            {view.scenarios?.length ? (
+              <ScenarioPanel scenarios={view.scenarios} />
+            ) : null}
+            {view.checkItems?.length ? (
+              <CheckList
+                key={`check-${activeScope}-${view.publishedAt ?? ""}`}
+                items={view.checkItems}
+                scope={activeScope}
+                issuedAt={view.publishedAt}
+              />
+            ) : null}
             <EventList events={events} scope={activeScope} stepNo={4} />
           </>
         )}

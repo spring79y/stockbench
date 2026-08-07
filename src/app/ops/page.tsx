@@ -182,6 +182,7 @@ export default async function OpsPage() {
               {last.ok ? "success" : "fail"}
               {last.slot ? ` · ${last.slot}` : ""}
               {last.mode ? ` · ${last.mode}` : ""}
+              {last.degraded ? " · degraded" : ""}
             </p>
             <dl className="ops__dl">
               <div>

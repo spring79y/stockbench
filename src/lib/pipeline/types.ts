@@ -84,6 +84,13 @@ export type EditorialView = {
    * 2 이상이면 다음 Collector가 해당 항목을 carry-forward에서 드롭.
    */
   carryStreaks?: Record<string, number>;
+  /**
+   * 최종 Guard 시도에서 continuity soft만 남아 demote 후 발행했거나,
+   * 사실 hard만 남아 Evidence 앵커 thin 발행한 경우.
+   */
+  degraded?: boolean;
+  /** UI/ops 한 줄 — 예: 「제한 연속성」 */
+  degradedLabel?: string;
 };
 
 export type PublishedBundle = {
