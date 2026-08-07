@@ -30,7 +30,7 @@ describe("buildEventDetailSummary", () => {
     assert.equal(s.reaction, undefined);
   });
 
-  it("posts result + news reaction; implication with Evidence", () => {
+  it("posts fact→news reaction; never oneLiner · fragments", () => {
     const now = new Date("2026-08-07T07:00:00.000Z");
     const event: MarketEvent = {
       id: "earnings-naver",
@@ -44,18 +44,21 @@ describe("buildEventDetailSummary", () => {
       consensus: {
         revenueLabel: "약 3.4조원",
         operatingProfitLabel: "약 5,662억원",
+        operatingProfitAvg: 566_200_000_000,
+        revenueAvg: 3_365_900_000_000,
       },
       actual: {
         operatingProfitActualLabel: "약 5,203억원",
         revenueActualLabel: "약 3.4조원",
         operatingProfitActual: 520_300_000_000,
+        revenueActual: 3_388_800_000_000,
       },
       contextNews: [
         {
-          title: "매출은 뛰고 이익은 멈췄다···네이버, 2분기 실적 '명암'",
+          title: "'AI 투자' 네이버, 2분기 이익 주춤…내년 'AI 팩토리' 실적 낸다",
           publisher: "뉴스",
           publishedAt: "2026-08-07T03:28:10.000Z",
-          snippet: "매출은 뛰고 이익은 멈췄다···네이버, 2분기 실적 '명암'",
+          snippet: "'AI 투자' 네이버, 2분기 이익 주춤…내년 'AI 팩토리' 실적 낸다",
         },
         {
           title: "네이버 주가 급락…실적 후 반응",
@@ -68,9 +71,14 @@ describe("buildEventDetailSummary", () => {
     const s = buildEventDetailSummary(event, now);
     assert.match(s.result ?? "", /5,203/);
     assert.ok(s.reaction);
-    assert.match(s.reaction!, /시장 반응/);
+    assert.match(s.reaction!, /하회/);
+    assert.match(s.reaction!, /뉴스에서는/);
+    assert.match(s.reaction!, /AI|이익|주가/);
+    assert.doesNotMatch(s.reaction!, /^발표됨$/m);
+    assert.doesNotMatch(s.reaction!, /^매출 약/);
+    assert.doesNotMatch(s.reaction!, /매수|매도|단정/);
+    assert.doesNotMatch(s.reaction!, /\d+(\.\d+)?\s*%/);
     assert.ok((s.reaction!.split("\n").length) <= 2);
-    assert.doesNotMatch(s.reaction!, /단정|매수|매도/);
     assert.match(s.implication ?? "", /^점검 포인트는/);
     assert.doesNotMatch(s.implication!, /단정|매수|매도/);
   });
@@ -107,5 +115,6 @@ describe("buildEventDetailSummary", () => {
     assert.match(out!.detailSummary?.meaning ?? "", /^점검 포인트는/);
     assert.match(out!.detailSummary?.meaning ?? "", /고용/);
     assert.equal(out!.detailSummary?.expectation, event.oneLiner);
+    assert.equal(out!.detailSummary?.reaction, undefined);
   });
 });

@@ -48,10 +48,11 @@ function safeBackHref(from: string | undefined): string {
   return "/";
 }
 
+/** Split scan bullets on newlines only — never on 「 · 」(earnings fact copy). */
 function splitBullets(text: string | undefined): string[] {
   if (!text?.trim()) return [];
   return text
-    .split(/\n|·(?=\s)/)
+    .split(/\n+/)
     .map((s) => s.replace(/^[·•\-]\s*/, "").trim())
     .filter(Boolean)
     .slice(0, 2);
