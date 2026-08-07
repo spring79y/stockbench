@@ -14,11 +14,12 @@ import {
   earningsResultLines,
   shouldShowEarningsResult,
 } from "@/lib/events/earningsDetail";
+import { buildEventDetailSummary } from "@/lib/events/attachEventDetailSummaries";
 import {
   hasStructuredEarningsActual,
   isEarningsAnnounced,
 } from "@/lib/market/earningsAnnounced";
-import type { MarketEvent } from "@/lib/types";
+import type { EventDetailSummary, MarketEvent } from "@/lib/types";
 import styles from "./EventDetailView.module.css";
 
 const levelLabel = {
@@ -47,6 +48,22 @@ function safeBackHref(from: string | undefined): string {
   return "/";
 }
 
+function splitBullets(text: string | undefined): string[] {
+  if (!text?.trim()) return [];
+  return text
+    .split(/\n|·(?=\s)/)
+    .map((s) => s.replace(/^[·•\-]\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, 2);
+}
+
+function resolveSummary(event: MarketEvent): EventDetailSummary {
+  if (event.detailSummary && Object.values(event.detailSummary).some(Boolean)) {
+    return event.detailSummary;
+  }
+  return buildEventDetailSummary(event);
+}
+
 export function EventDetailView({
   event,
   detail,
@@ -60,6 +77,22 @@ export function EventDetailView({
 }) {
   const back = safeBackHref(backHref);
   const periodSet = charts.some((c) => c.source === "fred") ? "indicator" : "stock";
+  const summary = resolveSummary(event);
+  const announced =
+    event.kind === "earnings"
+      ? isEarningsAnnounced(event) || hasStructuredEarningsActual(event.actual)
+      : Boolean(summary.result);
+  const showEarningsResult = shouldShowEarningsResult(event);
+  const resultLines =
+    event.kind === "earnings" && showEarningsResult
+      ? earningsResultLines(event)
+      : summary.result
+        ? [summary.result]
+        : [];
+  const meaningLines = splitBullets(summary.meaning);
+  const reactionLines = splitBullets(summary.reaction);
+  const implicationLines = splitBullets(summary.implication);
+  const showPost = announced || resultLines.length > 0 || reactionLines.length > 0;
 
   return (
     <main className={`board ${styles.root}`}>
@@ -79,16 +112,14 @@ export function EventDetailView({
         </div>
         <h1 className={styles.title}>{event.title}</h1>
         <p className={styles.oneliner}>{event.oneLiner}</p>
-        {event.kind === "earnings" && shouldShowEarningsResult(event) ? (
-          <div className={styles.result} aria-label="실적 결과">
-            <p className={styles.resultHeading}>결과</p>
-            {earningsResultLines(event).map((line) => (
-              <p key={line} className={styles.resultLine}>
-                {line}
-              </p>
-            ))}
-          </div>
-        ) : null}
+      </article>
+
+      <section className={`board-block ${styles.scan}`} aria-labelledby="event-pre">
+        <h2 id="event-pre" className={styles.sectionTitle}>
+          발표 전
+        </h2>
+
+        <h3 className={styles.sub}>시장 기대</h3>
         {event.kind === "earnings" && event.consensus ? (
           <div className={styles.consensus}>
             {event.consensus.revenueLabel ? (
@@ -133,29 +164,77 @@ export function EventDetailView({
             <p className={styles.consensusNote}>
               {consensusNoteFor({
                 ...event.consensus,
-                postReport:
-                  isEarningsAnnounced(event) || hasStructuredEarningsActual(event.actual),
+                postReport: announced,
               })}
             </p>
           </div>
-        ) : null}
-      </article>
+        ) : summary.expectation ? (
+          <p className={styles.body}>{summary.expectation}</p>
+        ) : (
+          <p className={styles.empty}>시장 기대 숫자가 아직 없습니다.</p>
+        )}
 
-      <section className="board-block" aria-labelledby="event-meaning">
-        <h2 id="event-meaning" className={styles.sectionTitle}>
-          이게 뭔가요
-        </h2>
-        <p className={styles.body}>{detail.meaning}</p>
-        <h3 className={styles.sub}>왜 보나요</h3>
-        <p className={styles.body}>{detail.whyItMatters}</p>
+        <h3 className={styles.sub}>이 일정의 의미</h3>
+        {meaningLines.length > 0 ? (
+          <ul className={styles.scanList}>
+            {meaningLines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className={styles.body}>{detail.meaning}</p>
+        )}
       </section>
+
+      {showPost ? (
+        <section className={`board-block ${styles.scan}`} aria-labelledby="event-post">
+          <h2 id="event-post" className={styles.sectionTitle}>
+            발표 후
+          </h2>
+
+          <h3 className={styles.sub}>결과</h3>
+          {resultLines.length > 0 ? (
+            <div className={styles.result} aria-label="결과">
+              {resultLines.map((line) => (
+                <p key={line} className={styles.resultLine}>
+                  {line}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.empty}>결과 숫자가 아직 없습니다.</p>
+          )}
+
+          <h3 className={styles.sub}>시장 반응</h3>
+          {reactionLines.length > 0 ? (
+            <ul className={styles.scanList}>
+              {reactionLines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className={styles.empty}>반응 근거 부족</p>
+          )}
+
+          <h3 className={styles.sub}>이 결과가 의미하는 것</h3>
+          {implicationLines.length > 0 ? (
+            <ul className={styles.scanList}>
+              {implicationLines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className={styles.empty}>Evidence가 없어 해석을 붙이지 않았습니다.</p>
+          )}
+        </section>
+      ) : null}
 
       <section className="board-block" aria-labelledby="event-watch">
         <h2 id="event-watch" className={styles.sectionTitle}>
           같이 볼 것
         </h2>
         <ul className={styles.list}>
-          {detail.watchPoints.map((item) => (
+          {detail.watchPoints.slice(0, 5).map((item) => (
             <li key={item}>{item}</li>
           ))}
         </ul>

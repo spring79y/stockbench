@@ -38,6 +38,7 @@ import type {
 import type { IndexQuote, MacroChip, MarketEvent } from "@/lib/types";
 import { buildUpcomingEvents } from "@/lib/events/buildUpcomingEvents";
 import { defaultPipelineEvents } from "@/lib/events/defaultEvents";
+import { attachEventDetailSummaries } from "@/lib/events/attachEventDetailSummaries";
 import { attachEarningsContextNews } from "@/lib/market/fetchEarningsContextNews";
 
 export { defaultPipelineEvents } from "@/lib/events/defaultEvents";
@@ -83,10 +84,11 @@ export async function collectSnapshot(
   const eventsBase =
     options?.events ??
     (await buildUpcomingEvents(yf).catch(() => defaultPipelineEvents()));
-  const events = await attachEarningsContextNews(eventsBase).catch((error) => {
+  const eventsWithNews = await attachEarningsContextNews(eventsBase).catch((error) => {
     console.error("[collect] earnings context news failed", error);
     return eventsBase;
   });
+  const events = attachEventDetailSummaries(eventsWithNews);
   const symbols = [
     ...INDEX_DEFINITIONS.map((d) => d.symbol),
     ...MACRO_DEFINITIONS.map((d) => d.symbol),

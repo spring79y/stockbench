@@ -71,9 +71,48 @@
   color: var(--muted, #64748b);
 }
 
+.scan {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.scanList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.scanList li {
+  position: relative;
+  padding: 0.35rem 0 0.35rem 0.95rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--ink, #0f172a);
+}
+
+.scanList li::before {
+  content: "";
+  position: absolute;
+  left: 0.1rem;
+  top: 0.7rem;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 1px;
+  background: var(--brand, #1d4f91);
+  transform: rotate(45deg);
+}
+
+.empty {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--muted, #64748b);
+}
 
 .result {
-  margin-top: 0.75rem;
+  margin-top: 0.15rem;
   padding: 0.65rem 0.75rem;
   border-radius: 8px;
   border: 1px solid var(--brand, #1d4f91);
@@ -99,7 +138,7 @@
 }
 
 .consensus {
-  margin-top: 0.75rem;
+  margin-top: 0.15rem;
   padding: 0.65rem 0.75rem;
   border-radius: 8px;
   background: var(--brand-tint, #f4f7fb);

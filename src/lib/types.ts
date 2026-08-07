@@ -90,6 +90,24 @@ export interface EarningsContextNewsItem {
   snippet: string;
 }
 
+/**
+ * Event detail scan-board fields (Collector / pipeline only).
+ * Sparse optional strings — never invent results or buy/sell tone.
+ * 의미·반응은 불릿 최대 2개(개행 구분)까지.
+ */
+export interface EventDetailSummary {
+  /** 발표 전 시장 기대(숫자·컨센서스 사실) */
+  expectation?: string;
+  /** 이 일정의 의미 (템플릿/유형 · ≤2줄) */
+  meaning?: string;
+  /** 발표 후 결과 숫자 */
+  result?: string;
+  /** 시장 반응 — Evidence 뉴스 있을 때만; 없으면 「반응 근거 부족」 */
+  reaction?: string;
+  /** 이 결과가 의미하는 것 — Evidence 있을 때만 */
+  implication?: string;
+}
+
 export interface MarketEvent {
   id: string;
   dateLabel: string;
@@ -109,6 +127,8 @@ export interface MarketEvent {
   actual?: EarningsActual;
   /** 임박·직후 실적용 추가 뉴스 Evidence (Collector) */
   contextNews?: EarningsContextNewsItem[];
+  /** 상세 스캔 보드용 짧은 필드 (파이프라인 부착) */
+  detailSummary?: EventDetailSummary;
 }
 
 export interface DailyBriefing {

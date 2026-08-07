@@ -326,6 +326,13 @@
         "operatingProfitActualLabel": "약 5,203억원",
         "revenueActual": 3388800000000,
         "revenueActualLabel": "약 3.4조원"
+      },
+      "detailSummary": {
+        "expectation": "시장 예상 매출 약 3.4조원 · 영업이익 약 5,662억원",
+        "meaning": "NAVER 분기 실적 — 매출·영업이익(회사 규모)을 먼저 보고 EPS는 보조로 점검합니다.\n시장 예상 대비 여부는 점검용이며 매수·매도 신호가 아닙니다.",
+        "result": "발표됨 · 매출 약 3.4조원 · 영업이익 약 5,203억원",
+        "reaction": "'AI 투자' 네이버, 2분기 이익 주춤…내년 'AI 팩토리' 실적 낸다\n[IT] 네이버, 2분기 실적 발표…엔비디아와 AI 팩토리 사업 2027년 상반기 매출 전망",
+        "implication": "발표 숫자는 참고용이며, 주가 방향을 단정하지 마세요."
       }
     },
     {
@@ -336,7 +343,11 @@
       "title": "미국 고용보고서 (NFP)",
       "level": "high",
       "oneLiner": "일자리 성적표 — 금리 기대와 달러·미 지수에 영향",
-      "kind": "macro"
+      "kind": "macro",
+      "detailSummary": {
+        "expectation": "일자리 성적표 — 금리 기대와 달러·미 지수에 영향",
+        "meaning": "고용·임금 숫자로 금리 기대와 달러·미 지수 온도를 점검하는 일정입니다."
+      }
     },
     {
       "id": "earnings-brkb",
@@ -360,6 +371,10 @@
           "yahoo"
         ],
         "isEstimate": false
+      },
+      "detailSummary": {
+        "expectation": "시장 예상 매출 약 $98.8B",
+        "meaning": "버크셔 분기 실적 발표 일정입니다. 시장 예상과 발표 숫자를 같은 단위로 비교해 점검합니다.\n맞히기보다 민감도 확인용입니다."
       },
       "contextNews": [
         {
@@ -390,7 +405,11 @@
       "title": "미국 소비자물가 (CPI)",
       "level": "high",
       "oneLiner": "물가 지표 — 금리 인하 기대를 흔드는 핵심 숫자",
-      "kind": "macro"
+      "kind": "macro",
+      "detailSummary": {
+        "expectation": "물가 지표 — 금리 인하 기대를 흔드는 핵심 숫자",
+        "meaning": "물가 흐름을 확인하는 일정으로, 금리 인하 기대 변화를 점검합니다."
+      }
     },
     {
       "id": "krx-option",
@@ -400,7 +419,11 @@
       "title": "국내 옵션 만기",
       "level": "medium",
       "oneLiner": "수급·변동성 확대 가능 — 재료보다 흔들림에 주의",
-      "kind": "macro"
+      "kind": "macro",
+      "detailSummary": {
+        "expectation": "수급·변동성 확대 가능 — 재료보다 흔들림에 주의",
+        "meaning": "만기 전후 수급·변동성이 커질 수 있어, 재료보다 흔들림을 먼저 봅니다."
+      }
     },
     {
       "id": "fomc-minutes",
@@ -410,7 +433,11 @@
       "title": "FOMC 의사록",
       "level": "medium",
       "oneLiner": "연준 회의 속마음 — 다음 금리 경로 힌트 확인",
-      "kind": "macro"
+      "kind": "macro",
+      "detailSummary": {
+        "expectation": "연준 회의 속마음 — 다음 금리 경로 힌트 확인",
+        "meaning": "이미 끝난 회의의 논의 톤을 확인하는 일정입니다. 새 정보가 적으면 반응도 작을 수 있습니다."
+      }
     }
   ],
   "guard": {
