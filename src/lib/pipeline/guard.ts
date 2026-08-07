@@ -14,11 +14,6 @@ import {
   forceCiteTokens,
   type CarryForwardItem,
 } from "@/lib/pipeline/carryForward";
-import {
-  ensurePostCloseLead,
-  missingPostCloseLeads,
-  resolvePostCloseIndexes,
-} from "@/lib/pipeline/sessionCloseLead";
 import type {
   BriefingDraft,
   CollectorSnapshot,
@@ -27,7 +22,6 @@ import type {
   GuardReport,
   MarketScope,
 } from "@/lib/pipeline/types";
-import { formatUserEarningsBullet } from "@/lib/pipeline/userFacingCopy";
 import type { MarketEvent } from "@/lib/types";
 
 const RECOMMENDATION_PATTERNS = [
@@ -319,19 +313,6 @@ function hasEarningsActualNumbers(ev: MarketEvent): boolean {
   return hasStructuredEarningsActual(ev.actual);
 }
 
-/**
- * Never label as 「임박」 when structured actual, pending oneLiner,
- * or same-KST-day announced status is already known.
- */
-function mustNotSayImminentEarnings(ev: MarketEvent, now: Date): boolean {
-  if (hasStructuredEarningsActual(ev.actual)) return true;
-  if (isPendingResultOneLiner(ev.oneLiner)) return true;
-  if (!ev.dateISO) return false;
-  return (
-    isEarningsSameKstDay(ev.dateISO, now) && isEarningsAnnounced(ev, now)
-  );
-}
-
 function isImminentEarningsWindow(
   ev: MarketEvent,
   now: number,
@@ -341,69 +322,13 @@ function isImminentEarningsWindow(
   const hours = (new Date(ev.dateISO).getTime() - now) / (60 * 60 * 1000);
   const sameDay = isEarningsSameKstDay(ev.dateISO, nowDate);
   const announced = isEarningsAnnounced(ev, nowDate);
-  const hasActual = hasStructuredEarningsActual(ev.actual);
   const withinPostHorizon =
-    sameDay ||
-    (hours < 0 && hours >= -36) ||
-    (hours >= 0 && hours <= 12 && announced) ||
-    (hasActual && hours >= -36 && hours <= 48);
+    sameDay || (hours < 0 && hours >= -36) || (hours >= 0 && hours <= 12 && announced);
 
   // Post: structured actual, pending aggregation, or same-day news already printed.
-  const isPost =
-    (announced && withinPostHorizon) ||
-    (hasActual && (sameDay || (hours >= -36 && hours <= 48)));
+  const isPost = announced && withinPostHorizon;
   const isPre = !isPost && hours >= 0 && hours <= 48;
   return { ok: isPre || isPost, isPost };
-}
-
-/** Guard patch bullet — ant-facing only (delegates to userFacingCopy). */
-export function buildEarningsPatchBullet(
-  ev: MarketEvent,
-  now: number = Date.now(),
-): string {
-  return formatUserEarningsBullet(ev, now);
-}
-
-/** Rewrite false 「실적 임박」 when Evidence already shows announced. */
-export function scrubFalseImminentEarningsLabels(
-  briefing: BriefingDraft,
-  snapshot: CollectorSnapshot,
-  scope: MarketScope = "all",
-): BriefingDraft {
-  const now = Date.now();
-  const nowDate = new Date(now);
-  const announced = (snapshot.events ?? []).filter(
-    (e) =>
-      e.kind === "earnings" &&
-      earningsInScope(e, scope) &&
-      mustNotSayImminentEarnings(e, nowDate),
-  );
-  if (announced.length === 0) return briefing;
-
-  const rewrite = (text: string): string => {
-    let out = text;
-    for (const e of announced) {
-      if (!/실적\s*(발표\s*)?임박/.test(out)) continue;
-      const tokens = earningsIdentityTokens(e);
-      const hit = tokens.some((t) =>
-        /[A-Za-z]/.test(t) ? out.toLowerCase().includes(t.toLowerCase()) : out.includes(t),
-      );
-      if (!hit) continue;
-      // Prefer full Evidence-grounded post line when the bullet is a patch-style 임박 line.
-      if (/실적\s*(발표\s*)?임박\s*—/.test(out)) {
-        out = buildEarningsPatchBullet(e, now);
-        continue;
-      }
-      out = out.replace(/실적\s*발표\s*임박|실적\s*임박/g, "실적 발표됨");
-    }
-    return out;
-  };
-
-  return {
-    ...briefing,
-    headline: rewrite(briefing.headline),
-    bullets: briefing.bullets.map(rewrite),
-  };
 }
 
 function isPostEarningsResult(ev: MarketEvent, now: number): boolean {
@@ -508,12 +433,13 @@ function pushCarryForwardOmissionFindings(
   }
 }
 
-/** EPS 극성 단어만 — 「시장 예상 상회/하회」(매출·영업이익 숫자 대비)는 허용 */
 const RESULT_CLAIM_RE =
-  /서프라이즈|미스|어닝\s*비트|어닝\s*쇼크|컨센서스\s*(상회|하회)/;
+  /서프라이즈|미스|어닝\s*비트|어닝\s*쇼크|컨센서스\s*(상회|하회)|예상\s*(상회|하회)/;
 /** EPS 결과 극성 — 가이던스 실망을 실적 미스로 단정하는 표현 포함 */
-const BEAT_CLAIM_RE = /서프라이즈|어닝\s*비트|컨센서스\s*상회/;
-const MISS_CLAIM_RE = /어닝\s*쇼크|(?:어닝\s*)?미스|컨센서스\s*하회/;
+const BEAT_CLAIM_RE =
+  /서프라이즈|어닝\s*비트|컨센서스\s*상회|예상\s*상회/;
+const MISS_CLAIM_RE =
+  /어닝\s*쇼크|(?:어닝\s*)?미스|컨센서스\s*하회|예상\s*하회/;
 /** 가이던스·전망 결과 단정 — Evidence contextNews 없이 쓰면 hard fail */
 const GUIDANCE_CLAIM_RE =
   /가이던스\s*(?:를\s*)?(?:하회|상회|하향|상향|실망|미달|부진|양호|호조|컷|컷트)|가이딩\s*(?:컷|미스)|향후\s*(?:실적\s*)?전망\s*(?:하회|실망|부진|상향|하향)|어닝\s*콜\s*(?:실망|호조|부정|긍정)|guidance\s*(?:cut|miss|beat|soft|weak|raise|lower)|outlook\s*(?:cut|miss|beat|soft|weak)/i;
@@ -791,22 +717,6 @@ export function runGuard(input: {
       message:
         "장후 브리핑에 오늘 세션 리캡이 없음. 마감·장중·세션 결과와 주요 촉발 요인을 요약.",
     });
-  }
-
-  // kr-post / us-post: headline+first bullet must state Evidence index close direction/%
-  if (input.snapshot.slot === "kr-post" || input.snapshot.slot === "us-post") {
-    const closeRows = resolvePostCloseIndexes(input.snapshot, scope);
-    const missing = missingPostCloseLeads(input.briefing, closeRows);
-    if (missing.length > 0) {
-      const names = missing.map((r) => r.name).join("/");
-      findings.push({
-        severity: "block",
-        code: "post-missing-index-close",
-        message:
-          `장후 헤드라인·첫 불릿에 Evidence ${names} 마감 상승/하락(등락%)이 없음. ` +
-          "체크리스트(봅니다/정리합니다)보다 세션 마감 사실을 먼저.",
-      });
-    }
   }
 
   for (const text of texts) {
@@ -1169,8 +1079,7 @@ export function ensureImminentEarningsMentioned(
   scope: MarketScope = "all",
 ): BriefingDraft {
   const now = Date.now();
-  const scrubbed = scrubFalseImminentEarningsLabels(briefing, snapshot, scope);
-  const prose = [scrubbed.headline, ...scrubbed.bullets].join("\n");
+  const prose = [briefing.headline, ...briefing.bullets].join("\n");
   const proseLower = prose.toLowerCase();
   const missing = listImminentEarnings(snapshot.events ?? [], now, scope).filter((e) => {
     const hasCore = proseMentionsEarningsIdentity(prose, proseLower, e);
@@ -1180,14 +1089,43 @@ export function ensureImminentEarningsMentioned(
     return !hasCore || !hasBeat;
   });
 
-  if (missing.length === 0) return scrubbed;
+  if (missing.length === 0) return briefing;
 
-  const extra = missing.slice(0, 2).map((e) => buildEarningsPatchBullet(e, now));
+  const extra = missing.slice(0, 2).map((e) => {
+    const nameCore = earningsNameCore(e);
+    if (e.actual?.beatLabel && isPostEarningsResult(e, now)) {
+      return `${nameCore} 실적 결과(주당순이익 ${e.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
+    }
+    if (isPostEarningsResult(e, now) && e.actual?.epsActual != null && e.actual?.epsEstimate != null) {
+      const a = e.actual.epsActual;
+      const est = e.actual.epsEstimate;
+      const region = e.region === "KR" ? "KR" : "US";
+      const fmt = (v: number) =>
+        region === "KR" ? `${Math.round(v).toLocaleString("ko-KR")}원` : `$${Number(v.toFixed(2))}`;
+      if (hasEarningsContextNews(e)) {
+        return `${nameCore} 실적 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — Evidence뉴스 반응·가이던스 참고 (서프라이즈/미스 단정 금지)`;
+      }
+      return `${nameCore} 실적 발표됨 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — 반응 근거 부족`;
+    }
+    if (
+      isPostEarningsResult(e, now) &&
+      (isPendingResultOneLiner(e.oneLiner) || contextNewsSuggestsPrinted(e.contextNews))
+    ) {
+      if (hasEarningsContextNews(e)) {
+        return `${nameCore} 실적 발표됨 · 결과 집계 대기 — Evidence뉴스로 반응·가이던스만 (숫자 창작 금지)`;
+      }
+      return `${nameCore} 실적 발표됨 · 결과 집계 대기 — 반응 근거 부족`;
+    }
+    if (hasEarningsContextNews(e)) {
+      return `${nameCore} 실적 임박 — Evidence뉴스 참고해 가이던스·섹터 맥락만 짧게 (방향 예측 금지)`;
+    }
+    return `${nameCore} 실적 발표 임박 — 섹터 온도 점검만 (가이던스 추측·방향 예측 금지)`;
+  });
 
   return {
-    ...scrubbed,
+    ...briefing,
     // 실적 보강 불릿이 잘리지 않도록 자리를 확보 (최대 5)
-    bullets: [...scrubbed.bullets.slice(0, Math.max(0, 5 - extra.length)), ...extra],
+    bullets: [...briefing.bullets.slice(0, Math.max(0, 5 - extra.length)), ...extra],
   };
 }
 
@@ -1196,14 +1134,13 @@ export function ensurePriorSessionAnchored(briefing: BriefingDraft): BriefingDra
   return briefing;
 }
 
-/** 최종 재시도용 — 마감 리드·실적 누락 보강. 전일 앵커 강제 삽입 금지(시점 둔갑 방지) */
+/** 최종 재시도용 — 실적 누락만 보강. 전일 앵커 강제 삽입 금지(시점 둔갑 방지) */
 export function patchBriefingForGuardRetry(
   briefing: BriefingDraft,
   snapshot: CollectorSnapshot,
   scope: MarketScope = "all",
 ): BriefingDraft {
-  const withClose = ensurePostCloseLead(briefing, snapshot, scope);
-  return ensureImminentEarningsMentioned(withClose, snapshot, scope);
+  return ensureImminentEarningsMentioned(briefing, snapshot, scope);
 }
 
 /** 장중 리프레시용 — 브리핑만 검사. 동결된 시나리오·점검 경고는 무시 */
@@ -1282,8 +1219,6 @@ export function findingsToRepairHints(findings: GuardFinding[]): string[] {
       "지수·수급·시총 숫자에 전일/직전 마감 시점 표시를 같은 문장에.",
     "post-missing-session-recap":
       "장후: 오늘 마감·장중·세션 결과와 촉발 요인 1개를 헤드라인/불릿에.",
-    "post-missing-index-close":
-      "장후: 헤드라인과 첫 불릿에 지수 마감 상승/하락 + 등락%를 먼저. ‘정리합니다/봅니다/금지/연결합니다’ 체크리스트·Evidence 접미 톤 금지.",
     "carry-forward-omission":
       "forceCite due를 Evidence 사실로 브리핑에 반영 (생략 금지).",
     "carry-forward-no-reeval":
@@ -1299,7 +1234,7 @@ export function findingsToRepairHints(findings: GuardFinding[]): string[] {
     "earnings-reaction-omission":
       "숫자+Evidence뉴스면 1불릿에 매출/주당순이익+예상대비 + 가이던스·반응 이중 서술.",
     "missed-earnings":
-      "임박/직후 실적을 bullets에 회사명·숫자(+뉴스 so-what) 1줄 포함. 발표됨·actual이면 「임박」 금지. 본문에 Evidence/금지 강의 금지.",
+      "임박/직후 실적을 bullets에 회사명으로 1줄 점검 포함.",
     "slot-tone-mismatch":
       "이 슬롯 JOB에 맞는 톤으로. 장중·점검은 관측 틀 갱신(장후 리캡·개장 예측 금지).",
     "fact-mismatch":

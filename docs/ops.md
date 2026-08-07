@@ -40,7 +40,7 @@
 - **Push notifications ON**: 활성 구독 endpoint 수(집계만 · endpoint/키/PII 비노출). 페이지 로드 시 Redis 인덱스로 재집계해 카운터 드리프트를 보정하고, 재집계 시각을 함께 표시한다. ON = `push:sub:*` 레코드에 시장이 있고 ≥1 슬롯이 켜진 경우. 구독 ON 전환 시 +1, 완전 해제(또는 슬롯 없는 상태) 시 −1. 슬롯만 바꾸거나 같은 ON 상태 재저장은 카운트 불변.
 - `latest.json` 신선도: slot, publishedAt, mode  
 - Guard 통과/차단 + 짧은 summary  
-- `status.json`: 최근 파이프라인 성공/실패·에러 한 줄 (Actions가 커밋). `degraded: true`면 continuity soft demote 또는 thin evidence 발행.
+- `status.json`: 최근 파이프라인 성공/실패·에러 한 줄 (Actions가 커밋)
 
 유입·방문 퍼널·리퍼러는 `/ops`에 두지 않는다(Vercel Analytics).
 
@@ -127,8 +127,7 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 - **영업이익 실제:** 1순위는 네이버 `finance/quarter`에서 `isConsensus≠Y` 분기 열 → `operatingProfitActual`. 발표 직후 열이 아직 컨센서스(`isConsensus=Y`)만이면 2순위 **네이버 공정공시** `GET /api/stock/{code}/disclosure`(+ detail)의 **연결재무제표 영업(잠정)실적**만 사용 (`fetchNaverEarningsDisclosure.ts`). 조건: 연결 제목·단위 억원·당기 분기 키 일치·매출+영업이익 둘 다·컨센서스 대비 자릿수/규모(0.25×~4×) 검증. **별도** 잠정실적·모호한 헤드라인/뉴스 title regex로 실제 채우지 않음. 실패 시 soft-fail → 「발표됨 · 결과 집계 대기」.
 - **금지:** `quarterlies[0]` 폴백, 동일 시 미스 처리, Yahoo `calendarEvents.earningsAverage`가 다음 분기로 롤된 값을 이번 발표 컨센서스로 붙이기, UI/LLM이 beatLabel 재계산, Evidence에 없는 영업이익 창작.
 - Guard: `invented-event-result` · `unsupported-earnings-result` · `earnings-beat-polarity` · `unsupported-guidance-claim` · `earnings-reaction-omission`(숫자|집계대기+뉴스인데 가이던스/반응 누락 — forceCite/mustCover·라이브 due면 hard fail) · `carry-forward-no-reeval` · `slot-tone-mismatch` · `empty-briefing` (브리핑·시나리오·체크리스트 전부). 숫자+뉴스 이중 서술은 허용·필수. 재생성 시 `findingsToRepairHints`가 코드별 수정 지시를 프롬프트에 넣는다.
-- **슬롯 발행 보장 (degraded):** 최대 5회 재시도 후, **최종 시도에서만** continuity soft(`carry-forward-omission` · `carry-forward-no-reeval`)를 block→warn demote → **degraded publish**(새 slot·publishedAt, asOf에 「제한 연속성」, `status.json` `degraded: true`). 사실 hard(`invented-event-result` · `earnings-beat-polarity` · `prior-label-mismatch` · `recommendation-or-prediction` · `empty-briefing` · `slot-tone-mismatch` · forceCite `earnings-reaction-omission` 등)는 **영구 hard** — LLM 초안 통과 금지. hard만 남으면 Evidence 앵커 **thin publish**. thin도 실패하면 `keep-previous` + `status.json` `ok: false` / `degraded: false`.
-- 단위 테스트: `npm run test:unit` (`earningsBeat.test.ts`, `earningsAnnounced.test.ts`, `fetchNaverOpConsensus.test.ts`, `fetchNaverEarningsDisclosure.test.ts`, `guard.earnings.test.ts`, `guard.quality.test.ts`, `degradedPublish.test.ts`).
+- 단위 테스트: `npm run test:unit` (`earningsBeat.test.ts`, `earningsAnnounced.test.ts`, `fetchNaverOpConsensus.test.ts`, `fetchNaverEarningsDisclosure.test.ts`, `guard.earnings.test.ts`, `guard.quality.test.ts`).
 
 ### 오늘 브리핑 품질 (제품 베팅)
 

@@ -1,26 +1,23 @@
 import type { BriefingDraft, CollectorSnapshot, DecisionDraft, MarketScope } from "@/lib/pipeline/types";
-import {
-  buildPostCloseHeadline,
-  resolvePostCloseIndexes,
-} from "@/lib/pipeline/sessionCloseLead";
-import {
-  formatUserCloseBullet,
-  formatUserRiskBullet,
-  formatUserSessionSoWhat,
-} from "@/lib/pipeline/userFacingCopy";
 
-/** LLM 실패 시 — 복창 없이 개미용 사실·해석 톤 유지 (파이프라인 메타 금지) */
+/** LLM 실패 시 — 복창 없이 해석 톤 유지 */
 export function seedBriefing(snapshot: CollectorSnapshot, scope: MarketScope): BriefingDraft {
   const kospi = snapshot.indexes.find((q) => q.id === "kospi");
   const nasdaq = snapshot.indexes.find((q) => q.id === "nasdaq");
   const fx = snapshot.macros.find((m) => m.id === "usdkkrw");
+  const wti = snapshot.macros.find((m) => m.id === "wti");
   const riskElevated = Boolean(snapshot.evidence?.risk?.elevated);
-  const riskBullet = formatUserRiskBullet(snapshot, scope);
+  const riskHint = snapshot.evidence?.risk?.headlines[0]?.title;
   const sharp =
     (kospi?.priorSessionChangePercent ?? kospi?.changePercent ?? 0) <= -3;
   const usUp =
     (nasdaq?.priorSessionChangePercent ?? nasdaq?.changePercent ?? 0) >= 0.3;
 
+  const riskBullet = riskElevated
+    ? riskHint
+      ? `지정학·공급 리스크 헤드라인(예: ${riskHint})이 잡혀 있으면, 유가(${wti?.value ?? "WTI"})·VIX와 같이 ‘흔들림 원인 후보’로만 보세요. 전쟁 결과 예측은 하지 마세요.`
+      : "유가·변동성 숫자가 흔들릴 때는 중동·공급 같은 지정학 리스크가 원인 후보일 수 있습니다. 단정하지 말고 점검 포인트로만 두세요."
+    : null;
   const isPre = snapshot.slot === "kr-pre" || snapshot.slot === "us-pre";
   const isPost = snapshot.slot === "kr-post" || snapshot.slot === "us-post";
 
@@ -31,19 +28,19 @@ export function seedBriefing(snapshot: CollectorSnapshot, scope: MarketScope): B
     const priorPct = focus?.priorSessionChangePercent;
     const priorLine =
       priorPct == null
-        ? `전 거래일 ${market} 지수·시총 상위의 방향과 체감이 갈렸는지가 오늘 관측 출발점이다.`
-        : `전 거래일 ${focus?.name ?? market} 마감 ${priorPct >= 0 ? "+" : ""}${priorPct.toFixed(2)}% — 장중 숫자를 전일로 쓰지 않는다.`;
+        ? `전 거래일 ${market} 지수·시총 상위의 방향과 체감 차이를 먼저 요약합니다.`
+        : `전 거래일 ${focus?.name ?? market} 마감 ${priorPct >= 0 ? "+" : ""}${priorPct.toFixed(2)}% — 장중 숫자를 전일로 쓰지 않습니다.`;
     return {
       headline: `전 거래일 ${market} 마감 정리 · 오늘은 핵심 변수 반응 관측`,
       bullets: [
         priorLine,
         scope === "us"
-          ? "전 거래일 미 금리·VIX가 지수·메가캡 체감에 남긴 차이가 핵심이다."
-          : "전 거래일 국내 수급과 코스피200이 지수와 같은 방향이었는지가 체감 단서다.",
-        "다가올 실적·매크로 일정은 방향 맞히기가 아니라 변동성 맥락이다.",
+          ? "전 거래일 미 금리와 VIX가 지수·메가캡 움직임에 어떤 차이를 만들었는지 봅니다."
+          : "전 거래일 국내 수급과 코스피200이 지수 움직임과 같은 방향이었는지 봅니다.",
+        "다가올 실적·매크로 일정은 방향 예측이 아니라 변동성 맥락으로만 둡니다.",
         scope === "us"
-          ? "장 초반엔 미 금리·VIX 반응과 메가캡 흐름 유지 여부가 관측 포인트다."
-          : "장 초반엔 외국인 수급·환율 반응과 대형주 흐름 유지 여부가 관측 포인트다.",
+          ? "장 초반 미 금리·VIX 반응과 메가캡 흐름의 유지 여부를 관측합니다."
+          : "장 초반 외국인 수급·환율 반응과 대형주 흐름의 유지 여부를 관측합니다.",
       ],
       evidenceIds: riskElevated
         ? ["usdkkrw", "wti", "vix"]
@@ -53,22 +50,16 @@ export function seedBriefing(snapshot: CollectorSnapshot, scope: MarketScope): B
 
   if (isPost) {
     const market = scope === "us" ? "미국" : scope === "kr" ? "국내" : "한·미";
-    const closeRows = resolvePostCloseIndexes(snapshot, scope);
-    const closeBullet = formatUserCloseBullet(closeRows);
-    const headline = buildPostCloseHeadline(closeRows, market);
     return {
-      headline,
+      headline: `오늘 ${market} 세션 마감 정리 · 지수와 체감의 차이`,
       bullets: [
-        closeBullet ??
-          `오늘 ${market} 세션 마감 — 지수 등락 수치를 확인하지 못해 방향 없이 요약한다.`,
-        formatUserSessionSoWhat(snapshot, scope),
-        riskBullet ??
-          (scope === "us"
-            ? "장중 주요 일정·섹터 이슈 중 지수·메가캡에 실제로 닿은 촉발만 남긴다."
-            : "장중 주요 일정·섹터 이슈 중 지수·체감에 실제로 닿은 촉발만 남긴다."),
+        `오늘 ${market} 세션은 지수와 시장 폭·시총 상위 체감이 같은 방향이었는지부터 정리합니다.`,
         scope === "us"
-          ? "다음 구간은 금리·변동성 반응이 국내와 겹치는 변수인지 가늠하는 때다."
-          : "다음 구간은 환율·금리·변동성 반응이 미장과 겹치는 변수인지 가늠하는 때다.",
+          ? "장중 미 금리·VIX와 메가캡 움직임 중 무엇이 흐름을 주도했는지 봅니다."
+          : "장중 외국인·기관 수급과 코스피200 중 무엇이 흐름을 주도했는지 봅니다.",
+        riskBullet ??
+          "장중 주요 일정·섹터 이슈는 지수와 체감에 실제로 연결된 촉발 요인만 남깁니다.",
+        "다음 세션은 방향을 단정하지 않고 환율·금리·변동성 반응을 연결 포인트로 둡니다.",
       ],
       evidenceIds: riskElevated
         ? ["usdkkrw", "wti", "vix"]

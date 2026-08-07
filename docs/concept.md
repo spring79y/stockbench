@@ -74,7 +74,7 @@ Discuss 원칙: 사용자가 말한 “예측 지수”는 **기대·경계 신�
 | Collector | Yahoo·네이버 등 API로 지수·매크로·시총·수급·실적 숫자·`contextNews` 수집 → **Evidence Pack** 구조화 (비AI). **사실·플래그만** — EventList `oneLiner`에 판정 보류/호재·악재 등 해석 카피 금지 |
 | Briefing | Evidence Pack → 헤드라인·불릿·근거 (**탭별**, LLM). 실적 **결과+시장 반응** 서술(숫자+뉴스 이중 서술 포함)은 Briefing 전담. 뉴스 없으면 반응 풍부 서술 생략·강제 시 「반응 근거 부족」. **한·미는 해당 시장 1순위·상대 시장 ≤1불릿 브릿지** |
 | Decision | 브리핑+Evidence Pack → 시나리오 A/B + 「오늘 볼 것」3~5 (**탭별**, LLM). 해석은 Evidence 사실 기반 · beatLabel/뉴스 없는 극성·가이던스 단정 금지 |
-| Guard | 추천/예측 톤·숫자 복창·공허·**시점 둔갑**·사실 불일치·**due+Evidence 누락·재평가 없는 키워드만**·**결과 창작**·**beat 극성 반전**·**뉴스 없는 가이던스 단정**·**숫자+뉴스인데 가이던스/반응 누락**·**슬롯 톤 불일치** 차단. 숫자+뉴스면 이중 서술 허용·필수. 거절 사유→`findingsToRepairHints` 구체 수정 지시로 재생성. 최대 5회. **continuity soft 실패 → degraded publish / 사실 hard만 남음 → thin evidence publish / 생성 불가 → keep-previous** |
+| Guard | 추천/예측 톤·숫자 복창·공허·**시점 둔갑**·사실 불일치·**due+Evidence 누락·재평가 없는 키워드만**·**결과 창작**·**beat 극성 반전**·**뉴스 없는 가이던스 단정**·**숫자+뉴스인데 가이던스/반응 누락**·**슬롯 톤 불일치** 차단. 숫자+뉴스면 이중 서술 허용·필수. 거절 사유→`findingsToRepairHints` 구체 수정 지시로 재생성. 최대 5회. 전부 거절 시 **직전 발행 유지** |
 | Publisher | `src/data/published/latest.json` (version 2, views.all/kr/us) |
 
 ### Evidence Pack (LLM 입력)
@@ -97,7 +97,7 @@ Briefing/Decision이 받는 구조화 근거. UI 대시보드가 아님.
 LLM: `.env.local` — 품질 우선 시 Anthropic/OpenAI 권장. Ollama는 가능하나 소형 모델은 비권장.  
 실행: `npm run pipeline -- kr-post` (슬롯: kr-pre / kr-mid / kr-post / us-pre / us-mid / us-noon / us-post)  
 스케줄: 풀 `us-post·kr-pre 07:00` · `us-noon·kr-mid 12:30` · `kr-post 15:40` · `us-pre 21:50` · `us-mid 02:00` (주말 스킵). 탭: 한국슬롯→통합+한국, 미국슬롯→통합+미국. 웹 푸시는 KST 00:00–07:00 미발송이며, **latest.json 커밋·프로덕션 반영 후**에만 발송.  
-실패·키 없음 → seed fallback. **Guard block 시 scope당 최대 5회 재생성.** 1~4회는 hard 유지. **최종 시도에서만** `carry-forward-omission`·`carry-forward-no-reeval`을 warn으로 demote해 **degraded publish**(새 slot·publishedAt, 「제한 연속성」). 사실 hard만 남으면 **Evidence 앵커 thin publish**. 생성 불가면 latest를 덮지 않고 **keep-previous**.
+실패·키 없음 → seed fallback. **Guard block 시 scope당 최대 5회 재생성. 전부 거절이면 latest를 덮지 않고 직전 발행 유지.**
 
 ### 하지 않는 시점 오류
 

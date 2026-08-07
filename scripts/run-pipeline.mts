@@ -6,11 +6,6 @@
  * - kr-* → all + kr
  * - us-* → all + us
  * mid 슬롯(kr-mid/us-mid)은 refresh: Briefing만, 시나리오·점검 유지
- *
- * Guard 최종(5회) 시도:
- * - continuity soft만 → demote warn + degraded publish (「제한 연속성」)
- * - 사실 hard만 남음 → Evidence 앵커 thin publish (슬롯 스탬프 갱신)
- * - thin도 실패 / 생성 불가 → keep-previous
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -26,27 +21,13 @@ import {
   runBriefingOnlyGuard,
   runGuard,
 } from "../src/lib/pipeline/guard";
-import {
-  appendDegradedAsOf,
-  blockingCodes,
-  buildDegradedEditorialView,
-  buildThinEvidenceDrafts,
-  classifyFinalAttempt,
-  demoteFinalAttemptFindings,
-  filterThinGuardFindings,
-  hasHardBlocks,
-  summarizeDegradedPublish,
-} from "../src/lib/pipeline/degradedPublish";
 import { resolveLlmConfig } from "../src/lib/pipeline/llm";
 import { writePipelineStatus } from "../src/lib/pipeline/pipelineStatus";
 import { runBriefingAgent } from "../src/lib/pipeline/runBriefingAgent";
 import { runDecisionAgent } from "../src/lib/pipeline/runDecisionAgent";
 import { ALL_PIPELINE_SLOTS, modeForSlot, scopesForSlot } from "../src/lib/pipeline/schedule";
 import { buildChangeLines } from "../src/lib/pipeline/briefingDelta";
-import { sanitizePublishedBundle } from "../src/lib/pipeline/publishSanitize";
 import type {
-  BriefingDraft,
-  DecisionDraft,
   EditorialView,
   MarketScope,
   PipelineMode,
@@ -83,142 +64,7 @@ function recordStatus(
     error: partial.error,
     guardOk: partial.guardOk,
     guardSummary: partial.guardSummary,
-    ...(partial.degraded != null ? { degraded: partial.degraded } : {}),
   });
-}
-
-function scopePrefixFindings(
-  scope: MarketScope,
-  findings: PublishedBundle["guard"]["findings"],
-): PublishedBundle["guard"]["findings"] {
-  return findings.map((f) => ({ ...f, message: `[${scope}] ${f.message}` }));
-}
-
-function keepPreviousWarnFindings(
-  scope: MarketScope,
-  findings: PublishedBundle["guard"]["findings"],
-): PublishedBundle["guard"]["findings"] {
-  return findings.map((f) => ({
-    ...f,
-    severity: "warn" as const,
-    message: `[${scope}] keep-previous: ${f.message}`,
-  }));
-}
-
-type ScopeGenResult = {
-  view: EditorialView | null;
-  findings: PublishedBundle["guard"]["findings"];
-  blocked: boolean;
-  degraded: boolean;
-  thin: boolean;
-};
-
-function resolveFinalAttemptView(input: {
-  snapshot: Awaited<ReturnType<typeof collectSnapshot>>;
-  scope: MarketScope;
-  publishedAt: string;
-  slot: PipelineSlot;
-  mode: PipelineMode;
-  briefing: BriefingDraft;
-  decision: DecisionDraft;
-  guard: ReturnType<typeof runGuard>;
-  previousView?: EditorialView;
-}): ScopeGenResult {
-  const { kind, findings: classified } = classifyFinalAttempt(input.guard);
-  const continuity = input.snapshot.evidence?.previous.continuity?.[input.scope] ?? null;
-
-  if (kind === "degraded-draft") {
-    console.log(
-      `  final-attempt demote → degraded publish (${summarizeDegradedPublish({
-        degraded: true,
-        findings: classified,
-      })})`,
-    );
-    const draft = buildDegradedEditorialView({
-      briefing: input.briefing,
-      decision: input.decision,
-      publishedAt: input.publishedAt,
-      slot: input.slot,
-      mode: input.mode,
-      kind: "degraded-draft",
-    });
-    return {
-      view: {
-        ...draft,
-        carryStreaks: nextCarryStreaks(input.previousView, draft, continuity),
-      },
-      findings: scopePrefixFindings(input.scope, classified),
-      blocked: false,
-      degraded: true,
-      thin: false,
-    };
-  }
-
-  const thin = buildThinEvidenceDrafts(input.snapshot, input.scope);
-  const thinRaw = runGuard({
-    snapshot: input.snapshot,
-    briefing: thin.briefing,
-    decision: thin.decision,
-    scope: input.scope,
-  });
-  const thinFindings = demoteFinalAttemptFindings(
-    filterThinGuardFindings(thinRaw.findings),
-  );
-  const thinOk = !hasHardBlocks(thinFindings);
-
-  if (thinOk) {
-    console.log(
-      `  final-attempt thin Evidence → degraded publish (hard left: ${blockingCodes(classified).join(", ") || "n/a"})`,
-    );
-    const draft = buildDegradedEditorialView({
-      briefing: thin.briefing,
-      decision: thin.decision,
-      publishedAt: input.publishedAt,
-      slot: input.slot,
-      mode: input.mode,
-      kind: "thin-evidence",
-    });
-    return {
-      view: {
-        ...draft,
-        carryStreaks: nextCarryStreaks(input.previousView, draft, continuity),
-      },
-      findings: scopePrefixFindings(input.scope, [
-        ...classified.map((f) =>
-          f.severity === "block"
-            ? {
-                ...f,
-                severity: "warn" as const,
-                message: `LLM draft blocked → thin: ${f.message}`,
-              }
-            : f,
-        ),
-        ...thinFindings,
-        {
-          severity: "warn" as const,
-          code: "thin-evidence-publish",
-          message: "사실 hard 잔존 → Evidence 앵커 최소 브리핑으로 슬롯 스탬프 갱신",
-        },
-      ]),
-      blocked: false,
-      degraded: true,
-      thin: true,
-    };
-  }
-
-  console.error(
-    `  final-attempt blocked (thin also hard): ${blockingCodes(thinFindings).join(", ")} — keep-previous`,
-  );
-  return {
-    view: null,
-    findings: keepPreviousWarnFindings(input.scope, [
-      ...classified,
-      ...thinFindings,
-    ]),
-    blocked: true,
-    degraded: false,
-    thin: false,
-  };
 }
 
 function loadPreviousBundle(): PublishedBundle | null {
@@ -240,7 +86,11 @@ async function generateFullView(
   publishedAt: string,
   slot: PipelineSlot,
   previousView?: EditorialView,
-): Promise<ScopeGenResult> {
+): Promise<{
+  view: EditorialView | null;
+  findings: PublishedBundle["guard"]["findings"];
+  blocked: boolean;
+}> {
   let repairHints: string[] | undefined;
   const findings: PublishedBundle["guard"]["findings"] = [];
 
@@ -283,7 +133,9 @@ async function generateFullView(
     }
 
     if (guard.ok) {
-      findings.push(...scopePrefixFindings(scope, guard.findings));
+      findings.push(
+        ...guard.findings.map((f) => ({ ...f, message: `[${scope}] ${f.message}` })),
+      );
       const continuity = snapshot.evidence?.previous.continuity?.[scope] ?? null;
       const draftView: EditorialView = {
         briefing: {
@@ -304,31 +156,22 @@ async function generateFullView(
         },
         findings,
         blocked: false,
-        degraded: false,
-        thin: false,
       };
     }
 
     repairHints = findingsToRepairHints(guard.findings);
     console.log(
-      `  guard blocked → ${attempt < MAX_GUARD_ATTEMPTS ? "retry" : "final demote/thin"}: ${repairHints.join("; ")}`,
+      `  guard blocked → ${attempt < MAX_GUARD_ATTEMPTS ? "retry" : "give up"}: ${repairHints.join("; ")}`,
     );
     if (attempt === MAX_GUARD_ATTEMPTS) {
-      return resolveFinalAttemptView({
-        snapshot,
-        scope,
-        publishedAt,
-        slot,
-        mode: "full",
-        briefing,
-        decision,
-        guard,
-        previousView,
-      });
+      findings.push(
+        ...guard.findings.map((f) => ({ ...f, message: `[${scope}] ${f.message}` })),
+      );
+      return { view: null, findings, blocked: true };
     }
   }
 
-  return { view: null, findings, blocked: true, degraded: false, thin: false };
+  return { view: null, findings, blocked: true };
 }
 
 async function generateRefreshView(
@@ -337,7 +180,11 @@ async function generateRefreshView(
   publishedAt: string,
   slot: PipelineSlot,
   previous: EditorialView | undefined,
-): Promise<ScopeGenResult> {
+): Promise<{
+  view: EditorialView | null;
+  findings: PublishedBundle["guard"]["findings"];
+  blocked: boolean;
+}> {
   if (!previous?.scenarios?.length || !previous.checkItems?.length) {
     console.log(`[pipeline] refresh fallback → full (no prior view for ${scope})`);
     return generateFullView(snapshot, scope, publishedAt, slot, previous);
@@ -382,7 +229,9 @@ async function generateRefreshView(
     }
 
     if (guard.ok) {
-      findings.push(...scopePrefixFindings(scope, guard.findings));
+      findings.push(
+        ...guard.findings.map((f) => ({ ...f, message: `[${scope}] ${f.message}` })),
+      );
       return {
         view: {
           briefing: {
@@ -398,31 +247,26 @@ async function generateRefreshView(
         },
         findings,
         blocked: false,
-        degraded: false,
-        thin: false,
       };
     }
 
     repairHints = findingsToRepairHints(guard.findings);
     console.log(
-      `  guard blocked → ${attempt < MAX_GUARD_ATTEMPTS ? "retry" : "final demote/thin"}: ${repairHints.join("; ")}`,
+      `  guard blocked → ${attempt < MAX_GUARD_ATTEMPTS ? "retry" : "keep previous"}: ${repairHints.join("; ")}`,
     );
     if (attempt === MAX_GUARD_ATTEMPTS) {
-      return resolveFinalAttemptView({
-        snapshot,
-        scope,
-        publishedAt,
-        slot,
-        mode: "refresh",
-        briefing,
-        decision: frozenDecision,
-        guard,
-        previousView: previous,
-      });
+      findings.push(
+        ...guard.findings.map((f) => ({
+          ...f,
+          severity: "warn" as const,
+          message: `[${scope}] refresh skipped: ${f.message}`,
+        })),
+      );
+      return { view: { ...previous }, findings, blocked: false };
     }
   }
 
-  return { view: null, findings, blocked: true, degraded: false, thin: false };
+  return { view: { ...previous }, findings, blocked: false };
 }
 
 async function main() {
@@ -456,12 +300,9 @@ async function main() {
       us: previous?.views.us,
     } as PublishedBundle["views"];
     const findings = [...(previous?.guard.findings ?? []).filter((f) => f.severity !== "block")];
-    let publishedAny = false;
-    let anyDegraded = false;
-    let anyThin = false;
 
     for (const scope of targetScopes) {
-      const { view, findings: scopeFindings, blocked, degraded, thin } =
+      const { view, findings: scopeFindings, blocked } =
         mode === "refresh"
           ? await generateRefreshView(snapshot, scope, publishedAt, slot, views[scope])
           : await generateFullView(snapshot, scope, publishedAt, slot, views[scope]);
@@ -475,34 +316,8 @@ async function main() {
         }
         continue;
       }
-      publishedAny = true;
-      if (degraded) anyDegraded = true;
-      if (thin) anyThin = true;
-      const deltaLines = buildChangeLines(previous?.views?.[scope], view, mode);
-      const changeLines = [
-        ...(view.changeLines ?? []).filter((l) => !deltaLines.includes(l)),
-        ...deltaLines,
-      ].slice(0, 3);
+      const changeLines = buildChangeLines(previous?.views?.[scope], view, mode);
       views[scope] = { ...view, changeLines };
-    }
-
-    if (!publishedAny) {
-      console.error(
-        "[pipeline] all target scopes blocked — keep previous publication (latest.json unchanged)",
-      );
-      recordStatus({
-        slot,
-        ok: false,
-        mode,
-        degraded: false,
-        guardOk: false,
-        guardSummary: summarizeGuard({
-          ok: findings.every((f) => f.severity !== "block"),
-          findings,
-        }),
-        error: `keep-previous: hard blocks after thin — ${blockingCodes(findings).join(", ") || "unknown"}`,
-      });
-      process.exit(0);
     }
 
     (["all", "kr", "us"] as MarketScope[]).forEach((scope) => {
@@ -522,14 +337,13 @@ async function main() {
       console.error("[pipeline] missing views — seeding missing scopes with full generation");
       for (const scope of ["all", "kr", "us"] as MarketScope[]) {
         if (!views[scope]) {
-          const { view, findings: scopeFindings, blocked, degraded, thin } =
-            await generateFullView(
-              snapshot,
-              scope,
-              publishedAt,
-              slot,
-              previous?.views?.[scope],
-            );
+          const { view, findings: scopeFindings, blocked } = await generateFullView(
+            snapshot,
+            scope,
+            publishedAt,
+            slot,
+            previous?.views?.[scope],
+          );
           findings.push(...scopeFindings);
           if (blocked || !view) {
             console.error(`[pipeline] cannot seed scope=${scope} — abort publish, keep previous`);
@@ -537,7 +351,6 @@ async function main() {
               slot,
               ok: false,
               mode,
-              degraded: false,
               guardOk: false,
               guardSummary: summarizeGuard({
                 ok: false,
@@ -547,14 +360,10 @@ async function main() {
             });
             process.exit(0);
           }
-          if (degraded) anyDegraded = true;
-          if (thin) anyThin = true;
-          const deltaLines = buildChangeLines(previous?.views?.[scope], view, "full");
-          const changeLines = [
-            ...(view.changeLines ?? []).filter((l) => !deltaLines.includes(l)),
-            ...deltaLines,
-          ].slice(0, 3);
-          views[scope] = { ...view, changeLines };
+          views[scope] = {
+            ...view,
+            changeLines: buildChangeLines(previous?.views?.[scope], view, "full"),
+          };
         }
       }
     }
@@ -572,24 +381,15 @@ async function main() {
         slot,
         ok: false,
         mode,
-        degraded: false,
         guardOk: false,
         guardSummary: summarizeGuard(guard),
         error: `keep-previous: ${summarizeGuard(guard)}`,
       });
+      // 직전 발행 유지 — 오보로 latest를 덮지 않음
       process.exit(0);
     }
 
-    const asOfLabel = appendDegradedAsOf(snapshot.asOfLabel, anyDegraded);
-    const guardSummary = anyDegraded
-      ? summarizeDegradedPublish({
-          degraded: true,
-          findings,
-          thin: anyThin,
-        })
-      : summarizeGuard(guard);
-
-    const bundle: PublishedBundle = sanitizePublishedBundle({
+    const bundle: PublishedBundle = {
       version: 2,
       slot,
       publishedAt,
@@ -599,12 +399,12 @@ async function main() {
         temperature: snapshot.temperature,
         mood: snapshot.mood,
         moodLabel: snapshot.moodLabel,
-        asOfLabel,
+        asOfLabel: snapshot.asOfLabel,
       },
       views: views as PublishedBundle["views"],
       events: snapshot.events ?? previous?.events ?? defaultPipelineEvents(),
       guard,
-    });
+    };
 
     mkdirSync(dirname(latestPath), { recursive: true });
     if (previous) {
@@ -616,11 +416,10 @@ async function main() {
       slot,
       ok: true,
       mode,
-      degraded: anyDegraded || undefined,
       guardOk: true,
-      guardSummary,
+      guardSummary: summarizeGuard(guard),
     });
-    console.log(`[pipeline] published → ${latestPath}${anyDegraded ? " (degraded)" : ""}`);
+    console.log(`[pipeline] published → ${latestPath}`);
     console.log(`updated scopes: ${targetScopes.join(", ")} · mode=${mode}`);
     console.log(`all@${bundle.views.all.publishedAt}: ${bundle.views.all.briefing.headline}`);
     console.log(`kr@${bundle.views.kr.publishedAt}: ${bundle.views.kr.briefing.headline}`);
@@ -631,7 +430,6 @@ async function main() {
       slot,
       ok: false,
       mode,
-      degraded: false,
       error: message.slice(0, 240),
     });
     throw error;
