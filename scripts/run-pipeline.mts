@@ -27,6 +27,11 @@ import { runBriefingAgent } from "../src/lib/pipeline/runBriefingAgent";
 import { runDecisionAgent } from "../src/lib/pipeline/runDecisionAgent";
 import { ALL_PIPELINE_SLOTS, modeForSlot, scopesForSlot } from "../src/lib/pipeline/schedule";
 import { buildChangeLines } from "../src/lib/pipeline/briefingDelta";
+import {
+  briefingHasForbiddenSeedVoice,
+  seedBriefing,
+  seedDecision,
+} from "../src/lib/pipeline/seed";
 import type {
   EditorialView,
   MarketScope,
@@ -34,6 +39,81 @@ import type {
   PipelineSlot,
   PublishedBundle,
 } from "../src/lib/pipeline/types";
+
+/** Prior is usable when it has bullets and no banned seed-template voice. */
+function isGoodPriorView(view: EditorialView | undefined): view is EditorialView {
+  if (!view?.briefing?.bullets?.length) return false;
+  return !briefingHasForbiddenSeedVoice(view.briefing);
+}
+
+/**
+ * LLM missing/failed: keep a good prior, else facts-only anchors.
+ * Never publish seed template essays as the briefing body.
+ */
+function resolveNonLlmBriefingView(input: {
+  snapshot: Awaited<ReturnType<typeof collectSnapshot>>;
+  scope: MarketScope;
+  publishedAt: string;
+  slot: PipelineSlot;
+  previousView?: EditorialView;
+  mode: PipelineMode;
+  reason: string;
+}): {
+  view: EditorialView;
+  findings: PublishedBundle["guard"]["findings"];
+  blocked: boolean;
+} {
+  const { snapshot, scope, publishedAt, slot, previousView, mode, reason } = input;
+  if (isGoodPriorView(previousView)) {
+    console.log(`  ${reason} → keep previous ${scope} (good prior)`);
+    return {
+      view: { ...previousView },
+      findings: [
+        {
+          severity: "warn",
+          code: "llm-seed-suppressed",
+          message: `[${scope}] ${reason}: seed essays not published; kept previous briefing`,
+        },
+      ],
+      blocked: false,
+    };
+  }
+
+  const facts = seedBriefing(snapshot, scope);
+  const decision =
+    previousView?.scenarios?.length && previousView.checkItems?.length
+      ? {
+          scenarios: previousView.scenarios,
+          checkItems: previousView.checkItems,
+        }
+      : seedDecision(snapshot, scope);
+
+  console.log(`  ${reason} → facts-only ${scope} (no good prior)`);
+  return {
+    view: {
+      briefing: {
+        headline: facts.headline,
+        bullets: facts.bullets,
+        evidenceIds: facts.evidenceIds,
+      },
+      scenarios: decision.scenarios,
+      checkItems: decision.checkItems,
+      publishedAt,
+      slot,
+      mode,
+      degraded: true,
+      degradedLabel: "사실만",
+    },
+    findings: [
+      {
+        severity: "warn",
+        code: "facts-only-fallback",
+        message: `[${scope}] ${reason}: published facts-only anchors (no LLM body)`,
+      },
+    ],
+    blocked: false,
+  };
+}
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const latestPath = join(root, "src/data/published/latest.json");
@@ -103,6 +183,21 @@ async function generateFullView(
       `  briefing source=${briefingResult.source}${briefingResult.error ? ` (${briefingResult.error})` : ""}`,
     );
 
+    // Full publish body = LLM only. Seed is never concatenated into user bullets.
+    if (briefingResult.source !== "llm") {
+      const fallback = resolveNonLlmBriefingView({
+        snapshot,
+        scope,
+        publishedAt,
+        slot,
+        previousView,
+        mode: "full",
+        reason: `briefing LLM unavailable (${briefingResult.error ?? "seed"})`,
+      });
+      findings.push(...fallback.findings);
+      return fallback;
+    }
+
     console.log(`[pipeline] Decision scope=${scope}`);
     const decisionResult = await runDecisionAgent(
       snapshot,
@@ -115,7 +210,16 @@ async function generateFullView(
     );
 
     let briefing = briefingResult.data;
-    const decision = decisionResult.data;
+    // Prefer prior Decision over seed Decision essays when LLM decision fails.
+    const decision =
+      decisionResult.source === "llm"
+        ? decisionResult.data
+        : previousView?.scenarios?.length && previousView.checkItems?.length
+          ? {
+              scenarios: previousView.scenarios,
+              checkItems: previousView.checkItems,
+            }
+          : decisionResult.data;
     let guard = runGuard({
       snapshot,
       briefing,
@@ -124,9 +228,10 @@ async function generateFullView(
     });
 
     if (!guard.ok && attempt === MAX_GUARD_ATTEMPTS) {
+      // Facts-only earnings anchors only — no instructional prose patches.
       const patched = patchBriefingForGuardRetry(briefing, snapshot, scope);
       if (patched !== briefing) {
-        console.log(`  patch: repair earnings mentions for ${scope}`);
+        console.log(`  patch: facts-only earnings anchors for ${scope}`);
         briefing = patched;
         guard = runGuard({ snapshot, briefing, decision, scope });
       }
@@ -164,10 +269,25 @@ async function generateFullView(
       `  guard blocked → ${attempt < MAX_GUARD_ATTEMPTS ? "retry" : "give up"}: ${repairHints.join("; ")}`,
     );
     if (attempt === MAX_GUARD_ATTEMPTS) {
+      // Demote blocks — we are not publishing the rejected draft.
       findings.push(
-        ...guard.findings.map((f) => ({ ...f, message: `[${scope}] ${f.message}` })),
+        ...guard.findings.map((f) => ({
+          ...f,
+          severity: "warn" as const,
+          message: `[${scope}] guard rejected draft: ${f.message}`,
+        })),
       );
-      return { view: null, findings, blocked: true };
+      const fallback = resolveNonLlmBriefingView({
+        snapshot,
+        scope,
+        publishedAt,
+        slot,
+        previousView,
+        mode: "full",
+        reason: "guard blocked after retries",
+      });
+      findings.push(...fallback.findings);
+      return fallback;
     }
   }
 
@@ -206,6 +326,16 @@ async function generateRefreshView(
       `  briefing source=${briefingResult.source}${briefingResult.error ? ` (${briefingResult.error})` : ""}`,
     );
 
+    if (briefingResult.source !== "llm") {
+      console.log(`  refresh seed suppressed → keep previous ${scope}`);
+      findings.push({
+        severity: "warn",
+        code: "llm-seed-suppressed",
+        message: `[${scope}] refresh LLM unavailable — kept previous briefing`,
+      });
+      return { view: { ...previous }, findings, blocked: false };
+    }
+
     let briefing = briefingResult.data;
     let guard = runBriefingOnlyGuard({
       snapshot,
@@ -217,7 +347,7 @@ async function generateRefreshView(
     if (!guard.ok && attempt === MAX_GUARD_ATTEMPTS) {
       const patched = patchBriefingForGuardRetry(briefing, snapshot, scope);
       if (patched !== briefing) {
-        console.log(`  patch: repair earnings mentions for ${scope}`);
+        console.log(`  patch: facts-only earnings anchors for ${scope}`);
         briefing = patched;
         guard = runBriefingOnlyGuard({
           snapshot,

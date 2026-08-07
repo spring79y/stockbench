@@ -14,6 +14,7 @@ import {
   forceCiteTokens,
   type CarryForwardItem,
 } from "@/lib/pipeline/carryForward";
+import { formatFactsOnlyEarningsBullet } from "@/lib/pipeline/seed";
 import type {
   BriefingDraft,
   CollectorSnapshot,
@@ -1072,7 +1073,10 @@ export function runGuard(input: {
   };
 }
 
-/** Guard 재시도 후에도 실적이 빠지면 점검 불릿을 최소 보강 */
+/**
+ * Last-resort earnings fact anchors only (numbers / announced).
+ * Instructional Guard voice stays in findingsToRepairHints — never patched as user prose.
+ */
 export function ensureImminentEarningsMentioned(
   briefing: BriefingDraft,
   snapshot: CollectorSnapshot,
@@ -1091,40 +1095,10 @@ export function ensureImminentEarningsMentioned(
 
   if (missing.length === 0) return briefing;
 
-  const extra = missing.slice(0, 2).map((e) => {
-    const nameCore = earningsNameCore(e);
-    if (e.actual?.beatLabel && isPostEarningsResult(e, now)) {
-      return `${nameCore} 실적 결과(주당순이익 ${e.actual.beatLabel}) — 섹터 온도 점검용 (방향 예측 금지)`;
-    }
-    if (isPostEarningsResult(e, now) && e.actual?.epsActual != null && e.actual?.epsEstimate != null) {
-      const a = e.actual.epsActual;
-      const est = e.actual.epsEstimate;
-      const region = e.region === "KR" ? "KR" : "US";
-      const fmt = (v: number) =>
-        region === "KR" ? `${Math.round(v).toLocaleString("ko-KR")}원` : `$${Number(v.toFixed(2))}`;
-      if (hasEarningsContextNews(e)) {
-        return `${nameCore} 실적 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — Evidence뉴스 반응·가이던스 참고 (서프라이즈/미스 단정 금지)`;
-      }
-      return `${nameCore} 실적 발표됨 · 주당순이익(EPS) ${fmt(a)} vs 예상 ${fmt(est)} — 반응 근거 부족`;
-    }
-    if (
-      isPostEarningsResult(e, now) &&
-      (isPendingResultOneLiner(e.oneLiner) || contextNewsSuggestsPrinted(e.contextNews))
-    ) {
-      if (hasEarningsContextNews(e)) {
-        return `${nameCore} 실적 발표됨 · 결과 집계 대기 — Evidence뉴스로 반응·가이던스만 (숫자 창작 금지)`;
-      }
-      return `${nameCore} 실적 발표됨 · 결과 집계 대기 — 반응 근거 부족`;
-    }
-    if (hasEarningsContextNews(e)) {
-      return `${nameCore} 실적 임박 — Evidence뉴스 참고해 가이던스·섹터 맥락만 짧게 (방향 예측 금지)`;
-    }
-    return `${nameCore} 실적 발표 임박 — 섹터 온도 점검만 (가이던스 추측·방향 예측 금지)`;
-  });
+  const extra = missing.slice(0, 2).map((e) => formatFactsOnlyEarningsBullet(e));
 
   return {
     ...briefing,
-    // 실적 보강 불릿이 잘리지 않도록 자리를 확보 (최대 5)
     bullets: [...briefing.bullets.slice(0, Math.max(0, 5 - extra.length)), ...extra],
   };
 }
