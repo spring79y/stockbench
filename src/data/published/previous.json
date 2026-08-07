@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "slot": "us-noon",
-  "publishedAt": "2026-08-07T13:37:20.127Z",
+  "slot": "kr-mid",
+  "publishedAt": "2026-08-07T13:37:24.415Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
@@ -192,9 +192,7 @@
       "degraded": true,
       "degradedLabel": "제한 연속성",
       "changeLines": [
-        "제한 연속성",
-        "헤드라인 변경 · 코스피 마감 하락 -0.60%· 코스닥 -0.36%.",
-        "브리핑 불릿 갱신"
+        "직전 발행 대비 큰 변화 없음"
       ]
     },
     "us": {
@@ -637,6 +635,16 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdoUikkApDdTfRExvXneb\"}): seed essays not published; kept previous briefing"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdoUj3PYGz6c2nr2nhXd7\"}): seed essays not published; kept previous briefing"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdoUj3p62AxxG2vrGtQKz\"}): seed essays not published; kept previous briefing"
       }
     ]
   }

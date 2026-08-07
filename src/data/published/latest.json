@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "slot": "kr-mid",
-  "publishedAt": "2026-08-07T13:37:24.415Z",
+  "slot": "us-pre",
+  "publishedAt": "2026-08-07T14:01:22.852Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 약세 · 미국 강세",
     "mood": "mixed",
     "moodLabel": "혼조",
-    "asOfLabel": "2026. 08. 07. 22:37 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 07. 23:01 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -297,6 +297,12 @@
       },
       "contextNews": [
         {
+          "title": "네이버 실적 발표를 통해 본'AI 인프라 삼각동맹'의 실체",
+          "publisher": "네이버 프리미엄콘텐츠",
+          "publishedAt": "2026-08-07T10:11:00.000Z",
+          "snippet": "네이버 실적 발표를 통해 본'AI 인프라 삼각동맹'의 실체"
+        },
+        {
           "title": "[네이버 종합] 네이버, 2분기 실적 발표 소식 외",
           "publisher": "게임뷰",
           "publishedAt": "2026-08-07T09:55:18.000Z",
@@ -307,19 +313,13 @@
           "publisher": "파이낸셜신문",
           "publishedAt": "2026-08-07T09:13:38.000Z",
           "snippet": "네이버, 2분기 매출 3조3천888억원 기록…전년比 16.2%↑ '실적 견조'"
-        },
-        {
-          "title": "[2026 시공능력평가] 삼성물산vs현대건설, 공사실적 '희비' : 네이버 블로그",
-          "publisher": "Naver Blog",
-          "publishedAt": "2026-08-07T09:06:37.000Z",
-          "snippet": "[2026 시공능력평가] 삼성물산vs현대건설, 공사실적 '희비' : 네이버 블로그"
         }
       ],
       "detailSummary": {
         "expectation": "시장 예상 매출 약 3.4조원 · 영업이익 약 5,662억원",
         "meaning": "점검 포인트는 NAVER 매출·영업이익(회사 규모)과 시장 예상 대비입니다.",
         "result": "발표됨 · 매출 약 3.4조원 · 영업이익 약 5,203억원",
-        "reaction": "영업이익이 시장 예상을 하회했습니다 (약 5,203억원).\n뉴스에서는 「[네이버 종합] 네이버, 2분기 실적 발표 소식 외」 등 발표 직후 보도가 확인됩니다.",
+        "reaction": "영업이익이 시장 예상을 하회했습니다 (약 5,203억원).\n뉴스에서는 AI 관련 이슈 흐름이 함께 언급됩니다.",
         "implication": "점검 포인트는 NAVER 주가·섹터 반응이 발표 숫자와 같은 방향인지입니다."
       }
     },
@@ -645,6 +645,16 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdoUj3p62AxxG2vrGtQKz\"}): seed essays not published; kept previous briefing"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdoWZ5fAoS15HGqW5ULe1\"}): seed essays not published; kept previous briefing"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdoWZ6LbKnNio9dWiNcRA\"}): seed essays not published; kept previous briefing"
       }
     ]
   }
