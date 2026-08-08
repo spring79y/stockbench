@@ -186,7 +186,7 @@ describe("guard earnings polarity omit", () => {
       bullets: [
         "나스닥 장전 약세, 반도체 지수 되밀림",
         "미 10년물·VIX 안정 속 NFP 대기",
-        "샌디스크 실적 발표됨 · EPS $39.25 vs 예상 $34.52 — 반응 근거 부족",
+        "샌디스크 실적 발표됨 · EPS $39.25 vs 예상 $34.52",
       ],
       evidenceIds: [],
     };

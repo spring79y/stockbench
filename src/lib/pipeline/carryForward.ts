@@ -168,7 +168,7 @@ function resolveCheckAgainstEvidence(
         status: "resolved",
         note: hasNews
           ? "숫자+Evidence뉴스 있음 → Briefing이 결과·시장 반응(이중 서술) 요약. beatLabel 없으면 서프라이즈/미스 단정 금지"
-          : "숫자만 · 반응 근거 부족이면 「반응 근거 부족」1줄 또는 생략. 극성 단정 금지",
+          : "숫자만 · 반응 서술 생략(메타 문구 금지). 극성 단정 금지",
       };
     }
     if (
@@ -249,7 +249,7 @@ function resolveUpcomingEvent(
         status: "resolved",
         note: hasNews
           ? "숫자+뉴스 Evidence → mustCover · Briefing 이중 서술"
-          : "숫자 Evidence → mustCover · 반응은 「반응 근거 부족」또는 생략",
+          : "숫자 Evidence → mustCover · 반응은 뉴스 있을 때만(없으면 생략·메타 금지)",
       };
     }
     if (

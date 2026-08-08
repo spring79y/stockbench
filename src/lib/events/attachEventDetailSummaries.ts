@@ -251,10 +251,10 @@ function reactionFor(
 ): string | undefined {
   if (!post) return undefined;
   const news = usableContextNews(event.contextNews);
-  if (news.length === 0) return "반응 근거 부족";
+  if (news.length === 0) return undefined;
 
   const newsLine = newsReactionSummary(news);
-  if (!newsLine) return "반응 근거 부족";
+  if (!newsLine) return undefined;
 
   if (event.kind === "earnings") {
     const fact = earningsFactSentence(event);

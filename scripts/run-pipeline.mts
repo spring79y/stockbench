@@ -29,6 +29,10 @@ import { ALL_PIPELINE_SLOTS, modeForSlot, scopesForSlot } from "../src/lib/pipel
 import { buildChangeLines } from "../src/lib/pipeline/briefingDelta";
 import {
   briefingHasForbiddenSeedVoice,
+  isFactsOnlyStyleView,
+  isRicherLlmStyleView,
+  sanitizeEditorialView,
+  sanitizePublishedBundle,
   seedBriefing,
   seedDecision,
 } from "../src/lib/pipeline/seed";
@@ -40,15 +44,21 @@ import type {
   PublishedBundle,
 } from "../src/lib/pipeline/types";
 
-/** Prior is usable when it has bullets and no banned seed-template voice. */
+/**
+ * Prefer any prior board body over a fresh facts-only list.
+ * Good prior = has bullets, not banned seed voice, not thin facts-only style.
+ */
 function isGoodPriorView(view: EditorialView | undefined): view is EditorialView {
   if (!view?.briefing?.bullets?.length) return false;
-  return !briefingHasForbiddenSeedVoice(view.briefing);
+  if (briefingHasForbiddenSeedVoice(view.briefing)) return false;
+  if (isFactsOnlyStyleView(view)) return false;
+  return true;
 }
 
 /**
- * LLM missing/failed: keep a good prior, else facts-only anchors.
- * Never publish seed template essays as the briefing body.
+ * LLM missing/failed after retries: quietly keep previous (same market).
+ * Facts-only is cold-start / ops bootstrap only — never the visible briefing body
+ * when a prior view exists.
  */
 function resolveNonLlmBriefingView(input: {
   snapshot: Awaited<ReturnType<typeof collectSnapshot>>;
@@ -64,15 +74,18 @@ function resolveNonLlmBriefingView(input: {
   blocked: boolean;
 } {
   const { snapshot, scope, publishedAt, slot, previousView, mode, reason } = input;
-  if (isGoodPriorView(previousView)) {
-    console.log(`  ${reason} → keep previous ${scope} (good prior)`);
+
+  // Quiet keep-previous whenever the same-market view has any board body.
+  if (previousView?.briefing?.bullets?.length) {
+    const quality = isGoodPriorView(previousView) ? "good prior" : "prior board";
+    console.log(`  ${reason} → keep previous ${scope} (${quality})`);
     return {
-      view: { ...previousView },
+      view: sanitizeEditorialView({ ...previousView }),
       findings: [
         {
           severity: "warn",
           code: "llm-seed-suppressed",
-          message: `[${scope}] ${reason}: seed essays not published; kept previous briefing`,
+          message: `[${scope}] ${reason}: kept previous briefing (facts-only not published to board)`,
         },
       ],
       blocked: false,
@@ -80,17 +93,11 @@ function resolveNonLlmBriefingView(input: {
   }
 
   const facts = seedBriefing(snapshot, scope);
-  const decision =
-    previousView?.scenarios?.length && previousView.checkItems?.length
-      ? {
-          scenarios: previousView.scenarios,
-          checkItems: previousView.checkItems,
-        }
-      : seedDecision(snapshot, scope);
+  const decision = seedDecision(snapshot, scope);
 
-  console.log(`  ${reason} → facts-only ${scope} (no good prior)`);
+  console.log(`  ${reason} → facts-only ${scope} (cold start / ops only)`);
   return {
-    view: {
+    view: sanitizeEditorialView({
       briefing: {
         headline: facts.headline,
         bullets: facts.bullets,
@@ -103,16 +110,44 @@ function resolveNonLlmBriefingView(input: {
       mode,
       degraded: true,
       degradedLabel: "사실만",
-    },
+    }),
     findings: [
       {
         severity: "warn",
         code: "facts-only-fallback",
-        message: `[${scope}] ${reason}: published facts-only anchors (no LLM body)`,
+        message: `[${scope}] ${reason}: cold-start facts-only anchors (no prior view)`,
       },
     ],
     blocked: false,
   };
+}
+
+/** If latest scope is facts-only and archived previous.json is richer LLM-style, restore (same market). */
+function restoreRicherViewsFromArchive(
+  current: PublishedBundle,
+  archived: PublishedBundle | null,
+): PublishedBundle {
+  if (!archived?.views) return current;
+  const views = { ...current.views };
+  let changed = false;
+  for (const scope of ["all", "kr", "us"] as MarketScope[]) {
+    const cur = views[scope];
+    const arch = archived.views[scope];
+    if (
+      cur &&
+      arch &&
+      isFactsOnlyStyleView(cur) &&
+      isRicherLlmStyleView(arch)
+    ) {
+      console.log(
+        `  restore ${scope} from previous.json (richer LLM-style, same market)`,
+      );
+      views[scope] = sanitizeEditorialView({ ...arch });
+      changed = true;
+    }
+  }
+  if (!changed) return current;
+  return { ...current, views };
 }
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -147,15 +182,20 @@ function recordStatus(
   });
 }
 
-function loadPreviousBundle(): PublishedBundle | null {
+function loadBundleAt(path: string): PublishedBundle | null {
   try {
-    if (!existsSync(latestPath)) return null;
-    const raw = JSON.parse(readFileSync(latestPath, "utf8")) as PublishedBundle;
+    if (!existsSync(path)) return null;
+    const raw = JSON.parse(readFileSync(path, "utf8")) as PublishedBundle;
     if (raw.version === 2 && raw.views) return raw;
   } catch {
     // ignore
   }
   return null;
+}
+
+/** Working prior for this run = current latest (before overwrite). */
+function loadPreviousBundle(): PublishedBundle | null {
+  return loadBundleAt(latestPath);
 }
 
 const MAX_GUARD_ATTEMPTS = 5;
@@ -421,7 +461,13 @@ async function main() {
       );
     }
 
-    const previous = loadPreviousBundle();
+    const archivedPrevious = loadBundleAt(previousPath);
+    let previous = loadPreviousBundle();
+    if (previous) {
+      previous = sanitizePublishedBundle(
+        restoreRicherViewsFromArchive(previous, archivedPrevious),
+      );
+    }
     const targetScopes = scopesForSlot(slot);
     const publishedAt = new Date().toISOString();
     const views = {
@@ -519,7 +565,7 @@ async function main() {
       process.exit(0);
     }
 
-    const bundle: PublishedBundle = {
+    const bundle = sanitizePublishedBundle({
       version: 2,
       slot,
       publishedAt,
@@ -534,11 +580,15 @@ async function main() {
       views: views as PublishedBundle["views"],
       events: snapshot.events ?? previous?.events ?? defaultPipelineEvents(),
       guard,
-    };
+    });
 
     mkdirSync(dirname(latestPath), { recursive: true });
     if (previous) {
-      writeFileSync(previousPath, `${JSON.stringify(previous, null, 2)}\n`, "utf8");
+      writeFileSync(
+        previousPath,
+        `${JSON.stringify(sanitizePublishedBundle(previous), null, 2)}\n`,
+        "utf8",
+      );
     }
     writeFileSync(latestPath, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
     recordStatus({

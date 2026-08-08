@@ -83,7 +83,7 @@ describe("buildEventDetailSummary", () => {
     assert.doesNotMatch(s.implication!, /단정|매수|매도/);
   });
 
-  it("uses 반응 근거 부족 when post without news", () => {
+  it("omits reaction when post without news (no meta phrase)", () => {
     const now = new Date("2026-08-07T07:00:00.000Z");
     const event: MarketEvent = {
       id: "earnings-x",
@@ -96,7 +96,7 @@ describe("buildEventDetailSummary", () => {
       dateISO: "2026-08-07T06:00:00.000Z",
     };
     const s = buildEventDetailSummary(event, now);
-    assert.equal(s.reaction, "반응 근거 부족");
+    assert.equal(s.reaction, undefined);
     assert.equal(s.implication, undefined);
   });
 

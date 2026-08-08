@@ -4,10 +4,15 @@ import {
   FORBIDDEN_SEED_VOICE_FRAGMENTS,
   briefingHasForbiddenSeedVoice,
   containsForbiddenSeedVoice,
+  containsForbiddenUserMeta,
+  isFactsOnlyStyleView,
+  isRicherLlmStyleView,
+  sanitizeBriefingDraft,
+  sanitizeUserFacingText,
   seedBriefing,
   seedDecision,
 } from "./seed";
-import type { CollectorSnapshot } from "./types";
+import type { CollectorSnapshot, EditorialView } from "./types";
 
 function snapshot(slot: CollectorSnapshot["slot"] = "kr-post"): CollectorSnapshot {
   return {
@@ -194,5 +199,58 @@ describe("seedBriefing facts-only", () => {
     for (const frag of ["같이 움직이면", "흔들림 원인 후보", "가늠하는 때"] as const) {
       assert.equal(blob.includes(frag), false, `decision leaked "${frag}"`);
     }
+  });
+});
+
+describe("user-facing meta sanitize + briefing quality", () => {
+  it("strips 반응 근거 부족 from briefing bullets", () => {
+    const cleaned = sanitizeBriefingDraft({
+      headline: "금리 대기",
+      bullets: [
+        "버크셔 실적 발표 — 예상 EPS $5.13, 반응 근거 부족.",
+        "나스닥 보합",
+      ],
+      evidenceIds: [],
+    });
+    assert.equal(containsForbiddenUserMeta(cleaned.bullets.join("\n")), false);
+    assert.match(cleaned.bullets[0]!, /버크셔/);
+    assert.doesNotMatch(cleaned.bullets[0]!, /반응 근거 부족/);
+    assert.equal(sanitizeUserFacingText("반응 근거 부족"), undefined);
+  });
+
+  it("detects facts-only vs richer LLM-style views", () => {
+    const facts: EditorialView = {
+      briefing: {
+        headline: "코스피 마감 하락 -0.60%· 코스닥 -0.36%.",
+        bullets: [
+          "코스피 마감 하락 -0.60%, 코스닥 마감 하락 -0.36%.",
+          "코스피 08.07· 외국인 -8,651억· 기관 +5,854억.",
+          "NAVER 실적 발표됨· 매출 약 3.4조원· 영업이익 약 5,203억원.",
+        ],
+        evidenceIds: ["usdkkrw"],
+      },
+      scenarios: [],
+      checkItems: [],
+      degraded: true,
+      degradedLabel: "사실만",
+    };
+    const richer: EditorialView = {
+      briefing: {
+        headline: "다우 -0.85% 약세에 금리 상승, NFP 앞두고 대기 속 반도체만 +0.33%.",
+        bullets: [
+          "다우 -0.85%로 주요 3대 지수 중 가장 큰 낙폭, S&P 500 -0.18%·나스닥 -0.06%로 보합권 마감 — 반도체는 +0.33% 상승 전환.",
+          "미 10년물 금리 4.67%로 전일 대비 상승해 4.65% 돌파 — 금요일 고용보고서(NFP) 발표 앞두고 금리 경로 재평가 대기.",
+          "메가캡 5종목 평균 +0.29%로 지수 대비 양호 — 마이크로소프트 +2.54%·애플 +0.45% 상승.",
+          "버크셔 실적 발표(일요일 예정) — 시장 예상 주당 순이익(EPS) 약 $5.13·매출 약 $98.8B.",
+        ],
+        evidenceIds: ["us10y"],
+      },
+      scenarios: [],
+      checkItems: [],
+    };
+    assert.equal(isFactsOnlyStyleView(facts), true);
+    assert.equal(isRicherLlmStyleView(facts), false);
+    assert.equal(isRicherLlmStyleView(richer), true);
+    assert.equal(isFactsOnlyStyleView(richer), false);
   });
 });

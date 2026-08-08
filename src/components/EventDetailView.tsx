@@ -212,7 +212,7 @@ export function EventDetailView({
               ))}
             </ul>
           ) : (
-            <p className={styles.empty}>반응 근거 부족</p>
+            <p className={styles.empty}>관련 보도가 아직 없습니다.</p>
           )}
 
           <h3 className={styles.sub}>발표 후 점검</h3>

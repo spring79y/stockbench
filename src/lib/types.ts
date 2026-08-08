@@ -102,7 +102,7 @@ export interface EventDetailSummary {
   meaning?: string;
   /** 발표 후 결과 숫자 */
   result?: string;
-  /** 시장 반응 — Evidence 뉴스 있을 때만; 없으면 「반응 근거 부족」 */
+  /** 시장 반응 — Evidence 뉴스 있을 때만; 없으면 생략(메타 문구 금지) */
   reaction?: string;
   /** 이 결과가 의미하는 것 — Evidence 있을 때만 */
   implication?: string;

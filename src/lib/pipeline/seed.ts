@@ -1,4 +1,12 @@
-import type { BriefingDraft, CollectorSnapshot, DecisionDraft, MarketScope } from "@/lib/pipeline/types";
+import type {
+  BriefingDraft,
+  CollectorSnapshot,
+  DecisionDraft,
+  EditorialView,
+  MarketScope,
+  PublishedBundle,
+} from "@/lib/pipeline/types";
+import type { EventDetailSummary, MarketEvent } from "@/lib/types";
 
 /**
  * Minimal earnings shape for facts-only bullets.
@@ -34,14 +42,145 @@ export const FORBIDDEN_SEED_VOICE_FRAGMENTS = [
   "반응만 점검",
 ] as const;
 
+/**
+ * Internal/ops meta that must never appear in publishable user board copy
+ * (briefing, decision, event detailSummary, etc.).
+ */
+export const FORBIDDEN_USER_META_FRAGMENTS = ["반응 근거 부족"] as const;
+
 export function containsForbiddenSeedVoice(text: string): boolean {
   return FORBIDDEN_SEED_VOICE_FRAGMENTS.some((frag) => text.includes(frag));
+}
+
+export function containsForbiddenUserMeta(text: string): boolean {
+  return FORBIDDEN_USER_META_FRAGMENTS.some((frag) => text.includes(frag));
 }
 
 export function briefingHasForbiddenSeedVoice(
   briefing: Pick<BriefingDraft, "headline" | "bullets">,
 ): boolean {
   return [briefing.headline, ...briefing.bullets].some(containsForbiddenSeedVoice);
+}
+
+export function briefingHasForbiddenUserMeta(
+  briefing: Pick<BriefingDraft, "headline" | "bullets">,
+): boolean {
+  return [briefing.headline, ...briefing.bullets].some(containsForbiddenUserMeta);
+}
+
+/** Strip banned meta phrases; tidy leftover commas/spaces. Empty → undefined. */
+export function sanitizeUserFacingText(text: string): string | undefined {
+  let out = text;
+  for (const frag of FORBIDDEN_USER_META_FRAGMENTS) {
+    out = out.split(frag).join("");
+  }
+  out = out
+    .replace(/\s*,\s*,+/g, ",")
+    .replace(/\s*[—–-]\s*,/g, "")
+    .replace(/,\s*([.。])/g, "$1")
+    .replace(/\s+,/g, ",")
+    .replace(/,\s*$/u, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return out.length > 0 ? out : undefined;
+}
+
+export function sanitizeBriefingDraft<
+  T extends Pick<BriefingDraft, "headline" | "bullets">,
+>(briefing: T): T {
+  const headline = sanitizeUserFacingText(briefing.headline) ?? briefing.headline;
+  const bullets = briefing.bullets
+    .map((b) => sanitizeUserFacingText(b))
+    .filter((b): b is string => Boolean(b));
+  return { ...briefing, headline, bullets };
+}
+
+function sanitizeDetailSummary(
+  summary: EventDetailSummary | undefined,
+): EventDetailSummary | undefined {
+  if (!summary) return undefined;
+  const next: EventDetailSummary = {};
+  for (const key of ["expectation", "meaning", "result", "reaction", "implication"] as const) {
+    const raw = summary[key];
+    if (raw == null) continue;
+    const cleaned = sanitizeUserFacingText(raw);
+    if (cleaned) next[key] = cleaned;
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+export function sanitizeEditorialView(view: EditorialView): EditorialView {
+  const briefing = sanitizeBriefingDraft(view.briefing);
+  const scenarios = view.scenarios.map((s) => ({
+    ...s,
+    title: sanitizeUserFacingText(s.title) ?? s.title,
+    summary: sanitizeUserFacingText(s.summary) ?? s.summary,
+    implication: sanitizeUserFacingText(s.implication) ?? s.implication,
+  }));
+  const checkItems = view.checkItems.map((c) => ({
+    ...c,
+    text: sanitizeUserFacingText(c.text) ?? c.text,
+    why: sanitizeUserFacingText(c.why) ?? c.why,
+  }));
+  return { ...view, briefing, scenarios, checkItems };
+}
+
+export function sanitizeMarketEvent(event: MarketEvent): MarketEvent {
+  const oneLiner = sanitizeUserFacingText(event.oneLiner) ?? event.oneLiner;
+  const detailSummary = sanitizeDetailSummary(event.detailSummary);
+  return { ...event, oneLiner, detailSummary };
+}
+
+export function sanitizePublishedBundle(bundle: PublishedBundle): PublishedBundle {
+  return {
+    ...bundle,
+    views: {
+      all: sanitizeEditorialView(bundle.views.all),
+      kr: sanitizeEditorialView(bundle.views.kr),
+      us: sanitizeEditorialView(bundle.views.us),
+    },
+    events: bundle.events.map(sanitizeMarketEvent),
+  };
+}
+
+/**
+ * Thin number-list / seed-anchor style — not a readable LLM briefing body.
+ * Prefer keep-previous (same market) over publishing this as “오늘의 브리핑”.
+ */
+export function isFactsOnlyStyleView(view: EditorialView | undefined): boolean {
+  if (!view?.briefing?.bullets?.length) return false;
+  if (view.degradedLabel === "사실만") return true;
+  if (/사실\s*·/.test(view.briefing.headline)) return true;
+  if (isRicherLlmStyleView(view)) return false;
+  const { bullets } = view.briefing;
+  if (bullets.length > 4) return false;
+  const thinAnchors = bullets.filter(
+    (b) =>
+      b.length < 90 &&
+      /(%|억원|조원|발표됨|마감|등락|실적 일정)/u.test(b) &&
+      !/[—–]/u.test(b) &&
+      !/(앞두고|재평가|전환|대기 속|때문에)/u.test(b),
+  );
+  return thinAnchors.length >= Math.max(2, bullets.length - 1);
+}
+
+/** US-morning-quality interpretive briefing (same-market restore candidate). */
+export function isRicherLlmStyleView(view: EditorialView | undefined): boolean {
+  if (!view?.briefing?.bullets?.length) return false;
+  if (view.degradedLabel === "사실만") return false;
+  if (briefingHasForbiddenSeedVoice(view.briefing)) return false;
+  if (briefingHasForbiddenUserMeta(view.briefing)) return false;
+  const { bullets } = view.briefing;
+  if (bullets.length < 4) return false;
+  const avg =
+    bullets.reduce((sum, b) => sum + b.length, 0) / Math.max(bullets.length, 1);
+  const hasNarrative = bullets.some(
+    (b) =>
+      b.length > 40 &&
+      (/[—–]/u.test(b) ||
+        /(앞두고|재평가|전환|대기|속 )/u.test(b)),
+  );
+  return avg >= 45 && hasNarrative;
 }
 
 function formatPct(n: number): string {
