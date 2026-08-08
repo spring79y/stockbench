@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "slot": "kr-post",
-  "publishedAt": "2026-08-07T14:49:43.279Z",
+  "slot": "us-noon",
+  "publishedAt": "2026-08-08T04:25:34.504Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 약세 · 미국 강세",
-    "mood": "mixed",
-    "moodLabel": "혼조",
-    "asOfLabel": "2026. 08. 07. 23:49 · Yahoo 참고"
+    "mood": "risk-on",
+    "moodLabel": "위험선호",
+    "asOfLabel": "2026. 08. 08. 06:20 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -269,61 +269,6 @@
   },
   "events": [
     {
-      "id": "earnings-naver",
-      "dateLabel": "08.07 (금)",
-      "region": "KR",
-      "title": "NAVER 실적 발표",
-      "level": "high",
-      "oneLiner": "발표됨 · 매출 약 3.4조원 · 영업이익 약 5,203억원",
-      "kind": "earnings",
-      "symbol": "035420.KS",
-      "megaCapId": "naver",
-      "dateISO": "2026-08-07T06:00:00.000Z",
-      "consensus": {
-        "isEstimate": true,
-        "revenueAvg": 3365900000000,
-        "revenueLabel": "약 3.4조원",
-        "operatingProfitAvg": 566200000000,
-        "operatingProfitLabel": "약 5,662억원",
-        "sources": [
-          "naver"
-        ]
-      },
-      "actual": {
-        "operatingProfitActual": 520300000000,
-        "operatingProfitActualLabel": "약 5,203억원",
-        "revenueActual": 3388800000000,
-        "revenueActualLabel": "약 3.4조원"
-      },
-      "contextNews": [
-        {
-          "title": "네이버 실적 발표를 통해 본'AI 인프라 삼각동맹'의 실체",
-          "publisher": "네이버 프리미엄콘텐츠",
-          "publishedAt": "2026-08-07T10:11:00.000Z",
-          "snippet": "네이버 실적 발표를 통해 본'AI 인프라 삼각동맹'의 실체"
-        },
-        {
-          "title": "댓글 : 네이버 실적 발표를 통해 본'AI 인프라 삼각동맹'의 실체",
-          "publisher": "네이버 프리미엄콘텐츠",
-          "publishedAt": "2026-08-07T10:11:00.000Z",
-          "snippet": "댓글 : 네이버 실적 발표를 통해 본'AI 인프라 삼각동맹'의 실체"
-        },
-        {
-          "title": "[네이버 종합] 네이버, 2분기 실적 발표 소식 외",
-          "publisher": "게임뷰",
-          "publishedAt": "2026-08-07T09:55:18.000Z",
-          "snippet": "[네이버 종합] 네이버, 2분기 실적 발표 소식 외"
-        }
-      ],
-      "detailSummary": {
-        "expectation": "시장 예상 매출 약 3.4조원 · 영업이익 약 5,662억원",
-        "meaning": "점검 포인트는 NAVER 매출·영업이익(회사 규모)과 시장 예상 대비입니다.",
-        "result": "발표됨 · 매출 약 3.4조원 · 영업이익 약 5,203억원",
-        "reaction": "영업이익이 시장 예상을 하회했습니다 (약 5,203억원).\n뉴스에서는 AI 관련 이슈 흐름이 함께 언급됩니다.",
-        "implication": "점검 포인트는 NAVER 주가·섹터 반응이 발표 숫자와 같은 방향인지입니다."
-      }
-    },
-    {
       "id": "nfp",
       "dateLabel": "08.07 (금)",
       "dateISO": "2026-08-07T12:30:00-04:00",
@@ -362,22 +307,22 @@
       },
       "contextNews": [
         {
-          "title": "[버핏 리포트] BGF리테일, 2분기 컨센 상회...1인 가구 증가 방한 외국인 소비 확대 구조적 수혜 전망 - 흥국",
-          "publisher": "버핏연구소",
-          "publishedAt": "2026-08-07T06:03:34.000Z",
-          "snippet": "[버핏 리포트] BGF리테일, 2분기 컨센 상회...1인 가구 증가 방한 외국인 소비 확대 구조적 수혜 전망 - 흥국"
+          "title": "Greg Abel Keeps 63% Of Berkshire Hathaway's (NYSE: BRK.B) $355B Portfolio Concentrated In Just Five Stocks",
+          "publisher": "foreignpolicyjournal.com",
+          "publishedAt": "2026-08-07T21:12:00.000Z",
+          "snippet": "Greg Abel Keeps 63% Of Berkshire Hathaway's (NYSE: BRK.B) $355B Portfolio Concentrated In Just Five Stocks"
         },
         {
-          "title": "[버핏 리포트] CJ ENM, 티빙 구독자/광고 성장·음악IP 고성장·MLC 취급고 성장으로 2Q 실적 선방 – NH",
-          "publisher": "버핏연구소",
-          "publishedAt": "2026-08-06T23:39:20.000Z",
-          "snippet": "[버핏 리포트] CJ ENM, 티빙 구독자/광고 성장·음악IP 고성장·MLC 취급고 성장으로 2Q 실적 선방 – NH"
+          "title": "Berkshire Hathaway’s (BRK.B) Earnings Expected to Show Big Increase in Stock Buybacks",
+          "publisher": "TipRanks",
+          "publishedAt": "2026-08-07T21:02:31.000Z",
+          "snippet": "Berkshire Hathaway’s (BRK.B) Earnings Expected to Show Big Increase in Stock Buybacks"
         },
         {
-          "title": "Berkshire Hathaway Inc expected to post earnings of $7,373.37 a share - Earnings Preview",
-          "publisher": "tradingview.com",
-          "publishedAt": "2026-08-06T14:02:09.000Z",
-          "snippet": "Berkshire Hathaway Inc expected to post earnings of $7,373.37 a share - Earnings Preview"
+          "title": "Berkshire Hathaway Inc(BRKb) 실적 발표일 & 보고서 및 실적 뉴스",
+          "publisher": "TradingKey",
+          "publishedAt": "2026-08-07T20:57:18.000Z",
+          "snippet": "Berkshire Hathaway Inc(BRKb) 실적 발표일 & 보고서 및 실적 뉴스"
         }
       ],
       "detailSummary": {
@@ -675,6 +620,26 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdoaEuaA9qfwdNqErj6sn\"}): seed essays not published; kept previous briefing"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011Cdoaa9XKxBAKuJ5aBgkYi\"}): seed essays not published; kept previous briefing"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdoaaAwQffexwCofxee6T\"}): seed essays not published; kept previous briefing"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdpeTHW5Ugt71cwxNWhEN\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdpeTJ5Z1S66P6Gema3g2\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
