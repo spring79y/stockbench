@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "slot": "kr-mid",
-  "publishedAt": "2026-08-08T04:25:37.519Z",
+  "slot": "us-post",
+  "publishedAt": "2026-08-09T22:31:22.911Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 약세 · 미국 강세",
     "mood": "risk-on",
     "moodLabel": "위험선호",
-    "asOfLabel": "2026. 08. 08. 06:20 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 10. 07:21 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -268,68 +268,6 @@
     }
   },
   "events": [
-    {
-      "id": "nfp",
-      "dateLabel": "08.07 (금)",
-      "dateISO": "2026-08-07T12:30:00-04:00",
-      "region": "US",
-      "title": "미국 고용보고서 (NFP)",
-      "level": "high",
-      "oneLiner": "일자리 성적표 — 금리 기대와 달러·미 지수에 영향",
-      "kind": "macro",
-      "detailSummary": {
-        "expectation": "일자리 성적표 — 금리 기대와 달러·미 지수에 영향",
-        "meaning": "점검 포인트는 고용·임금 숫자와 금리·달러·미 지수 온도입니다."
-      }
-    },
-    {
-      "id": "earnings-brkb",
-      "dateLabel": "08.09 (일)",
-      "region": "US",
-      "title": "버크셔 실적 발표",
-      "level": "high",
-      "oneLiner": "실적 발표 예정",
-      "kind": "earnings",
-      "symbol": "BRK-B",
-      "megaCapId": "brkb",
-      "dateISO": "2026-08-08T20:00:00.000Z",
-      "consensus": {
-        "epsAvg": 5.13264,
-        "epsLow": 4.95,
-        "epsHigh": 5.31528,
-        "epsLabel": "약 $5.13",
-        "revenueAvg": 98784000000,
-        "revenueLabel": "약 $98.8B",
-        "sources": [
-          "yahoo"
-        ],
-        "isEstimate": false
-      },
-      "contextNews": [
-        {
-          "title": "Greg Abel Keeps 63% Of Berkshire Hathaway's (NYSE: BRK.B) $355B Portfolio Concentrated In Just Five Stocks",
-          "publisher": "foreignpolicyjournal.com",
-          "publishedAt": "2026-08-07T21:12:00.000Z",
-          "snippet": "Greg Abel Keeps 63% Of Berkshire Hathaway's (NYSE: BRK.B) $355B Portfolio Concentrated In Just Five Stocks"
-        },
-        {
-          "title": "Berkshire Hathaway’s (BRK.B) Earnings Expected to Show Big Increase in Stock Buybacks",
-          "publisher": "TipRanks",
-          "publishedAt": "2026-08-07T21:02:31.000Z",
-          "snippet": "Berkshire Hathaway’s (BRK.B) Earnings Expected to Show Big Increase in Stock Buybacks"
-        },
-        {
-          "title": "Berkshire Hathaway Inc(BRKb) 실적 발표일 & 보고서 및 실적 뉴스",
-          "publisher": "TradingKey",
-          "publishedAt": "2026-08-07T20:57:18.000Z",
-          "snippet": "Berkshire Hathaway Inc(BRKb) 실적 발표일 & 보고서 및 실적 뉴스"
-        }
-      ],
-      "detailSummary": {
-        "expectation": "시장 예상 매출 약 $98.8B · 주당 순이익(EPS) 시장 예상 약 $5.13",
-        "meaning": "점검 포인트는 버크셔 발표 숫자와 시장 예상을 같은 단위로 비교하는 것입니다."
-      }
-    },
     {
       "id": "cpi",
       "dateLabel": "08.12 (수)",
@@ -650,6 +588,26 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdpeTWmJ3ZQg6Hjv4HTe7\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdsaPmLL282iQKpkQUJmg\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CdsaPn2kH2Kv2VmGjHuG6\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011Cdsy4aJCdHVPdKwLgkBAt\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011Cdsy4b27XNbAEPPE6XyFB\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
