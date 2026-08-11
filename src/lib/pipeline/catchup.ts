@@ -45,14 +45,19 @@ const TARGET_SLOTS: Record<CatchUpTarget, PipelineSlot[]> = {
   "us-mid": ["us-mid"],
 };
 
-/** Slot-time order for picking a single catch-up target per tick */
+/** Slot-time order for picking a single catch-up target per tick.
+ * us-mid is omitted — no auto schedule / auto catch-up (manual dispatch only). */
 const TARGET_ORDER: CatchUpTarget[] = [
-  "us-mid",
   "morning",
   "noon",
   "kr-post",
   "us-pre",
 ];
+
+/** Slots the watchdog may auto-recover (excludes manual-only us-mid). */
+const AUTO_CATCHUP_SLOTS: PipelineSlot[] = ALL_PIPELINE_SLOTS.filter(
+  (s) => s !== "us-mid",
+);
 
 export function slotListForTarget(target: CatchUpTarget): PipelineSlot[] {
   return TARGET_SLOTS[target];
@@ -152,7 +157,7 @@ export function decideCatchUp(options: {
       : ({ date: ymd, dispatched: {} } satisfies CatchUpState);
 
   const staleSlots: PipelineSlot[] = [];
-  for (const slot of ALL_PIPELINE_SLOTS) {
+  for (const slot of AUTO_CATCHUP_SLOTS) {
     if (!isSlotStale(slot, now, threshold, maxLateness)) continue;
     if (slotPublishedOnDay(slot, ymd, evidence)) continue;
     staleSlots.push(slot);

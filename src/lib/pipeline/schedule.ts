@@ -59,8 +59,8 @@ export type PipelineScheduleRow = {
 };
 
 export function pipelineScheduleRows(): PipelineScheduleRow[] {
+  // Auto cron only — us-mid(02:00) is manual / all-bundle.
   const order: PipelineSlot[] = [
-    "us-mid",
     "us-post",
     "kr-pre",
     "us-noon",
@@ -115,6 +115,14 @@ export function pipelineScheduleRows(): PipelineScheduleRow[] {
 }
 
 export const PIPELINE_MANUAL_ROWS: PipelineScheduleRow[] = [
+  {
+    kst: "수동",
+    slot: "us-mid",
+    label: "미국 장중 (자동 cron 없음)",
+    mode: "full",
+    script: "npm run pipeline -- us-mid",
+    tabs: formatScopeTabs("us-mid"),
+  },
   {
     kst: "수동",
     slot: "morning",
@@ -176,11 +184,11 @@ export function slotTargetMins(slot: PipelineSlot): number {
 }
 
 /**
- * 지금 실행해야 할 슬롯들.
+ * 지금 실행해야 할 슬롯들 (로컬 schedule-pipeline용 · 자동 cron과 동일).
  * - 주말 스킵
  * - 목표 시각 이후이면서 아직 발사 안 된 슬롯
  * - us-post / kr-pre 는 둘 다 07:00 (같은 시각에 연속 실행)
- * - us-mid(02:00)는 새벽, 하루 중 가장 이름
+ * - us-mid(02:00)는 자동에서 제외 (수동만)
  */
 export function dueSlots(
   now = new Date(),
@@ -190,7 +198,6 @@ export function dueSlots(
   if (weekend) return [];
 
   const order: PipelineSlot[] = [
-    "us-mid",
     "us-post",
     "kr-pre",
     "us-noon",
@@ -218,10 +225,11 @@ export type LastPublishedSlot = {
   publishedAt: string;
 };
 
+/** Auto-scheduled slots only (us-mid is manual). */
 function candidatesForScope(scope: MarketScope): PipelineSlot[] {
   if (scope === "kr") return ["kr-pre", "kr-mid", "kr-post"];
-  if (scope === "us") return ["us-mid", "us-post", "us-noon", "us-pre"];
-  return ["us-mid", "us-post", "kr-pre", "us-noon", "kr-mid", "kr-post", "us-pre"];
+  if (scope === "us") return ["us-post", "us-noon", "us-pre"];
+  return ["us-post", "kr-pre", "us-noon", "kr-mid", "kr-post", "us-pre"];
 }
 
 /**

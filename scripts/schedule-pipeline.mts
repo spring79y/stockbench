@@ -2,9 +2,10 @@
  * 한·미 장전·장후 슬롯에 맞춰 pipeline을 자동 실행.
  * 실행: npm run pipeline:schedule
  *
- * 서울 시각 기준 (주말 스킵):
- * - us-mid 02:00 (refresh) · us-post · kr-pre 07:00
- * - kr-mid 11:30 (refresh) · kr-post 15:40 · us-pre 21:50
+ * 서울 시각 기준 (주말 스킵 · 자동 cron과 동일):
+ * - us-post · kr-pre 07:00 · us-noon · kr-mid 12:30
+ * - kr-post 15:40 · us-pre 21:50
+ * - us-mid(02:00)는 자동 제외 (수동만)
  */
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";

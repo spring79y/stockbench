@@ -52,8 +52,8 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 
 ### 스케줄은 서로 독립
 
-각 cron(`us-post`+`kr-pre`, `us-noon`+`kr-mid`, `kr-post`, `us-pre`, `us-mid`)은 **별도 `schedule` 트리거**다. 이전 실행이 실패해도 다음 슬롯 cron이 막히지 않는다.  
-(단, GitHub 측 **스케줄 지연·누락**은 별개 이슈이며, “이전 실패 → 다음 스킵”과는 다르다.)
+각 cron(`us-post`+`kr-pre`, `us-noon`+`kr-mid`, `kr-post`, `us-pre`)은 **별도 `schedule` 트리거**다. 이전 실행이 실패해도 다음 슬롯 cron이 막히지 않는다.  
+`us-mid`(02:00)는 **자동 cron·자동 catch-up 없음** — Actions에서 `us-mid`/`all`로만 수동 실행.
 
 수동 실행: Actions → Publish briefing → **Run workflow** → `morning` / `noon` / 개별 슬롯 / `all`.
 
@@ -92,13 +92,12 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 
 | 슬롯(KST) | catch-up probes (UTC) |
 |-----------|------------------------|
-| us-mid 02:00 | `45 17` · `5 18` (Sun–Thu) |
 | morning 07:00 | `45 22` · `5 23` (Sun–Thu) |
 | noon 12:30 | `15 4` · `35 4` (Mon–Fri) |
 | kr-post 15:40 | `25 7` · `45 7` (Mon–Fri) |
 | us-pre 21:50 | `35 13` · `55 13` (Mon–Fri) |
 
-주말은 스크립트가 스킵. 탐지 창은 대략 **슬롯+45분 ~ +180분** — 오후 프로브가 새벽 슬롯을 다시 건드리지 않는다.
+주말은 스크립트가 스킵. 탐지 창은 대략 **슬롯+45분 ~ +180분**. `us-mid`는 자동 탐지하지 않는다.
 
 ### 중복 방지
 

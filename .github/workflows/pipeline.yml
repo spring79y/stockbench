@@ -1,4 +1,5 @@
-# 한·미 장전·장중·장후 풀 + 12:30 미국 점검 (하루 최대 7회)
+# 한·미 장전·장중·장후 풀 + 12:30 미국 점검 (평일 자동 최대 6창)
+# us-mid(02:00)는 크레딧 절약으로 자동 cron 제외 — workflow_dispatch / all 만
 # Vercel은 git push 후 자동 재배포됩니다.
 # 웹 푸시는 latest.json 커밋·프로덕션 반영 확인 뒤에만 발송합니다.
 # catchup-watchdog.yml 이 누락 슬롯을 workflow_call 로 재실행할 수 있습니다.
@@ -18,8 +19,6 @@ on:
     - cron: "40 6 * * 1-5" # kr-post (full)
     # 21:50 KST = 12:50 UTC
     - cron: "50 12 * * 1-5" # us-pre (full)
-    # 02:00 KST = 17:00 UTC (전날) → Sun–Thu UTC
-    - cron: "0 17 * * 0-4" # us-mid (full)
   workflow_dispatch:
     inputs:
       slot:
@@ -33,7 +32,7 @@ on:
           - kr-mid
           - kr-post
           - us-pre
-          - us-mid
+          - us-mid # 수동만 (자동 cron 없음)
           - noon # us-noon then kr-mid
           - morning # us-post then kr-pre
           - all # 전 슬롯 순차 (us-mid → … → us-pre)
@@ -94,7 +93,6 @@ jobs:
             "30 3 * * 1-5") echo "list=us-noon kr-mid" >> "$GITHUB_OUTPUT" ;;
             "40 6 * * 1-5") echo "list=kr-post" >> "$GITHUB_OUTPUT" ;;
             "50 12 * * 1-5") echo "list=us-pre" >> "$GITHUB_OUTPUT" ;;
-            "0 17 * * 0-4") echo "list=us-mid" >> "$GITHUB_OUTPUT" ;;
             # legacy morning cron (removed after 07:00 cutover)
             "20 20 * * 0-4") echo "list=us-post kr-pre" >> "$GITHUB_OUTPUT" ;;
             # legacy kr-mid 11:30 / 12:30 alone

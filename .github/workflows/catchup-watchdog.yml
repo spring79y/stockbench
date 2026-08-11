@@ -10,9 +10,7 @@ name: Catch-up watchdog
 on:
   schedule:
     # Offset probes after each KST slot window (+45m / +~65m). Weekends skipped in script.
-    # us-mid 02:00 KST = 17:00 UTC (Sun–Thu UTC)
-    - cron: "45 17 * * 0-4"
-    - cron: "5 18 * * 0-4"
+    # us-mid 02:00 auto catch-up retired (same as primary cron — credits)
     # us-post+kr-pre 07:00 KST = 22:00 UTC
     - cron: "45 22 * * 0-4"
     - cron: "5 23 * * 0-4"

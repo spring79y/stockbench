@@ -29,8 +29,9 @@ export default function AboutPage() {
       <h2>브리핑이 언제 갱신되나요?</h2>
       <p>
         한·미 각각 장전·장중·장후 풀 브리핑에 더해, <strong>12:30</strong>에는 미국 탭용{" "}
-        <strong>미국 점검</strong>도 함께 갱신됩니다(하루 최대 7회, 주말·휴장일 스킵 가능). 시각은
-        한국 시간(KST) 기준입니다.
+        <strong>미국 점검</strong>도 함께 갱신됩니다(평일 자동 최대 6창, 주말·휴장일 스킵 가능). 미국
+        장중(`us-mid`)은 자동 스케줄에 없고 필요 시만 수동 발행합니다. 시각은 한국 시간(KST)
+        기준입니다.
       </p>
       <table>
         <thead>
@@ -61,11 +62,6 @@ export default function AboutPage() {
             <td>21:50</td>
             <td>미 전일 요약 + 오늘 미국 관측 틀</td>
           </tr>
-          <tr>
-            <td>미국 장중</td>
-            <td>02:00</td>
-            <td>미 장중 관측 틀 갱신</td>
-          </tr>
         </tbody>
       </table>
       <p>
@@ -82,8 +78,8 @@ export default function AboutPage() {
       <ul>
         <li>시장(한국/미국)과 슬롯(장전·장중·장후)을 골라 받을 수 있습니다.</li>
         <li>
-          <strong>밤 12시–오전 7시(KST)</strong>에는 알림을 보내지 않습니다. (예: 새벽 02:00
-          미국 장중 발행분은 푸시 없이 사이트에서만 확인)
+          <strong>밤 12시–오전 7시(KST)</strong>에는 알림을 보내지 않습니다. 이 시간대에 수동으로
+          발행된 분도 푸시 없이 사이트에서만 확인합니다.
         </li>
         <li>07:00 미국 장후·한국 장전 알림은 quiet hours 이후라 발송됩니다.</li>
       </ul>

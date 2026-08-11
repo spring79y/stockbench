@@ -6,7 +6,7 @@
  *   npx tsx scripts/catchup-watchdog.mts --mark morning
  *
  * Outputs (stdout + GITHUB_OUTPUT when set):
- *   target=morning|noon|kr-post|us-pre|us-mid|  (empty = nothing to do)
+ *   target=morning|noon|kr-post|us-pre|  (empty = nothing to do; us-mid is manual-only)
  *   reason=...
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
