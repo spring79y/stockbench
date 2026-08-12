@@ -29,7 +29,8 @@ Discuss에서 말한 BriefGuard 역할은 **별도 에이전트가 아니라 이
 - `jargon-wall` — 애널리스트 은어 벽
 
 정책:
-- scope당 최대 5회 재생성 — `findingsToRepairHints`가 코드별 **구체 수정 지시**를 Briefing/Decision 프롬프트에 주입
+- scope당 최대 3회 재생성 — `findingsToRepairHints`가 코드별 **구체 수정 지시**를 Briefing/Decision 프롬프트에 주입
+- soft 블록만 남은 최종 거절 → 마지막 LLM 드래프트 발행(스탬프 갱신). 하드 블록(추천·결과 창작·사실 불일치 등)·LLM 실패 → 직전 유지
 - 전부 거절이면 **latest.json을 덮지 않고 직전 발행 유지**
 - 실적 누락만 기계 보강. 전일 앵커를 장중 숫자에 강제로 붙이지 않음
 

@@ -57,7 +57,7 @@ export function EventList({
   stepNo?: number;
 }) {
   const from = homePath(scope);
-  // Same KST day keeps (with/without result); prior KST days drop.
+  // Same KST window: keep through D-day+1 (with result line when past announce).
   const retained = filterRetainedUpcomingEvents(events);
 
   return (

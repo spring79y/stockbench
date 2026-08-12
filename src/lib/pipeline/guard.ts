@@ -1239,3 +1239,31 @@ export function findingsToRepairHints(findings: GuardFinding[]): string[] {
   }
   return hints.slice(0, 12);
 }
+
+/**
+ * Blocks that must never ship as last-draft after exhausted retries
+ * (recommendation, invented results, hard fact lies). Soft continuity
+ * blocks may demote → publish last LLM draft (stamps stay fresh).
+ */
+export const HARD_PUBLISH_BLOCK_CODES = new Set([
+  "recommendation-or-prediction",
+  "invented-event-result",
+  "unsupported-earnings-result",
+  "earnings-beat-polarity",
+  "unsupported-guidance-claim",
+  "fact-mismatch",
+  "fx-mismatch",
+  "prior-session-fact-mismatch",
+  "prior-label-mismatch",
+  "empty-briefing",
+  "pre-session-forecast",
+  "number-restatement",
+]);
+
+export function hasHardPublishBlocks(
+  findings: Array<{ severity: string; code: string }>,
+): boolean {
+  return findings.some(
+    (f) => f.severity === "block" && HARD_PUBLISH_BLOCK_CODES.has(f.code),
+  );
+}

@@ -72,9 +72,9 @@ Discuss 원칙: 사용자가 말한 “예측 지수”는 **기대·경계 신�
 | 단계 | 역할 |
 |------|------|
 | Collector | Yahoo·네이버 등 API로 지수·매크로·시총·수급·실적 숫자·`contextNews` 수집 → **Evidence Pack** 구조화 (비AI). **사실·플래그만** — EventList `oneLiner`에 판정 보류/호재·악재 등 해석 카피 금지 |
-| Briefing | Evidence Pack → 헤드라인·불릿·근거 (**탭별**, LLM). **발행 본문(유저 불릿) = LLM 성공 시에만 해석 문장.** 실패 시 **직전 유지**. seed/thin은 콜드스타트·ops 사실 앵커만 (보드 본문 아님 · 「후보다/가늠하는 때다」·「반응 근거 부족」금지). 실적 **결과+시장 반응** 서술은 Briefing(LLM) 전담. 뉴스 없으면 반응 생략. **한·미는 해당 시장 1순위·상대 시장 ≤1불릿 브릿지** |
+| Briefing | Evidence Pack → 헤드라인·불릿·근거 (**탭별**, LLM). **발행 본문(유저 불릿) = LLM.** Guard soft 거절 소진 시 **마지막 LLM 드래프트 발행**(스탬프 갱신). **하드 블록**(추천·결과 창작·사실 불일치 등)·LLM 실패 시만 **직전 유지**. seed/thin은 콜드스타트·ops 사실 앵커만 (보드 본문 아님 · 「후보다/가늠하는 때다」·「반응 근거 부족」금지). 실적 **결과+시장 반응** 서술은 Briefing(LLM) 전담. 뉴스 없으면 반응 생략. **한·미는 해당 시장 1순위·상대 시장 ≤1불릿 브릿지** |
 | Decision | 브리핑+Evidence Pack → 시나리오 A/B + 「오늘 볼 것」3~5 (**탭별**, LLM). 해석은 Evidence 사실 기반 · beatLabel/뉴스 없는 극성·가이던스 단정 금지. UI 「오늘 볼 것/점검」라벨 ≠ seed template voice |
-| Guard | 추천/예측 톤·숫자 복창·공허·**시점 둔갑**·사실 불일치·**due+Evidence 누락·재평가 없는 키워드만**·**결과 창작**·**beat 극성 반전**·**뉴스 없는 가이던스 단정**·**숫자+뉴스인데 가이던스/반응 누락**·**슬롯 톤 불일치** 차단. 숫자+뉴스면 이중 서술 허용·필수. 거절 사유→`findingsToRepairHints`(**프롬프트 채널만** — 유저 불릿에 수정 지시문 패치 금지). 최대 5회. 전부 거절·LLM 실패 시 **같은 시장 직전 좋은 본문 유지**(조용히). facts-only는 콜드스타트/ops용이며 **유저 보드 「오늘의 브리핑」본문으로 쓰지 않음**. 「반응 근거 부족」등 메타는 발행 본문 금지 |
+| Guard | 추천/예측 톤·숫자 복창·공허·**시점 둔갑**·사실 불일치·**due+Evidence 누락·재평가 없는 키워드만**·**결과 창작**·**beat 극성 반전**·**뉴스 없는 가이던스 단정**·**숫자+뉴스인데 가이던스/반응 누락**·**슬롯 톤 불일치** 차단. 숫자+뉴스면 이중 서술 허용·필수. 거절 사유→`findingsToRepairHints`(**프롬프트 채널만** — 유저 불릿에 수정 지시문 패치 금지). **최대 3회**. soft만 남은 최종 거절 → **마지막 LLM 드래프트 발행**. 하드 블록·LLM 실패 → **같은 시장 직전 좋은 본문 유지**. facts-only는 콜드스타트/ops용이며 **유저 보드 「오늘의 브리핑」본문으로 쓰지 않음**. 「반응 근거 부족」등 메타는 발행 본문 금지 |
 | Publisher | `src/data/published/latest.json` (version 2, views.all/kr/us). **published briefing ≠ internal seed voice** |
 
 ### Evidence Pack (LLM 입력)
@@ -97,7 +97,9 @@ Briefing/Decision이 받는 구조화 근거. UI 대시보드가 아님.
 LLM: `.env.local` — 품질 우선 시 Anthropic/OpenAI 권장. Ollama는 가능하나 소형 모델은 비권장.  
 실행: `npm run pipeline -- kr-post` (슬롯: kr-pre / kr-mid / kr-post / us-pre / us-mid / us-noon / us-post)  
 스케줄: 자동 `us-post·kr-pre 07:00` · `us-noon·kr-mid 12:30` · `kr-post 15:40` · `us-pre 21:50` (주말 스킵). `us-mid`는 수동/`all`. 탭: 한국슬롯→통합+한국, 미국슬롯→통합+미국. 웹 푸시는 KST 00:00–07:00 미발송이며, **latest.json 커밋·프로덕션 반영 후**에만 발송.  
-실패·키 없음 → seed는 **사실 앵커/개발·콜드스타트용**일 뿐 full 발행 보드 본문에 넣지 않음. **Guard block 시 scope당 최대 5회 재생성. 전부 거절·LLM 실패면 같은 시장 직전 본문 유지.** 뉴스 없는 반응은 **생략**(「반응 근거 부족」금지).
+실패·키 없음 → seed는 **사실 앵커/개발·콜드스타트용**일 뿐 full 발행 보드 본문에 넣지 않음. **Guard block 시 scope당 최대 3회 재생성. soft만 남은 최종 거절 → 마지막 LLM 드래프트 발행. 하드 블록·LLM 실패면 같은 시장 직전 본문 유지.** 뉴스 없는 반응은 **생략**(「반응 근거 부족」금지).
+
+다가오는 일정: KST **D-day ~ D-day+1** 유지(발표 다음날 결과 확인), **D-day+2**부터 삭제. 발표 후에는 결과 라인(`eventResultComment` · FRED 숫자 또는 집계 대기) 표시.
 
 ### 하지 않는 시점 오류
 

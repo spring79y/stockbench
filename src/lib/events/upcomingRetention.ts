@@ -21,6 +21,14 @@ export function kstCalendarDay(date: Date = new Date()): string {
   }).format(date);
 }
 
+/** Add/subtract whole calendar days on a `YYYY-MM-DD` KST day string. */
+export function addKstCalendarDays(ymd: string, delta: number): string {
+  const base = new Date(`${ymd}T12:00:00+09:00`);
+  if (!Number.isFinite(base.getTime())) return ymd;
+  base.setTime(base.getTime() + delta * 24 * 60 * 60 * 1000);
+  return kstCalendarDay(base);
+}
+
 /**
  * Event's calendar day in KST — `dateISO` preferred, else `dateLabel` (MM.DD).
  * Returns null when neither yields a parseable day.
@@ -40,7 +48,7 @@ export function eventCalendarDayKst(event: Pick<MarketEvent, "dateISO" | "dateLa
 }
 
 /**
- * Keep same KST calendar day and future; drop when event day is before today (KST).
+ * Keep through D-day + 1 (KST). Drop from D-day + 2.
  * Unparseable dates are retained (avoid silent drops).
  */
 export function shouldRetainUpcomingEvent(
@@ -49,7 +57,23 @@ export function shouldRetainUpcomingEvent(
 ): boolean {
   const day = eventCalendarDayKst(event);
   if (!day) return true;
-  return day >= kstCalendarDay(now);
+  const today = kstCalendarDay(now);
+  const earliestKept = addKstCalendarDays(today, -1); // yesterday = still D+1 for that event
+  return day >= earliestKept;
+}
+
+/** True when the announce clock has passed (or event calendar day is before today). */
+export function isEventPastAnnounce(
+  event: Pick<MarketEvent, "dateISO" | "dateLabel">,
+  now: Date = new Date(),
+): boolean {
+  if (event.dateISO) {
+    const t = Date.parse(event.dateISO);
+    if (Number.isFinite(t)) return t <= now.getTime();
+  }
+  const day = eventCalendarDayKst(event);
+  if (!day) return false;
+  return day < kstCalendarDay(now);
 }
 
 function stripLegacyJudgmentCopy(line: string): string {
@@ -71,6 +95,8 @@ export function isClearlyPostResultOneLiner(oneLiner: string | undefined | null)
   if (looksPreReportOneLiner(line)) return false;
   if (/발표됨|발표\s*결과|결과\s*미확인|집계\s*대기/.test(line)) return true;
   if (/주당순이익\(EPS\)|EPS\s*[\$\d]/.test(line)) return true;
+  // Macro prints: YoY / mom fact lines after announce
+  if (/전년비|전월|비농업|고용\s*증감|실제\s*[+\-]?\d/.test(line)) return true;
   return false;
 }
 
@@ -93,11 +119,13 @@ function buildPostResultFromActual(event: MarketEvent): string | null {
 /**
  * Result comment from structured fields only — never invent.
  * Prefer clearly post `oneLiner`; else build from structured actual.
+ * Past-announce macros without a print line → pending fact (D-day / D-day+1 window).
  * Do not surface pre-report `시장 예상…` as a result line.
- * Facts only: announced?, 매출/영업이익, 주당순이익(EPS), dual-source beatLabel, or pending.
- * No 「판정 보류」.
  */
-export function eventResultComment(event: MarketEvent): string | null {
+export function eventResultComment(
+  event: MarketEvent,
+  now: Date = new Date(),
+): string | null {
   const hasEps =
     event.actual?.epsActual != null && event.actual?.epsEstimate != null;
   const hasOp =
@@ -106,7 +134,21 @@ export function eventResultComment(event: MarketEvent): string | null {
   const pending =
     isPendingResultOneLiner(event.oneLiner) ||
     (contextNewsSuggestsPrinted(event.contextNews) && !hasEps && !hasOp);
-  if (!event.actual?.beatLabel && !hasEps && !hasOp && !pending) return null;
+  if (!event.actual?.beatLabel && !hasEps && !hasOp && !pending) {
+    // Macro / non-earnings: after announce, always show a result line in the
+    // D-day…D-day+1 retention window (enriched print or pending).
+    if (event.kind !== "earnings" && isEventPastAnnounce(event, now)) {
+      const line = event.oneLiner?.trim();
+      if (line && isClearlyPostResultOneLiner(line)) {
+        return stripLegacyJudgmentCopy(line);
+      }
+      if (event.detailSummary?.result?.trim()) {
+        return event.detailSummary.result.trim();
+      }
+      return PENDING_RESULT_ONELINER;
+    }
+    return null;
+  }
 
   const line = event.oneLiner?.trim();
   if (line && isClearlyPostResultOneLiner(line)) {
@@ -145,7 +187,7 @@ export function eventResultComment(event: MarketEvent): string | null {
   return "발표됨 · 결과 미확인";
 }
 
-/** Display/publish filter: drop past KST days; keep today (with or without result). */
+/** Display/publish filter: keep through D-day+1 KST; drop from D-day+2. */
 export function filterRetainedUpcomingEvents(
   events: MarketEvent[],
   now: Date = new Date(),

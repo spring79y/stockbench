@@ -14,9 +14,10 @@ import {
   collectSnapshot,
   defaultPipelineEvents,
 } from "../src/lib/pipeline/collectSnapshot";
-import { nextCarryStreaks } from "../src/lib/pipeline/carryForward";
+import { nextCarryStreaks, type CarryForwardBlock } from "../src/lib/pipeline/carryForward";
 import {
   findingsToRepairHints,
+  hasHardPublishBlocks,
   patchBriefingForGuardRetry,
   runBriefingOnlyGuard,
   runGuard,
@@ -29,6 +30,7 @@ import { ALL_PIPELINE_SLOTS, modeForSlot, scopesForSlot } from "../src/lib/pipel
 import { buildChangeLines } from "../src/lib/pipeline/briefingDelta";
 import {
   briefingHasForbiddenSeedVoice,
+  briefingHasForbiddenUserMeta,
   isFactsOnlyStyleView,
   isRicherLlmStyleView,
   sanitizeEditorialView,
@@ -37,6 +39,8 @@ import {
   seedDecision,
 } from "../src/lib/pipeline/seed";
 import type {
+  BriefingDraft,
+  DecisionDraft,
   EditorialView,
   MarketScope,
   PipelineMode,
@@ -198,7 +202,38 @@ function loadPreviousBundle(): PublishedBundle | null {
   return loadBundleAt(latestPath);
 }
 
-const MAX_GUARD_ATTEMPTS = 5;
+const MAX_GUARD_ATTEMPTS = 3;
+
+function buildPublishableView(input: {
+  briefing: BriefingDraft;
+  decision: DecisionDraft;
+  publishedAt: string;
+  slot: PipelineSlot;
+  mode: PipelineMode;
+  previousView?: EditorialView;
+  continuity: CarryForwardBlock | null;
+}): EditorialView | null {
+  const draftView: EditorialView = sanitizeEditorialView({
+    briefing: {
+      headline: input.briefing.headline,
+      bullets: input.briefing.bullets,
+      evidenceIds: input.briefing.evidenceIds,
+    },
+    scenarios: input.decision.scenarios,
+    checkItems: input.decision.checkItems,
+    publishedAt: input.publishedAt,
+    slot: input.slot,
+    mode: input.mode,
+  });
+  if (isFactsOnlyStyleView(draftView)) return null;
+  if (briefingHasForbiddenSeedVoice(draftView.briefing)) return null;
+  if (briefingHasForbiddenUserMeta(draftView.briefing)) return null;
+  if (!draftView.briefing.bullets.length) return null;
+  return {
+    ...draftView,
+    carryStreaks: nextCarryStreaks(input.previousView, draftView, input.continuity),
+  };
+}
 
 async function generateFullView(
   snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
@@ -282,26 +317,29 @@ async function generateFullView(
         ...guard.findings.map((f) => ({ ...f, message: `[${scope}] ${f.message}` })),
       );
       const continuity = snapshot.evidence?.previous.continuity?.[scope] ?? null;
-      const draftView: EditorialView = {
-        briefing: {
-          headline: briefing.headline,
-          bullets: briefing.bullets,
-          evidenceIds: briefing.evidenceIds,
-        },
-        scenarios: decision.scenarios,
-        checkItems: decision.checkItems,
+      const view = buildPublishableView({
+        briefing,
+        decision,
         publishedAt,
         slot,
         mode: "full",
-      };
-      return {
-        view: {
-          ...draftView,
-          carryStreaks: nextCarryStreaks(previousView, draftView, continuity),
-        },
-        findings,
-        blocked: false,
-      };
+        previousView,
+        continuity,
+      });
+      if (!view) {
+        const fallback = resolveNonLlmBriefingView({
+          snapshot,
+          scope,
+          publishedAt,
+          slot,
+          previousView,
+          mode: "full",
+          reason: "guard ok but draft not publishable",
+        });
+        findings.push(...fallback.findings);
+        return fallback;
+      }
+      return { view, findings, blocked: false };
     }
 
     repairHints = findingsToRepairHints(guard.findings);
@@ -309,7 +347,6 @@ async function generateFullView(
       `  guard blocked → ${attempt < MAX_GUARD_ATTEMPTS ? "retry" : "give up"}: ${repairHints.join("; ")}`,
     );
     if (attempt === MAX_GUARD_ATTEMPTS) {
-      // Demote blocks — we are not publishing the rejected draft.
       findings.push(
         ...guard.findings.map((f) => ({
           ...f,
@@ -317,17 +354,55 @@ async function generateFullView(
           message: `[${scope}] guard rejected draft: ${f.message}`,
         })),
       );
-      const fallback = resolveNonLlmBriefingView({
-        snapshot,
-        scope,
+
+      // Soft blocks only → publish last LLM draft so tab stamps stay fresh.
+      // Hard integrity blocks → keep previous.
+      if (hasHardPublishBlocks(guard.findings)) {
+        const fallback = resolveNonLlmBriefingView({
+          snapshot,
+          scope,
+          publishedAt,
+          slot,
+          previousView,
+          mode: "full",
+          reason: "guard hard-block after retries",
+        });
+        findings.push(...fallback.findings);
+        return fallback;
+      }
+
+      const continuity = snapshot.evidence?.previous.continuity?.[scope] ?? null;
+      const view = buildPublishableView({
+        briefing,
+        decision,
         publishedAt,
         slot,
-        previousView,
         mode: "full",
-        reason: "guard blocked after retries",
+        previousView,
+        continuity,
       });
-      findings.push(...fallback.findings);
-      return fallback;
+      if (!view) {
+        const fallback = resolveNonLlmBriefingView({
+          snapshot,
+          scope,
+          publishedAt,
+          slot,
+          previousView,
+          mode: "full",
+          reason: "guard soft-block but draft not publishable",
+        });
+        findings.push(...fallback.findings);
+        return fallback;
+      }
+      console.log(
+        `  publish last draft after soft guard fails (${scope}) — stamps refresh`,
+      );
+      findings.push({
+        severity: "warn",
+        code: "guard-soft-publish",
+        message: `[${scope}] soft guard blocks after ${MAX_GUARD_ATTEMPTS} retries — published last LLM draft`,
+      });
+      return { view, findings, blocked: false };
     }
   }
 
@@ -422,7 +497,7 @@ async function generateRefreshView(
 
     repairHints = findingsToRepairHints(guard.findings);
     console.log(
-      `  guard blocked → ${attempt < MAX_GUARD_ATTEMPTS ? "retry" : "keep previous"}: ${repairHints.join("; ")}`,
+      `  guard blocked → ${attempt < MAX_GUARD_ATTEMPTS ? "retry" : "soft-publish or keep"}: ${repairHints.join("; ")}`,
     );
     if (attempt === MAX_GUARD_ATTEMPTS) {
       findings.push(
@@ -432,7 +507,35 @@ async function generateRefreshView(
           message: `[${scope}] refresh skipped: ${f.message}`,
         })),
       );
-      return { view: { ...previous }, findings, blocked: false };
+      if (hasHardPublishBlocks(guard.findings)) {
+        return { view: { ...previous }, findings, blocked: false };
+      }
+      const draft = sanitizeEditorialView({
+        briefing: {
+          headline: briefing.headline,
+          bullets: briefing.bullets,
+          evidenceIds: briefing.evidenceIds,
+        },
+        scenarios: previous.scenarios,
+        checkItems: previous.checkItems,
+        publishedAt,
+        slot,
+        mode: "refresh",
+      });
+      if (
+        isFactsOnlyStyleView(draft) ||
+        briefingHasForbiddenSeedVoice(draft.briefing) ||
+        briefingHasForbiddenUserMeta(draft.briefing)
+      ) {
+        return { view: { ...previous }, findings, blocked: false };
+      }
+      console.log(`  refresh soft-publish last draft (${scope})`);
+      findings.push({
+        severity: "warn",
+        code: "guard-soft-publish",
+        message: `[${scope}] refresh soft guard fails — published last LLM draft`,
+      });
+      return { view: draft, findings, blocked: false };
     }
   }
 

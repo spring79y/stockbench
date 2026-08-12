@@ -1,5 +1,6 @@
 import type YahooFinance from "yahoo-finance2";
 import { defaultPipelineEvents } from "@/lib/events/defaultEvents";
+import { enrichMacroPostPrint } from "@/lib/events/enrichMacroPostPrint";
 import { filterRetainedUpcomingEvents } from "@/lib/events/upcomingRetention";
 import {
   earningsEntriesToEvents,
@@ -42,7 +43,7 @@ export async function buildUpcomingEvents(
     ...earnings.filter((e) => !macroIds.has(e.id)),
   ];
 
-  return filterRetainedUpcomingEvents(merged)
+  const retained = filterRetainedUpcomingEvents(merged)
     .filter((e) => !e.bridgeOf)
     .sort((a, b) => {
       const ta = eventSortTime(a);
@@ -51,4 +52,7 @@ export async function buildUpcomingEvents(
       return a.title.localeCompare(b.title, "ko");
     })
     .slice(0, 8);
+
+  // D-day / D-day+1: attach FRED (or pending) post-announce fact lines for macros.
+  return enrichMacroPostPrint(retained);
 }
