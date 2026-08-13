@@ -1,6 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { cache } from "react";
+import {
+  assessOpsSlotHealth,
+  type CatchUpState,
+  type OpsSlotHealth,
+} from "@/lib/pipeline/catchup";
 import type { PipelineStatus } from "@/lib/pipeline/pipelineStatus";
 import type { PublishedBundle } from "@/lib/pipeline/types";
 
@@ -19,6 +24,9 @@ export type OpsSnapshot = {
     findings: Array<{ severity: string; code: string; message: string }>;
   };
   lastRun: PipelineStatus | null;
+  /** Slot freshness vs today's schedule (stale / missed badge). */
+  slotHealth: OpsSlotHealth;
+  catchUp: CatchUpState | null;
 };
 
 function ageMinutes(iso: string | null): number | null {
@@ -71,10 +79,11 @@ async function loadOpsSnapshotUncached(): Promise<OpsSnapshot> {
     summary: "missing latest.json",
     findings: [],
   };
+  let bundle: PublishedBundle | null = null;
 
   try {
     const raw = await readFile(join(cwd, "src/data/published/latest.json"), "utf8");
-    const bundle = JSON.parse(raw) as PublishedBundle;
+    bundle = JSON.parse(raw) as PublishedBundle;
     published = {
       slot: bundle.slot ?? null,
       publishedAt: bundle.publishedAt ?? null,
@@ -95,7 +104,20 @@ async function loadOpsSnapshotUncached(): Promise<OpsSnapshot> {
     lastRun = null;
   }
 
-  return { published, guard, lastRun };
+  let catchUp: CatchUpState | null = null;
+  try {
+    const raw = await readFile(join(cwd, "src/data/published/catchup.json"), "utf8");
+    catchUp = JSON.parse(raw) as CatchUpState;
+  } catch {
+    catchUp = null;
+  }
+
+  const slotHealth = assessOpsSlotHealth({
+    bundle,
+    state: catchUp,
+  });
+
+  return { published, guard, lastRun, slotHealth, catchUp };
 }
 
 export const loadOpsSnapshot = cache(loadOpsSnapshotUncached);

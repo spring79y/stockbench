@@ -22,6 +22,12 @@ function fmtAge(minutes: number | null): string {
   return `${Math.floor(h / 24)}일 전`;
 }
 
+function slotHealthBadgeClass(level: "ok" | "stale" | "missed"): string {
+  if (level === "ok") return "ops__badge ops__badge--ok";
+  if (level === "stale") return "ops__badge ops__badge--warn";
+  return "ops__badge ops__badge--bad";
+}
+
 export default async function OpsPage() {
   const [ops, pushOn] = await Promise.all([
     loadOpsSnapshot(),
@@ -29,6 +35,7 @@ export default async function OpsPage() {
   ]);
   const last = ops.lastRun;
   const schedule = pipelineScheduleRows();
+  const health = ops.slotHealth;
 
   return (
     <main className="ops">
@@ -37,6 +44,56 @@ export default async function OpsPage() {
         <h1 className="ops__title">Ops</h1>
         <p className="ops__lede">파이프라인·발행·푸시 ON 수. 방문 수는 Vercel Analytics.</p>
       </header>
+
+      <section className="ops__section" aria-labelledby="ops-slot-health">
+        <h2 id="ops-slot-health" className="ops__h2">
+          Slot health
+        </h2>
+        <p className={slotHealthBadgeClass(health.level)}>
+          {health.level} · {health.label}
+        </p>
+        <p className="ops__muted">{health.detail}</p>
+        {health.missingSlots.length > 0 ? (
+          <dl className="ops__dl">
+            <div>
+              <dt>missing</dt>
+              <dd>
+                <code>{health.missingSlots.join(", ")}</code>
+              </dd>
+            </div>
+            {health.catchUpTarget ? (
+              <div>
+                <dt>catch-up</dt>
+                <dd>
+                  <code>{health.catchUpTarget}</code>
+                  {health.catchUpAlreadyDispatched ? (
+                    <span className="ops__meta"> · marked today</span>
+                  ) : (
+                    <span className="ops__meta"> · pending / in window</span>
+                  )}
+                </dd>
+              </div>
+            ) : null}
+            <div>
+              <dt>복구</dt>
+              <dd>
+                Actions → Publish briefing →{" "}
+                <code>{health.catchUpTarget ?? "noon"}</code>
+              </dd>
+            </div>
+          </dl>
+        ) : null}
+        {ops.catchUp ? (
+          <p className="ops__meta">
+            catchup.json · {ops.catchUp.date}
+            {Object.keys(ops.catchUp.dispatched).length
+              ? ` · dispatched ${Object.keys(ops.catchUp.dispatched).join(", ")}`
+              : " · no dispatch today"}
+          </p>
+        ) : (
+          <p className="ops__meta">catchup.json 없음</p>
+        )}
+      </section>
 
       <section className="ops__section" aria-labelledby="ops-push">
         <h2 id="ops-push" className="ops__h2">

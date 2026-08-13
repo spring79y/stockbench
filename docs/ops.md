@@ -37,6 +37,7 @@
 
 ## `/ops`에 보이는 것
 
+- **Slot health** (배지): 오늘(KST) 기대 슬롯이 +45분 이상 비었는지. `ok` / `stale`(캐치업 창) / `missed`(창 지나도 비었거나 catch-up 후에도 비어 있음). 복구 힌트(Publish → `noon` 등) 표시. Slack 알림 없음 — 배지만.
 - **Push notifications ON**: 활성 구독 endpoint 수(집계만 · endpoint/키/PII 비노출). 페이지 로드 시 Redis 인덱스로 재집계해 카운터 드리프트를 보정하고, 재집계 시각을 함께 표시한다. ON = `push:sub:*` 레코드에 시장이 있고 ≥1 슬롯이 켜진 경우. 구독 ON 전환 시 +1, 완전 해제(또는 슬롯 없는 상태) 시 −1. 슬롯만 바꾸거나 같은 ON 상태 재저장은 카운트 불변.
 - `latest.json` 신선도: slot, publishedAt, mode  
 - Guard 통과/차단 + 짧은 summary  
@@ -86,7 +87,14 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 
 **하는 일:** 기대 KST 슬롯 시각 이후 **45분**이 지났는데 `latest.json`(루트·탭 `slot`/`publishedAt`)에 같은 서울 날짜의 해당 슬롯 발행이 없으면, 그 슬롯(또는 `morning`/`noon` 묶음)을 **하루 1회** 다시 돌린다. `GITHUB_TOKEN`만 사용하며 Publish briefing을 `workflow_call`로 호출한다(`workflow_dispatch` 체인은 토큰 제한으로 불가).
 
-**하지 않는 일:** 분 단위 정시 보장, hosted runner 미획득 0건, 외부 cron/PAT, 제품 UI 추가.
+**하지 않는 일:** 분 단위 정시 보장, hosted runner 미획득 0건, 제품 UI 추가.
+
+### 외부 트리거 (Cloudflare) — GHA schedule SPOF 완화
+
+GHA `schedule`이 멈추면 primary와 catch-up 프로브가 같이 안 뜬다.  
+`ops/cf-catchup-cron` Cloudflare Worker가 **같은 프로브 시각**에 Catch-up watchdog만 `workflow_dispatch`로 깨운다(이미 발행·당일 1회면 스킵). 배포·PAT: [`ops/cf-catchup-cron/README.md`](../ops/cf-catchup-cron/README.md).
+
+`/ops` **Slot health** 배지로 stale/missed를 본다(Slack 없음). runner 고갈·ISE면 배지가 `missed`여도 자동 복구는 안 되니 수동 Publish가 필요.
 
 ### 프로브 cron (UTC · 슬롯 +≈45/+65분)
 
@@ -107,9 +115,9 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 
 ### 한계 (약속하지 말 것)
 
-- 워치독 스케줄도 GHA라 **여전히 늦을 수 있음**  
-- hosted runner 고갈·ISE면 catch-up도 막힐 수 있음 → 수동 Re-run / `workflow_dispatch`  
-- catch-up 1회 실패 후 자동 재시도 없음(당일 마커)  
+- 워치독 GHA 스케줄도 늦을 수 있음 → **Cloudflare 외부 dispatch**로 완화(완전 제거는 아님)
+- hosted runner 고갈·ISE면 catch-up도 막힐 수 있음 → `/ops` Slot health 배지 + 수동 Re-run / `workflow_dispatch`
+- catch-up 1회 실패 후 자동 재시도 없음(당일 마커)
 - 정시 SLA 없음 — “비어 있는 브리핑을 늦게라도 채움”
 
 로직·단위 테스트: `src/lib/pipeline/catchup.ts`, `npm run test:unit`(catchup 포함). 수동 점검: Actions → Catch-up watchdog → Run workflow.

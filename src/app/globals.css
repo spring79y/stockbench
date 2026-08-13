@@ -1765,6 +1765,11 @@ a {
   color: var(--ok);
 }
 
+.ops__badge--warn {
+  background: color-mix(in srgb, #b45309 12%, white);
+  color: #b45309;
+}
+
 .ops__badge--bad {
   background: color-mix(in srgb, var(--rise) 12%, white);
   color: var(--rise);

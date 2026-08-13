@@ -210,3 +210,130 @@ export function markCatchUpDispatched(
   base.dispatched[target] = now.toISOString();
   return base;
 }
+
+/** Ops badge: slot publish health for today (KST). */
+export type OpsSlotHealth = {
+  /** ok | stale (in catch-up window, not yet recovered) | missed (still empty after window / after catch-up mark) */
+  level: "ok" | "stale" | "missed";
+  label: string;
+  detail: string;
+  /** Catch-up target that would (or did) fire */
+  catchUpTarget: CatchUpTarget | null;
+  missingSlots: PipelineSlot[];
+  /** True when today's catch-up marker exists for the relevant target */
+  catchUpAlreadyDispatched: boolean;
+};
+
+/**
+ * Missing auto slots that are ≥ threshold past expected time today (no max-lateness cap).
+ * Used for /ops badge after the catch-up probe window closes.
+ */
+export function missingSlotsPastThreshold(
+  options: {
+    now?: Date;
+    bundle?: PublishedBundle | null;
+    thresholdMins?: number;
+  } = {},
+): PipelineSlot[] {
+  const now = options.now ?? new Date();
+  const threshold = options.thresholdMins ?? CATCHUP_STALE_THRESHOLD_MINS;
+  const { ymd, weekend } = seoulDateParts(now);
+  if (weekend) return [];
+  const evidence = collectPublishEvidence(options.bundle);
+  const missing: PipelineSlot[] = [];
+  for (const slot of AUTO_CATCHUP_SLOTS) {
+    if (minsPastSlot(slot, now) < threshold) continue;
+    if (slotPublishedOnDay(slot, ymd, evidence)) continue;
+    missing.push(slot);
+  }
+  return missing;
+}
+
+/**
+ * /ops badge assessment — stale in catch-up window, or still missing after.
+ * Does not dispatch anything.
+ */
+export function assessOpsSlotHealth(options: {
+  now?: Date;
+  bundle?: PublishedBundle | null;
+  state?: CatchUpState | null;
+}): OpsSlotHealth {
+  const now = options.now ?? new Date();
+  const { ymd, weekend } = seoulDateParts(now);
+  if (weekend) {
+    return {
+      level: "ok",
+      label: "weekend · skip",
+      detail: `weekend ${ymd}`,
+      catchUpTarget: null,
+      missingSlots: [],
+      catchUpAlreadyDispatched: false,
+    };
+  }
+
+  const decision = decideCatchUp({
+    now,
+    bundle: options.bundle,
+    state: options.state,
+  });
+  const state =
+    options.state?.date === ymd
+      ? options.state
+      : ({ date: ymd, dispatched: {} } satisfies CatchUpState);
+
+  if (decision.target) {
+    return {
+      level: "stale",
+      label: `stale · ${decision.target}`,
+      detail: decision.reason,
+      catchUpTarget: decision.target,
+      missingSlots: decision.staleSlots,
+      catchUpAlreadyDispatched: false,
+    };
+  }
+
+  const missing = missingSlotsPastThreshold({ now, bundle: options.bundle });
+  if (missing.length === 0) {
+    return {
+      level: "ok",
+      label: "slots ok",
+      detail: decision.reason,
+      catchUpTarget: null,
+      missingSlots: [],
+      catchUpAlreadyDispatched: false,
+    };
+  }
+
+  // Map missing slots → which catch-up targets were marked today
+  const relatedTargets = TARGET_ORDER.filter((t) =>
+    TARGET_SLOTS[t].some((s) => missing.includes(s)),
+  );
+  const marked = relatedTargets.filter((t) => Boolean(state.dispatched[t]));
+  const unmarked = relatedTargets.filter((t) => !state.dispatched[t]);
+
+  if (marked.length && unmarked.length === 0) {
+    return {
+      level: "missed",
+      label: `empty after catch-up · ${missing.join(", ")}`,
+      detail:
+        `당일 catch-up 마커 있음(${marked.join(",")})인데 발행 슬롯 없음 — ` +
+        `Actions → Publish briefing → ${marked[0]} 수동 실행`,
+      catchUpTarget: marked[0] ?? null,
+      missingSlots: missing,
+      catchUpAlreadyDispatched: true,
+    };
+  }
+
+  return {
+    level: "missed",
+    label: `missing · ${missing.join(", ")}`,
+    detail:
+      decision.reason.includes("already catch-up")
+        ? decision.reason
+        : `기대 슬롯 +${CATCHUP_STALE_THRESHOLD_MINS}m 지났는데 당일 발행 없음 — ` +
+          `Publish → ${unmarked[0] ?? relatedTargets[0] ?? "noon"} 또는 Catch-up 확인`,
+    catchUpTarget: unmarked[0] ?? relatedTargets[0] ?? null,
+    missingSlots: missing,
+    catchUpAlreadyDispatched: marked.length > 0,
+  };
+}

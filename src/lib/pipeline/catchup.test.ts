@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   CATCHUP_STALE_THRESHOLD_MINS,
+  assessOpsSlotHealth,
   collectPublishEvidence,
   decideCatchUp,
   isSlotStale,
@@ -148,5 +149,43 @@ describe("decideCatchUp", () => {
     const now = kst("2026-08-07", 13, 20);
     const d = decideCatchUp({ now, bundle: null });
     assert.equal(d.target, "noon");
+  });
+});
+
+describe("assessOpsSlotHealth", () => {
+  it("flags stale noon in catch-up window", () => {
+    const now = kst("2026-08-07", 13, 20);
+    const bundle = bundleWith([
+      { slot: "us-post", publishedAt: kst("2026-08-07", 7, 5).toISOString(), scope: "us" },
+      { slot: "kr-pre", publishedAt: kst("2026-08-07", 7, 12).toISOString(), scope: "kr" },
+    ]);
+    const h = assessOpsSlotHealth({ now, bundle });
+    assert.equal(h.level, "stale");
+    assert.equal(h.catchUpTarget, "noon");
+  });
+
+  it("flags missed when past window and still empty", () => {
+    // 17:00 — noon is past max lateness (180m from 12:30)
+    const now = kst("2026-08-07", 17, 0);
+    const bundle = bundleWith([
+      { slot: "us-post", publishedAt: kst("2026-08-07", 7, 5).toISOString(), scope: "us" },
+      { slot: "kr-pre", publishedAt: kst("2026-08-07", 7, 12).toISOString(), scope: "kr" },
+      { slot: "kr-post", publishedAt: kst("2026-08-07", 15, 50).toISOString(), scope: "kr" },
+    ]);
+    const h = assessOpsSlotHealth({ now, bundle });
+    assert.equal(h.level, "missed");
+    assert.ok(h.missingSlots.includes("us-noon") || h.missingSlots.includes("kr-mid"));
+  });
+
+  it("ok when expected slots published", () => {
+    const now = kst("2026-08-07", 13, 20);
+    const bundle = bundleWith([
+      { slot: "us-post", publishedAt: kst("2026-08-07", 7, 5).toISOString(), scope: "us" },
+      { slot: "kr-pre", publishedAt: kst("2026-08-07", 7, 12).toISOString(), scope: "kr" },
+      { slot: "us-noon", publishedAt: kst("2026-08-07", 12, 35).toISOString(), scope: "us" },
+      { slot: "kr-mid", publishedAt: kst("2026-08-07", 12, 40).toISOString(), scope: "kr" },
+    ]);
+    const h = assessOpsSlotHealth({ now, bundle });
+    assert.equal(h.level, "ok");
   });
 });

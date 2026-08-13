@@ -3,8 +3,9 @@
 # GITHUB_TOKEN cannot trigger workflow_dispatch on another workflow, so we
 # workflow_call Publish briefing when a slot is stale.
 #
-# Still may delay (this schedule runs on GHA too). Runner starvation can
-# block catch-up the same way it blocks the primary cron.
+# GHA schedule can stall (same SPOF as Publish briefing cron). Optional
+# Cloudflare Worker `ops/cf-catchup-cron` also workflow_dispatch-es this file.
+# Runner starvation can still block jobs after dispatch.
 name: Catch-up watchdog
 
 on:
