@@ -3,26 +3,23 @@
 #
 # Cloudflare cron = Quartz-like DOW: 1=SUN … 7=SAT (0 is invalid).
 # Prefer SUN-THU / MON-FRI — do not copy GitHub's 0-4 / 1-5 literally.
+#
+# Workers Free = max 5 cron triggers / account. Keep one probe per slot (~+45m).
+# GHA catchup-watchdog.yml still has +45/+65 pairs; this Worker is the SPOF break.
 name = "stockbench-catchup-cron"
 main = "src/index.ts"
 compatibility_date = "2026-08-01"
 workers_dev = true
 preview_urls = false
 
-# Same windows as catchup-watchdog.yml (+≈45 / +≈65m after each KST slot).
-# Weekends: workflow script still skips; harmless extra dispatch.
 [triggers]
 crons = [
-  # morning 07:00 KST → 22:00 UTC prev day (Sun–Thu UTC ≈ GHA 0-4)
+  # morning 07:00 KST → +45m = 22:45 UTC (Sun–Thu)
   "45 22 * * SUN-THU",
-  "5 23 * * SUN-THU",
-  # noon 12:30 KST (Mon–Fri)
+  # noon 12:30 KST → +45m = 04:15 UTC
   "15 4 * * MON-FRI",
-  "35 4 * * MON-FRI",
-  # kr-post 15:40 KST
+  # kr-post 15:40 KST → +45m = 07:25 UTC
   "25 7 * * MON-FRI",
-  "45 7 * * MON-FRI",
-  # us-pre 21:50 KST
+  # us-pre 21:50 KST → +45m = 13:35 UTC
   "35 13 * * MON-FRI",
-  "55 13 * * MON-FRI",
 ]

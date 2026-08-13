@@ -24,7 +24,9 @@ npx wrangler deploy
 
 예: `curl "https://stockbench-catchup-cron.spring79y-stockbench.workers.dev/?run=1"`
 
-**Cron:** Cloudflare는 요일 `0` 불가(1=SUN…7=SAT). `wrangler.toml`은 `SUN-THU` / `MON-FRI` 사용(GitHub의 `0-4`/`1-5`를 그대로 쓰면 실패).
+**Cron:** Cloudflare는 요일 `0` 불가(1=SUN…7=SAT). `wrangler.toml`은 `SUN-THU` / `MON-FRI` 사용.
+
+**Free 플랜 한도:** 계정당 cron **5개**. 이 Worker는 슬롯당 **+45분 1회**(4개)만 등록. GHA catch-up YAML의 +45/+65 쌍은 그대로 두고, 여기는 schedule SPOF 보조만 담당. Paid로 올리면 프로브를 더 넣을 수 있다.
 
 ## PAT 최소 권한
 
