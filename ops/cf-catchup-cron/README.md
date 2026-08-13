@@ -22,6 +22,10 @@ npx wrangler deploy
 
 수동 스모크: Worker URL에 `GET /?run=1` 또는 `POST /dispatch`.
 
+예: `curl "https://stockbench-catchup-cron.spring79y-stockbench.workers.dev/?run=1"`
+
+**Cron:** Cloudflare는 요일 `0` 불가(1=SUN…7=SAT). `wrangler.toml`은 `SUN-THU` / `MON-FRI` 사용(GitHub의 `0-4`/`1-5`를 그대로 쓰면 실패).
+
 ## PAT 최소 권한
 
 - Fine-grained: Actions **Read and write**, Contents read(필요 시)
