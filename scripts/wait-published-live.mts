@@ -1,6 +1,7 @@
 /**
  * Poll production until /api/published matches local latest.json publishedAt.
  * Used after git push so slot push fires only once clients can see the bundle.
+ * Fails (exit 1) on timeout / missing local stamp so Actions does not send push.
  *
  * Env: PRODUCTION_URL (default https://www.stock-bench.com)
  */
@@ -17,7 +18,6 @@ const PRODUCTION_URL = (process.env.PRODUCTION_URL ?? "https://www.stock-bench.c
 );
 const TIMEOUT_MS = Number(process.env.WAIT_PUBLISHED_TIMEOUT_MS ?? 10 * 60 * 1000);
 const POLL_MS = Number(process.env.WAIT_PUBLISHED_POLL_MS ?? 15_000);
-const FALLBACK_SLEEP_MS = Number(process.env.WAIT_PUBLISHED_FALLBACK_MS ?? 90_000);
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -25,35 +25,28 @@ function sleep(ms: number) {
 
 async function main() {
   if (!existsSync(latestPath)) {
-    console.warn("[wait] skipped — latest.json missing");
-    process.exit(0);
+    console.error("[wait] fail — latest.json missing");
+    process.exit(1);
   }
 
   const local = JSON.parse(readFileSync(latestPath, "utf8")) as PublishedBundle;
   const expected = local.publishedAt;
   if (!expected) {
-    console.warn("[wait] skipped — local publishedAt missing");
-    process.exit(0);
+    console.error("[wait] fail — local publishedAt missing");
+    process.exit(1);
   }
 
   const url = `${PRODUCTION_URL}/api/published`;
   console.log(`[wait] expecting publishedAt=${expected} at ${url}`);
 
   const deadline = Date.now() + TIMEOUT_MS;
-  let sawEndpoint = false;
 
   while (Date.now() < deadline) {
     try {
       const res = await fetch(url, { cache: "no-store" });
       if (res.status === 404) {
         console.warn("[wait] /api/published not on production yet");
-        if (!sawEndpoint) {
-          console.warn(`[wait] fallback sleep ${FALLBACK_SLEEP_MS}ms then proceed`);
-          await sleep(FALLBACK_SLEEP_MS);
-          process.exit(0);
-        }
       } else if (res.ok) {
-        sawEndpoint = true;
         const data = (await res.json()) as { publishedAt?: string | null };
         if (data.publishedAt === expected) {
           console.log(`[wait] production live publishedAt=${expected}`);
@@ -71,13 +64,13 @@ async function main() {
     await sleep(POLL_MS);
   }
 
-  console.warn(
-    `[wait] timeout after ${TIMEOUT_MS}ms — proceeding (deploy may still be rolling)`,
+  console.error(
+    `[wait] timeout after ${TIMEOUT_MS}ms — production not live; skipping push`,
   );
-  process.exit(0);
+  process.exit(1);
 }
 
 main().catch((error) => {
-  console.warn("[wait] non-blocking error", error);
-  process.exit(0);
+  console.error("[wait] error", error);
+  process.exit(1);
 });

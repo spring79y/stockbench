@@ -77,7 +77,8 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 
 동시 실행: `concurrency.group: publish-briefing`, `cancel-in-progress: false` — 겹치면 대기하고, 진행 중 run을 취소해 슬롯을 버리지 않는다. `timeout-minutes: 60`.
 
-웹 푸시 순서: pipeline → `latest.json` 커밋·push → `/api/published`로 프로덕션 반영 대기 → `push:slot`. 로컬 파이프라인 직후 푸시하지 않는다.
+웹 푸시 순서: pipeline → `latest.json` 커밋·push → `/api/published`로 프로덕션 반영 대기 → `push:slot`. 로컬 파이프라인 직후 푸시하지 않는다.  
+`wait:published-live`가 타임아웃·불일치로 **실패(exit 1)** 하면 Publish job이 실패하고 **슬롯 푸시는 스킵**된다(배포 미반영인데 알림만 가는 것 방지). 보드 복구는 Vercel Redeploy 후 `/api/published` 스탬프 확인.
 
 홈(PWA·브라우저)이 백그라운드에서 돌아올 때는 발행 버전 비교 없이 `location.reload()`로 셸을 갱신한다(짧은 탭 blip·자기 reload 루프는 제외). Cache API는 백그라운드에서 비우지 않는다. 알림 클릭 hard navigate는 그대로.
 
