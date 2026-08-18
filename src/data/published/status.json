@@ -1,8 +1,8 @@
 {
-  "updatedAt": "2026-08-18T00:25:20.967Z",
-  "slot": "kr-pre",
+  "updatedAt": "2026-08-18T04:08:08.400Z",
+  "slot": "kr-mid",
   "ok": true,
   "mode": "full",
   "guardOk": true,
-  "guardSummary": "ok · 160 warn"
+  "guardSummary": "ok · 162 warn"
 }
