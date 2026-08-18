@@ -121,6 +121,25 @@ describe("decideCatchUp", () => {
     assert.equal(d.target, null);
   });
 
+  it("requests morning when views.all is kr-pre but views.kr stayed on kr-post", () => {
+    const now = kst("2026-08-18", 8, 0);
+    const bundle = bundleWith([
+      { slot: "us-post", publishedAt: kst("2026-08-18", 7, 5).toISOString(), scope: "us" },
+      { slot: "kr-post", publishedAt: kst("2026-08-17", 16, 37).toISOString(), scope: "kr" },
+    ]);
+    bundle.slot = "kr-pre";
+    bundle.publishedAt = kst("2026-08-18", 7, 26).toISOString();
+    bundle.views.all = {
+      ...bundle.views.all,
+      slot: "kr-pre",
+      publishedAt: bundle.publishedAt,
+    };
+    const d = decideCatchUp({ now, bundle });
+    assert.equal(d.target, "morning");
+    assert.ok(d.staleSlots.includes("kr-pre"));
+    assert.equal(d.staleSlots.includes("us-post"), false);
+  });
+
   it("requests noon when only us-noon missing", () => {
     const now = kst("2026-08-07", 13, 20);
     const bundle = bundleWith([

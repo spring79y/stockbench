@@ -261,6 +261,17 @@ export default async function OpsPage() {
                   <dd className="ops__error">{last.error}</dd>
                 </div>
               ) : null}
+              {last.keepPreviousScopes?.length ? (
+                <div>
+                  <dt>keep-previous</dt>
+                  <dd>
+                    {last.keepPreviousScopes.join(", ")}
+                    {last.keepPreviousCodes?.length
+                      ? ` · ${last.keepPreviousCodes.join(", ")}`
+                      : ""}
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           </>
         ) : (

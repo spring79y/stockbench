@@ -95,6 +95,9 @@ const PRE_SESSION_FORECAST_PATTERNS = [
 ];
 const PRIOR_SESSION_ANCHOR_RE =
   /전일|전\s*거래일|직전\s*(?:장|거래일|세션)?|어제|마감|전\s*세션|직전\s*정규장/;
+/** 장전에서 라이브/프리마켓 틱을 가리키는 단서 */
+const LIVE_SESSION_CUE_RE =
+  /현재|지금|장전|프리마켓|프리\s*마켓|야간선물|오버나잇|애프터마켓/;
 /** 직전 세션 결과처럼 보이는 수치 복창 (관측 임계치는 제외) */
 const PRIOR_SESSION_NUMERIC_RE =
   /(?:(?:코스피|코스닥|나스닥|S&P|다우)[^.!?]{0,24}[+-]?\d+(?:\.\d+)?%|외국인[^.!?]{0,28}\d+(?:\.\d+)?\s*(?:조|억)[^.!?]{0,12}순매(?:수|도)|시총[^.!?]{0,30}(?:평균|상위)[^.!?]{0,20}\d+(?:\.\d+)?%)/;
@@ -686,6 +689,40 @@ function briefingChanged(a: BriefingDraft, b: BriefingDraft): boolean {
   );
 }
 
+function isPreSlot(slot: CollectorSnapshot["slot"]): boolean {
+  return slot === "kr-pre" || slot === "us-pre";
+}
+
+/**
+ * 장전 강세/약세 극성: 전일 세션이 기본.
+ * 「현재/프리마켓」만 있고 전일 앵커가 없을 때만 라이브 틱.
+ * 앵커 없는 「코스피는 강세」도 장전 리캡으로 보고 전일 마감과 비교.
+ */
+function kospiPolarityPercent(
+  snapshot: CollectorSnapshot,
+  claimingTexts: string[],
+): number | null {
+  const kospi = snapshot.indexes.find((q) => q.id === "kospi");
+  if (!kospi) return null;
+  if (!isPreSlot(snapshot.slot)) return kospi.changePercent;
+  const liveOnly = claimingTexts.some(
+    (t) => LIVE_SESSION_CUE_RE.test(t) && !PRIOR_SESSION_ANCHOR_RE.test(t),
+  );
+  if (liveOnly) return kospi.changePercent;
+  return kospi.priorSessionChangePercent ?? kospi.changePercent;
+}
+
+/** 장전 환율: 전일 서술·앵커 없는 복창은 현재 틱과 비교하지 않음. 「현재」 단서만 라이브. */
+function shouldCheckLiveFxMismatch(
+  snapshot: CollectorSnapshot,
+  claimingTexts: string[],
+): boolean {
+  if (claimingTexts.length === 0) return false;
+  if (!isPreSlot(snapshot.slot)) return true;
+  if (claimingTexts.some((t) => PRIOR_SESSION_ANCHOR_RE.test(t))) return false;
+  return claimingTexts.some((t) => LIVE_SESSION_CUE_RE.test(t));
+}
+
 /** Guard Agent — 사실·톤·복창·공허·탭 이탈 점검 */
 export function runGuard(input: {
   snapshot: CollectorSnapshot;
@@ -934,21 +971,26 @@ export function runGuard(input: {
     }
   }
 
-  const kospi = input.snapshot.indexes.find((q) => q.id === "kospi");
   const claimsDomesticBullish = texts.some((text) =>
     /코스피(?:가|는|도)?\s*강세|국내\s*(?:증시|시장)(?:가|는|도)?\s*강세/.test(text),
   );
   const claimsDomesticBearish = texts.some((text) =>
     /코스피(?:가|는|도)?\s*약세|국내\s*(?:증시|시장)(?:가|는|도)?\s*약세/.test(text),
   );
-  if (scope !== "us" && kospi && kospi.changePercent <= -1 && claimsDomesticBullish) {
+  const kospiClaimTexts = texts.filter(
+    (text) =>
+      /코스피(?:가|는|도)?\s*강세|국내\s*(?:증시|시장)(?:가|는|도)?\s*강세/.test(text) ||
+      /코스피(?:가|는|도)?\s*약세|국내\s*(?:증시|시장)(?:가|는|도)?\s*약세/.test(text),
+  );
+  const kospiPct = kospiPolarityPercent(input.snapshot, kospiClaimTexts);
+  if (scope !== "us" && kospiPct != null && kospiPct <= -1 && claimsDomesticBullish) {
     findings.push({
       severity: "block",
       code: "fact-mismatch",
       message: "코스피 약세인데 강세 서술 감지",
     });
   }
-  if (scope !== "us" && kospi && kospi.changePercent >= 1 && claimsDomesticBearish) {
+  if (scope !== "us" && kospiPct != null && kospiPct >= 1 && claimsDomesticBearish) {
     findings.push({
       severity: "warn",
       code: "fact-mismatch-soft",
@@ -963,19 +1005,26 @@ export function runGuard(input: {
   const claimsFxDown = texts.some((text) =>
     /원\/달러가?\s*하락|환율\s*하락|원화\s*강세/.test(text),
   );
-  if (fx?.direction === "down" && claimsFxUp) {
-    findings.push({
-      severity: "block",
-      code: "fx-mismatch",
-      message: "원/달러 하락(원화 상대 강세)인데 상승/원화약세 서술 감지",
-    });
-  }
-  if (fx?.direction === "up" && claimsFxDown) {
-    findings.push({
-      severity: "block",
-      code: "fx-mismatch",
-      message: "원/달러 상승인데 하락/원화강세 서술 감지",
-    });
+  const fxClaimTexts = texts.filter(
+    (text) =>
+      /원\/달러가?\s*상승|환율\s*상승|원화\s*약세/.test(text) ||
+      /원\/달러가?\s*하락|환율\s*하락|원화\s*강세/.test(text),
+  );
+  if (shouldCheckLiveFxMismatch(input.snapshot, fxClaimTexts)) {
+    if (fx?.direction === "down" && claimsFxUp) {
+      findings.push({
+        severity: "block",
+        code: "fx-mismatch",
+        message: "원/달러 하락(원화 상대 강세)인데 상승/원화약세 서술 감지",
+      });
+    }
+    if (fx?.direction === "up" && claimsFxDown) {
+      findings.push({
+        severity: "block",
+        code: "fx-mismatch",
+        message: "원/달러 상승인데 하락/원화강세 서술 감지",
+      });
+    }
   }
 
   const now = Date.now();

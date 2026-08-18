@@ -400,3 +400,97 @@ describe("findingsToRepairHints", () => {
     assert.ok(hints[1].includes("이중 서술"));
   });
 });
+
+describe("pre-slot fact-mismatch uses prior session, not live premarket", () => {
+  const krPreKospi = {
+    id: "kospi" as const,
+    name: "코스피",
+    shortName: "KOSPI",
+    region: "KR" as const,
+    value: 3200,
+    change: -40,
+    changePercent: -1.2,
+    status: "pre" as const,
+    changeBasis: "premarket" as const,
+    priorSessionChangePercent: 3.56,
+  };
+
+  const preBriefing = (headline: string, extraBullet: string): BriefingDraft => ({
+    headline,
+    bullets: [
+      "전일 코스피 +3.56% 마감, 외국인 순매수 지속",
+      extraBullet,
+      "오늘은 외국인 순매수 유지 여부와 미 10년물 4.8% 상회 여부를 확인",
+      "VIX 16선 하회 유지되면 위험선호 온도 유지",
+    ],
+    evidenceIds: ["kospi"],
+  });
+
+  it("does not hard-block 전일/무앵커 강세 when prior close was up and live is down", () => {
+    const report = runGuard({
+      snapshot: baseSnapshot({
+        slot: "kr-pre",
+        indexes: [krPreKospi],
+      }),
+      briefing: preBriefing(
+        "전일 코스피 강세 마감 후 장전 점검",
+        "코스피는 강세 흐름이 이어진 전 거래를 바탕으로 오늘 수급을 본다",
+      ),
+      decision: okDecision,
+      scope: "kr",
+    });
+    assert.equal(
+      report.findings.some((f) => f.code === "fact-mismatch"),
+      false,
+      report.findings.map((f) => f.code).join(","),
+    );
+  });
+
+  it("still hard-blocks live 강세 claim when premarket is down", () => {
+    const report = runGuard({
+      snapshot: baseSnapshot({
+        slot: "kr-pre",
+        indexes: [krPreKospi],
+      }),
+      briefing: preBriefing(
+        "전일 코스피 +3.56% 마감 후 장전 점검",
+        "현재 코스피는 강세",
+      ),
+      decision: okDecision,
+      scope: "kr",
+    });
+    assert.ok(
+      report.findings.some((f) => f.code === "fact-mismatch" && f.severity === "block"),
+      report.findings.map((f) => `${f.code}:${f.message}`).join(" | "),
+    );
+  });
+
+  it("does not fx-mismatch 전일 환율 서술 against live tick on kr-pre", () => {
+    const report = runGuard({
+      snapshot: baseSnapshot({
+        slot: "kr-pre",
+        indexes: [krPreKospi],
+        macros: [
+          {
+            id: "usdkkrw",
+            name: "원/달러",
+            value: "1,416",
+            changeLabel: "-6",
+            direction: "down",
+          },
+        ],
+      }),
+      briefing: preBriefing(
+        "전일 코스피 +3.56% 마감 후 장전 점검",
+        "전일 원/달러 상승 압력을 점검한 뒤 오늘 1,420원 상회 여부를 본다",
+      ),
+      decision: okDecision,
+      scope: "kr",
+    });
+    assert.equal(
+      report.findings.some((f) => f.code === "fx-mismatch"),
+      false,
+      report.findings.map((f) => `${f.code}:${f.message}`).join(" | "),
+    );
+  });
+});

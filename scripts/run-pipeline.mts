@@ -204,6 +204,39 @@ function loadPreviousBundle(): PublishedBundle | null {
 
 const MAX_GUARD_ATTEMPTS = 3;
 
+type GenerateViewResult = {
+  view: EditorialView | null;
+  findings: PublishedBundle["guard"]["findings"];
+  blocked: boolean;
+  keptPrevious?: boolean;
+  hardBlockCodes?: string[];
+};
+
+function hardBlockCodesFrom(
+  findings: PublishedBundle["guard"]["findings"],
+): string[] {
+  return [
+    ...new Set(
+      findings
+        .filter((f) => f.severity === "block" && hasHardPublishBlocks([f]))
+        .map((f) => f.code),
+    ),
+  ];
+}
+
+function keepPreviousResult(
+  local: PublishedBundle["guard"]["findings"],
+  fallback: GenerateViewResult,
+  extra?: { hardBlockCodes?: string[] },
+): GenerateViewResult {
+  return {
+    ...fallback,
+    findings: [...local, ...fallback.findings],
+    keptPrevious: true,
+    hardBlockCodes: extra?.hardBlockCodes ?? fallback.hardBlockCodes,
+  };
+}
+
 function buildPublishableView(input: {
   briefing: BriefingDraft;
   decision: DecisionDraft;
@@ -241,11 +274,7 @@ async function generateFullView(
   publishedAt: string,
   slot: PipelineSlot,
   previousView?: EditorialView,
-): Promise<{
-  view: EditorialView | null;
-  findings: PublishedBundle["guard"]["findings"];
-  blocked: boolean;
-}> {
+): Promise<GenerateViewResult> {
   let repairHints: string[] | undefined;
   const findings: PublishedBundle["guard"]["findings"] = [];
 
@@ -269,8 +298,10 @@ async function generateFullView(
         mode: "full",
         reason: `briefing LLM unavailable (${briefingResult.error ?? "seed"})`,
       });
-      findings.push(...fallback.findings);
-      return fallback;
+      return {
+        ...fallback,
+        keptPrevious: Boolean(previousView?.briefing?.bullets?.length),
+      };
     }
 
     console.log(`[pipeline] Decision scope=${scope}`);
@@ -336,8 +367,7 @@ async function generateFullView(
           mode: "full",
           reason: "guard ok but draft not publishable",
         });
-        findings.push(...fallback.findings);
-        return fallback;
+        return keepPreviousResult(findings, fallback);
       }
       return { view, findings, blocked: false };
     }
@@ -367,8 +397,9 @@ async function generateFullView(
           mode: "full",
           reason: "guard hard-block after retries",
         });
-        findings.push(...fallback.findings);
-        return fallback;
+        return keepPreviousResult(findings, fallback, {
+          hardBlockCodes: hardBlockCodesFrom(guard.findings),
+        });
       }
 
       const continuity = snapshot.evidence?.previous.continuity?.[scope] ?? null;
@@ -391,8 +422,7 @@ async function generateFullView(
           mode: "full",
           reason: "guard soft-block but draft not publishable",
         });
-        findings.push(...fallback.findings);
-        return fallback;
+        return keepPreviousResult(findings, fallback);
       }
       console.log(
         `  publish last draft after soft guard fails (${scope}) — stamps refresh`,
@@ -415,11 +445,7 @@ async function generateRefreshView(
   publishedAt: string,
   slot: PipelineSlot,
   previous: EditorialView | undefined,
-): Promise<{
-  view: EditorialView | null;
-  findings: PublishedBundle["guard"]["findings"];
-  blocked: boolean;
-}> {
+): Promise<GenerateViewResult> {
   if (!previous?.scenarios?.length || !previous.checkItems?.length) {
     console.log(`[pipeline] refresh fallback → full (no prior view for ${scope})`);
     return generateFullView(snapshot, scope, publishedAt, slot, previous);
@@ -508,7 +534,13 @@ async function generateRefreshView(
         })),
       );
       if (hasHardPublishBlocks(guard.findings)) {
-        return { view: { ...previous }, findings, blocked: false };
+        return {
+          view: { ...previous },
+          findings,
+          blocked: false,
+          keptPrevious: true,
+          hardBlockCodes: hardBlockCodesFrom(guard.findings),
+        };
       }
       const draft = sanitizeEditorialView({
         briefing: {
@@ -580,12 +612,20 @@ async function main() {
     } as PublishedBundle["views"];
     const findings = [...(previous?.guard.findings ?? []).filter((f) => f.severity !== "block")];
 
+    const keptScopes: MarketScope[] = [];
+    const keptCodes: string[] = [];
+
     for (const scope of targetScopes) {
-      const { view, findings: scopeFindings, blocked } =
+      const generated =
         mode === "refresh"
           ? await generateRefreshView(snapshot, scope, publishedAt, slot, views[scope])
           : await generateFullView(snapshot, scope, publishedAt, slot, views[scope]);
-      findings.push(...scopeFindings);
+      findings.push(...generated.findings);
+      if (generated.keptPrevious) {
+        keptScopes.push(scope);
+        keptCodes.push(...(generated.hardBlockCodes ?? []));
+      }
+      const { view, blocked } = generated;
       if (blocked || !view) {
         console.error(
           `[pipeline] scope=${scope} blocked after ${MAX_GUARD_ATTEMPTS} attempts — keep previous view`,
@@ -694,13 +734,23 @@ async function main() {
       );
     }
     writeFileSync(latestPath, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
+    const uniqueKeptCodes = [...new Set(keptCodes)];
+    const tabFrozen = keptScopes.length > 0;
     recordStatus({
       updatedAt: publishedAt,
       slot,
-      ok: true,
+      ok: !tabFrozen,
       mode,
-      guardOk: true,
-      guardSummary: summarizeGuard(guard),
+      guardOk: !tabFrozen,
+      guardSummary: tabFrozen
+        ? `keep-previous ${keptScopes.join(",")}: ${uniqueKeptCodes.join(", ") || "unknown"}`
+        : summarizeGuard(guard),
+      error: tabFrozen
+        ? `keep-previous ${keptScopes.join(",")}: ${uniqueKeptCodes.join(", ") || "unknown"}`
+        : undefined,
+      degraded: tabFrozen,
+      keepPreviousScopes: tabFrozen ? keptScopes : undefined,
+      keepPreviousCodes: tabFrozen ? uniqueKeptCodes : undefined,
     });
     console.log(`[pipeline] published → ${latestPath}`);
     console.log(`updated scopes: ${targetScopes.join(", ")} · mode=${mode}`);

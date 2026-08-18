@@ -18,6 +18,10 @@ export type PipelineStatus = {
    * false/omit on clean pass or keep-previous block.
    */
   degraded?: boolean;
+  /** Target scopes that kept the previous view (hard-block / LLM fail). */
+  keepPreviousScopes?: string[];
+  /** Guard codes that forced keep-previous (last attempt). */
+  keepPreviousCodes?: string[];
 };
 
 export function pipelineStatusPath(cwd: string): string {

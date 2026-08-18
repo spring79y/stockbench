@@ -41,7 +41,11 @@
 - **Push notifications ON**: 활성 구독 endpoint 수(집계만 · endpoint/키/PII 비노출). 페이지 로드 시 Redis 인덱스로 재집계해 카운터 드리프트를 보정하고, 재집계 시각을 함께 표시한다. ON = `push:sub:*` 레코드에 시장이 있고 ≥1 슬롯이 켜진 경우. 구독 ON 전환 시 +1, 완전 해제(또는 슬롯 없는 상태) 시 −1. 슬롯만 바꾸거나 같은 ON 상태 재저장은 카운트 불변.
 - `latest.json` 신선도: slot, publishedAt, mode  
 - Guard 통과/차단 + 짧은 summary  
-- `status.json`: 최근 파이프라인 성공/실패·에러 한 줄 (Actions가 커밋)
+- `status.json`: 최근 파이프라인 성공/실패·에러 한 줄 (Actions가 커밋). 탭 keep-previous면 `ok=false`, `keepPreviousScopes`/`keepPreviousCodes` (루트 `kr-pre`만 보고 한국 탭이 어제인 상태를 숨기지 않음).
+
+Catch-up·Slot health는 **views.kr / views.us 스탬프**만 본다. `views.all`·루트가 오늘 `kr-pre`여도 한국 탭이 `kr-post`(어제)면 morning은 미완료 → 재시도. 같은 날 더 늦은 같은 시장 슬롯(예: `kr-mid`)은 앞 슬롯을 충족한 것으로 본다.
+
+장전 `fact-mismatch`/`fx-mismatch`는 프리마켓 라이브 틱을 전일 사실로 쓰지 않는다. 강세/약세는 전일 마감이 기본, 「현재」 단서만 라이브.
 
 유입·방문 퍼널·리퍼러는 `/ops`에 두지 않는다(Vercel Analytics).
 

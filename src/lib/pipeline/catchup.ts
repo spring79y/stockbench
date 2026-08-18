@@ -73,7 +73,21 @@ function isPipelineSlot(value: string): value is PipelineSlot {
   return (ALL_PIPELINE_SLOTS as string[]).includes(value);
 }
 
-/** Collect slot + publishedAt from bundle root and per-view stamps. */
+function sameMarket(a: PipelineSlot, b: PipelineSlot): boolean {
+  return a.startsWith("kr-") === b.startsWith("kr-");
+}
+
+function slotDayMins(slot: PipelineSlot): number {
+  const sch = SLOT_SCHEDULE[slot];
+  return sch.hour * 60 + sch.minute;
+}
+
+/**
+ * Collect slot + publishedAt from **market tabs only** (views.kr / views.us).
+ * Root and views.all can be kr-pre while views.kr stayed on yesterday's kr-post
+ * (keep-previous) — those must not count as a completed Korea slot.
+ * A later same-day same-market tab stamp covers earlier slots (kr-mid implies kr-pre).
+ */
 export function collectPublishEvidence(
   bundle: PublishedBundle | null | undefined,
 ): PublishEvidence[] {
@@ -87,10 +101,18 @@ export function collectPublishEvidence(
     out.push({ slot, at: new Date(t) });
   };
 
-  push(bundle.slot, bundle.publishedAt);
-  for (const view of Object.values(bundle.views ?? {})) {
+  for (const view of [bundle.views?.kr, bundle.views?.us]) {
     if (!view) continue;
     push(view.slot, view.publishedAt);
+    if (typeof view.slot !== "string" || !isPipelineSlot(view.slot)) continue;
+    if (typeof view.publishedAt !== "string") continue;
+    const at = view.publishedAt;
+    for (const earlier of ALL_PIPELINE_SLOTS) {
+      if (earlier === view.slot) continue;
+      if (!sameMarket(earlier, view.slot)) continue;
+      if (slotDayMins(earlier) >= slotDayMins(view.slot)) continue;
+      push(earlier, at);
+    }
   }
   return out;
 }
