@@ -1,9 +1,9 @@
 {
-  "updatedAt": "2026-08-20T13:35:08.727Z",
-  "slot": "us-pre",
+  "updatedAt": "2026-08-20T22:29:50.042Z",
+  "slot": "kr-pre",
   "ok": false,
   "mode": "full",
-  "error": "keep-previous all: prior-label-mismatch",
+  "error": "keep-previous kr: prior-label-mismatch",
   "guardOk": false,
-  "guardSummary": "keep-previous all: prior-label-mismatch"
+  "guardSummary": "keep-previous kr: prior-label-mismatch"
 }
