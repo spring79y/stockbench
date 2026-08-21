@@ -1,8 +1,9 @@
 {
-  "updatedAt": "2026-08-21T04:10:38.767Z",
-  "slot": "kr-mid",
-  "ok": true,
+  "updatedAt": "2026-08-21T07:26:19.250Z",
+  "slot": "kr-post",
+  "ok": false,
   "mode": "full",
-  "guardOk": true,
-  "guardSummary": "ok · 211 warn"
+  "error": "keep-previous kr: unknown",
+  "guardOk": false,
+  "guardSummary": "keep-previous kr: unknown"
 }
