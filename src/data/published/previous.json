@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "slot": "us-post",
-  "publishedAt": "2026-08-23T22:46:09.279Z",
+  "slot": "us-noon",
+  "publishedAt": "2026-08-24T04:13:26.207Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 약세 · 미국 보합",
-    "mood": "caution",
-    "moodLabel": "주의",
-    "asOfLabel": "2026. 08. 24. 07:46 · Yahoo 참고"
+    "mood": "mixed",
+    "moodLabel": "혼조",
+    "asOfLabel": "2026. 08. 24. 13:13 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -111,9 +111,7 @@
         "국내 외국인 순매수 전환 여부 — 전일 코스피 -#,#억·코스닥 -#,#억 순매도 후 오늘 방향": 0
       },
       "changeLines": [
-        "헤드라인 변경 · 미 3대 지수 0.4~1.0% 상승 마감, 금리 4.74%·VIX…",
-        "브리핑 불릿 갱신",
-        "오늘 볼 것 갱신"
+        "직전 발행 대비 큰 변화 없음"
       ]
     },
     "kr": {
@@ -317,8 +315,7 @@
         "엔비디아 실적 발표(#/#) 후 매출·주당순이익 예상 대비 결과": 0
       },
       "changeLines": [
-        "브리핑 불릿 갱신",
-        "오늘 볼 것 갱신"
+        "직전 발행 대비 큰 변화 없음"
       ]
     }
   },
@@ -1564,6 +1561,26 @@
         "severity": "warn",
         "code": "check-why-long",
         "message": "[us] why가 깁니다: \"WTI $86.34에서 $85 하회 또는 $\""
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeLVe6hKLRoERLmmnm9k6\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeLVe7rWtv7QYiEUcZnMD\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeLvUFrrgftrdV1X6Ty7e\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeLvUGdVfae8GCtJz6Yrk\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
