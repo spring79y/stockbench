@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "slot": "us-pre",
-  "publishedAt": "2026-08-24T13:36:13.857Z",
+  "slot": "us-post",
+  "publishedAt": "2026-08-24T22:26:52.385Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 약세 · 미국 약세",
     "mood": "caution",
     "moodLabel": "주의",
-    "asOfLabel": "2026. 08. 24. 22:36 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 25. 07:26 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -332,19 +332,39 @@
       "megaCapId": "nvda",
       "dateISO": "2026-08-26T20:00:00.000Z",
       "consensus": {
-        "epsAvg": 2.08869,
+        "epsAvg": 2.09161,
         "epsLow": 2.05,
-        "epsHigh": 2.2,
+        "epsHigh": 2.23,
         "epsLabel": "약 $2.09",
-        "revenueAvg": 92069370090,
-        "revenueLabel": "약 $92.1B",
+        "revenueAvg": 92176624640,
+        "revenueLabel": "약 $92.2B",
         "sources": [
           "yahoo"
         ],
         "isEstimate": false
       },
+      "contextNews": [
+        {
+          "title": "Tech Stocks Fall Amid Trump Trade War; Nvidia Down Before It 'Needs To Impress' With Earnings",
+          "publisher": "Investor's Business Daily",
+          "publishedAt": "2026-08-24T22:20:00.000Z",
+          "snippet": "Tech Stocks Fall Amid Trump Trade War; Nvidia Down Before It 'Needs To Impress' With Earnings"
+        },
+        {
+          "title": "美증시, 엔비디아 실적 앞두고 기술주 '휘청'…나스닥 0.77%↓",
+          "publisher": "데일리안",
+          "publishedAt": "2026-08-24T22:15:00.000Z",
+          "snippet": "美증시, 엔비디아 실적 앞두고 기술주 '휘청'…나스닥 0.77%↓"
+        },
+        {
+          "title": "S&P 500, Nasdaq End Lower On Chipmaker Weakness, While Traders Position For Nvidia Earnings This Week — AVGO, INTC, BE, NVDA, PSKY In Focus",
+          "publisher": "TradingView",
+          "publishedAt": "2026-08-24T21:52:14.000Z",
+          "snippet": "S&P 500, Nasdaq End Lower On Chipmaker Weakness, While Traders Position For Nvidia Earnings This Week — AVGO, INTC, B…"
+        }
+      ],
       "detailSummary": {
-        "expectation": "시장 예상 매출 약 $92.1B · 주당 순이익(EPS) 시장 예상 약 $2.09",
+        "expectation": "시장 예상 매출 약 $92.2B · 주당 순이익(EPS) 시장 예상 약 $2.09",
         "meaning": "점검 포인트는 엔비디아 발표 숫자와 시장 예상을 같은 단위로 비교하는 것입니다."
       }
     }
@@ -1641,6 +1661,26 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeMfPSs1k8r1MpKbTt96H\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeMfaNPBys56C4FXyPHsa\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeMfaP38dXjfD1RUNcyBu\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeNMrNBPd5ttgEqM3J8SS\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeNMrNkdCdRCC4ccPVDoe\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
