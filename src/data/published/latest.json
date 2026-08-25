@@ -1,14 +1,14 @@
 {
   "version": 2,
   "slot": "us-pre",
-  "publishedAt": "2026-08-25T13:36:05.952Z",
+  "publishedAt": "2026-08-25T13:37:11.505Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 강세 · 미국 강세",
     "mood": "risk-on",
     "moodLabel": "위험선호",
-    "asOfLabel": "2026. 08. 25. 22:36 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 25. 22:37 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -345,16 +345,16 @@
       },
       "contextNews": [
         {
+          "title": "[AI MY 뉴스] 뉴욕 반도체주 프리뷰…국채금리 하락에 엔비디아 실적 앞두고 '일제 반등'",
+          "publisher": "네이트",
+          "publishedAt": "2026-08-25T13:32:00.000Z",
+          "snippet": "[AI MY 뉴스] 뉴욕 반도체주 프리뷰…국채금리 하락에 엔비디아 실적 앞두고 '일제 반등'"
+        },
+        {
           "title": "Why Nvidia Stock’s Losing Streak Is a Good Thing Ahead of Earnings",
           "publisher": "Barron's",
           "publishedAt": "2026-08-25T13:32:00.000Z",
           "snippet": "Why Nvidia Stock’s Losing Streak Is a Good Thing Ahead of Earnings"
-        },
-        {
-          "title": "[AI MY 뉴스] 뉴욕 반도체주 프리뷰...국채금리 하락에 엔비디아 실적 앞두고 '일제 반등'",
-          "publisher": "뉴스핌",
-          "publishedAt": "2026-08-25T13:31:00.000Z",
-          "snippet": "[AI MY 뉴스] 뉴욕 반도체주 프리뷰...국채금리 하락에 엔비디아 실적 앞두고 '일제 반등'"
         },
         {
           "title": "엔비디아 실적 앞두고 반도체주 반등. 드디어 바닥 찍었나?",
@@ -1781,6 +1781,16 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CePZBknzikg29poR8g3wd\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CePZGaNpdtKFdJfY75WYY\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CePZGazms2Lss7CtuXVJr\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
