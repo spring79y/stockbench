@@ -1,14 +1,14 @@
 {
   "version": 2,
   "slot": "us-post",
-  "publishedAt": "2026-08-25T22:27:37.312Z",
+  "publishedAt": "2026-08-25T22:46:08.251Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 강세 · 미국 강세",
     "mood": "risk-on",
     "moodLabel": "위험선호",
-    "asOfLabel": "2026. 08. 26. 07:27 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 26. 07:46 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -345,6 +345,12 @@
       },
       "contextNews": [
         {
+          "title": "[개장] 뉴욕증시 상승, 엔비디아 실적 공개 앞두고 반도체주↑",
+          "publisher": "알파경제",
+          "publishedAt": "2026-08-25T22:35:09.000Z",
+          "snippet": "[개장] 뉴욕증시 상승, 엔비디아 실적 공개 앞두고 반도체주↑"
+        },
+        {
           "title": "Options Action: Options moves around Nvidia ahead of earnings",
           "publisher": "CNBC",
           "publishedAt": "2026-08-25T22:18:59.000Z",
@@ -355,12 +361,6 @@
           "publisher": "Bloomberg",
           "publishedAt": "2026-08-25T22:17:58.000Z",
           "snippet": "Nvidia Stock Bulls Get Punished in the Run-Up to Earnings"
-        },
-        {
-          "title": "[마켓 브리핑] 엔비디아 실적 발표 D-1…반도체주들 다시 강세",
-          "publisher": "v.daum.net",
-          "publishedAt": "2026-08-25T22:16:27.000Z",
-          "snippet": "[마켓 브리핑] 엔비디아 실적 발표 D-1…반도체주들 다시 강세"
         }
       ],
       "detailSummary": {
@@ -1801,6 +1801,26 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQFibsFG7myMQqRQZ44q\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQFiprLpg4KRkvSnb6m8\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQFiqJt3XK4KjXEStVFL\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQH8V7EXTNdip4e6jByd\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQH8VubzVLpeDreHGF6r\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
