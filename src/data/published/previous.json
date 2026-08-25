@@ -1,14 +1,14 @@
 {
   "version": 2,
   "slot": "kr-post",
-  "publishedAt": "2026-08-25T07:26:14.014Z",
+  "publishedAt": "2026-08-25T07:28:54.512Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 강세 · 미국 약세",
     "mood": "mixed",
     "moodLabel": "혼조",
-    "asOfLabel": "2026. 08. 25. 16:26 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 25. 16:28 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -345,6 +345,12 @@
       },
       "contextNews": [
         {
+          "title": "South Korea shares rise ahead of Nvidia earnings",
+          "publisher": "marketscreener.com",
+          "publishedAt": "2026-08-25T07:24:41.000Z",
+          "snippet": "South Korea shares rise ahead of Nvidia earnings"
+        },
+        {
           "title": "\"반도체 반등 트리거 될까\"…대망의 엔비디아 실적발표 '주목 포인트'는",
           "publisher": "한국경제",
           "publishedAt": "2026-08-25T07:20:17.000Z",
@@ -355,12 +361,6 @@
           "publisher": "네이트",
           "publishedAt": "2026-08-25T07:15:00.000Z",
           "snippet": "엔비디아 분기 매출 100% 급증 전망…기술주 반등할까"
-        },
-        {
-          "title": "Nvidia Q2 Earnings Preview: $92 Billion Revenue Forecast Fails to Halt Seven-Day Slide, Wall Street Still Bullish to $350",
-          "publisher": "TradingKey",
-          "publishedAt": "2026-08-25T07:12:07.000Z",
-          "snippet": "Nvidia Q2 Earnings Preview: $92 Billion Revenue Forecast Fails to Halt Seven-Day Slide, Wall Street Still Bullish to …"
         }
       ],
       "detailSummary": {
@@ -1761,6 +1761,16 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeP4ytwYdMsWKCa6PctHU\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeP5Bi81AzLDddmFHAJjg\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeP5Bidkrutx6SAZCQbA8\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
