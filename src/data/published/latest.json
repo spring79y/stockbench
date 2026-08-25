@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "slot": "us-pre",
-  "publishedAt": "2026-08-25T13:37:11.505Z",
+  "slot": "kr-pre",
+  "publishedAt": "2026-08-25T22:27:40.515Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 강세 · 미국 강세",
     "mood": "risk-on",
     "moodLabel": "위험선호",
-    "asOfLabel": "2026. 08. 25. 22:37 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 26. 07:27 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -345,22 +345,22 @@
       },
       "contextNews": [
         {
-          "title": "[AI MY 뉴스] 뉴욕 반도체주 프리뷰…국채금리 하락에 엔비디아 실적 앞두고 '일제 반등'",
-          "publisher": "네이트",
-          "publishedAt": "2026-08-25T13:32:00.000Z",
-          "snippet": "[AI MY 뉴스] 뉴욕 반도체주 프리뷰…국채금리 하락에 엔비디아 실적 앞두고 '일제 반등'"
+          "title": "Options Action: Options moves around Nvidia ahead of earnings",
+          "publisher": "CNBC",
+          "publishedAt": "2026-08-25T22:18:59.000Z",
+          "snippet": "Options Action: Options moves around Nvidia ahead of earnings"
         },
         {
-          "title": "Why Nvidia Stock’s Losing Streak Is a Good Thing Ahead of Earnings",
-          "publisher": "Barron's",
-          "publishedAt": "2026-08-25T13:32:00.000Z",
-          "snippet": "Why Nvidia Stock’s Losing Streak Is a Good Thing Ahead of Earnings"
+          "title": "Nvidia Stock Bulls Get Punished in the Run-Up to Earnings",
+          "publisher": "Bloomberg",
+          "publishedAt": "2026-08-25T22:17:58.000Z",
+          "snippet": "Nvidia Stock Bulls Get Punished in the Run-Up to Earnings"
         },
         {
-          "title": "엔비디아 실적 앞두고 반도체주 반등. 드디어 바닥 찍었나?",
-          "publisher": "네이버 프리미엄콘텐츠",
-          "publishedAt": "2026-08-25T13:25:00.000Z",
-          "snippet": "엔비디아 실적 앞두고 반도체주 반등. 드디어 바닥 찍었나?"
+          "title": "[마켓 브리핑] 엔비디아 실적 발표 D-1…반도체주들 다시 강세",
+          "publisher": "v.daum.net",
+          "publishedAt": "2026-08-25T22:16:27.000Z",
+          "snippet": "[마켓 브리핑] 엔비디아 실적 발표 D-1…반도체주들 다시 강세"
         }
       ],
       "detailSummary": {
@@ -1791,6 +1791,26 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CePZGazms2Lss7CtuXVJr\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQFibHXBEL1rjhPSeqVC\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQFibsFG7myMQqRQZ44q\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQFiprLpg4KRkvSnb6m8\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQFiqJt3XK4KjXEStVFL\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
