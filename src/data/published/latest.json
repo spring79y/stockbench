@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "slot": "us-pre",
-  "publishedAt": "2026-08-26T13:41:38.169Z",
+  "slot": "kr-pre",
+  "publishedAt": "2026-08-26T22:46:23.858Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 강세 · 미국 보합",
     "mood": "mixed",
     "moodLabel": "혼조",
-    "asOfLabel": "2026. 08. 26. 22:41 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 27. 07:46 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -326,46 +326,52 @@
       "region": "US",
       "title": "엔비디아 실적 발표",
       "level": "high",
-      "oneLiner": "실적 발표 예정",
+      "oneLiner": "발표됨 · 주당순이익(EPS) $2.22 vs 예상 $2.09",
       "kind": "earnings",
       "symbol": "NVDA",
       "megaCapId": "nvda",
       "dateISO": "2026-08-26T20:00:00.000Z",
       "consensus": {
-        "epsAvg": 2.09161,
-        "epsLow": 2.05,
-        "epsHigh": 2.23,
+        "epsAvg": 2.09113,
         "epsLabel": "약 $2.09",
-        "revenueAvg": 92176624640,
-        "revenueLabel": "약 $92.2B",
+        "revenueAvg": 104434313520,
+        "revenueLabel": "약 $104.4B",
         "sources": [
           "yahoo"
         ],
         "isEstimate": false
       },
+      "actual": {
+        "epsActual": 2.22,
+        "epsEstimate": 2.09113,
+        "reportedDateISO": "2026-08-26T20:20:00.000Z"
+      },
       "contextNews": [
         {
-          "title": "Nvidia Earnings Loom as Intel Tests Support, SMCI Consolidates",
-          "publisher": "FXEmpire",
-          "publishedAt": "2026-08-26T13:35:00.000Z",
-          "snippet": "Nvidia Earnings Loom as Intel Tests Support, SMCI Consolidates"
+          "title": "엔비디아, AI 열풍에 또 최대 실적…분기 매출 962억 달러",
+          "publisher": "중앙일보",
+          "publishedAt": "2026-08-26T22:38:32.000Z",
+          "snippet": "엔비디아, AI 열풍에 또 최대 실적…분기 매출 962억 달러"
         },
         {
-          "title": "US stock futures flat as markets await Nvidia earnings",
-          "publisher": "Latest news from Azerbaijan",
-          "publishedAt": "2026-08-26T13:31:44.000Z",
-          "snippet": "US stock futures flat as markets await Nvidia earnings"
+          "title": "'엔비디아 실적 경계' 뉴욕증시 하락…나스닥 0.1%↓",
+          "publisher": "중소기업신문",
+          "publishedAt": "2026-08-26T22:37:46.000Z",
+          "snippet": "'엔비디아 실적 경계' 뉴욕증시 하락…나스닥 0.1%↓"
         },
         {
-          "title": "What will Nvidia say after the bell in its latest earnings call?",
-          "publisher": "Seeking Alpha",
-          "publishedAt": "2026-08-26T13:14:50.000Z",
-          "snippet": "What will Nvidia say after the bell in its latest earnings call?"
+          "title": "Futures Rise On Big Earnings: NVDA, CRM, CRWD Jump",
+          "publisher": "Investor's Business Daily",
+          "publishedAt": "2026-08-26T22:35:00.000Z",
+          "snippet": "Futures Rise On Big Earnings: NVDA, CRM, CRWD Jump"
         }
       ],
       "detailSummary": {
-        "expectation": "시장 예상 매출 약 $92.2B · 주당 순이익(EPS) 시장 예상 약 $2.09",
-        "meaning": "점검 포인트는 엔비디아 발표 숫자와 시장 예상을 같은 단위로 비교하는 것입니다."
+        "expectation": "시장 예상 매출 약 $104.4B · 주당 순이익(EPS) 시장 예상 약 $2.09",
+        "meaning": "점검 포인트는 엔비디아 발표 숫자와 시장 예상을 같은 단위로 비교하는 것입니다.",
+        "result": "발표됨 · 주당순이익(EPS) $2.22 vs 예상 $2.09",
+        "reaction": "뉴스에서는 AI 관련 이슈와 주가 약세 보도 흐름이 함께 언급됩니다.",
+        "implication": "점검 포인트는 엔비디아 주가·섹터 반응이 발표 숫자와 같은 방향인지입니다.\n관련 보도 단서: '엔비디아 실적 경계' 뉴욕증시 하락…나스닥 0.1%↓"
       }
     }
   ],
@@ -1911,6 +1917,26 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeRTRA9cAjBAA1MV7Qm4J\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSAxLDy86QSorwE256PE\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSAxLqgC6qUsw4Heddk6\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSAxYqFFEnQnqTgV7zwZ\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSAxZdsFF4nFqQyYYwQ8\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
