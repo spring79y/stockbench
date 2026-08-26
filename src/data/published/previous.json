@@ -1,14 +1,14 @@
 {
   "version": 2,
   "slot": "us-noon",
-  "publishedAt": "2026-08-26T04:09:50.573Z",
+  "publishedAt": "2026-08-26T04:16:10.086Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 강세 · 미국 강세",
     "mood": "risk-on",
     "moodLabel": "위험선호",
-    "asOfLabel": "2026. 08. 26. 13:09 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 26. 13:16 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -345,6 +345,12 @@
       },
       "contextNews": [
         {
+          "title": "[Stocks in Focus] Will NVIDIA's earnings results reignite the hunt for AI stocks? Some point to gross profit margins as a key indicator.",
+          "publisher": "Moomoo",
+          "publishedAt": "2026-08-26T04:10:00.000Z",
+          "snippet": "[Stocks in Focus] Will NVIDIA's earnings results reignite the hunt for AI stocks? Some point to gross profit margins …"
+        },
+        {
           "title": "Asian Markets Turn Cautious as Oil Falls Ahead of Nvidia Earnings Report",
           "publisher": "Межа. Новини України.",
           "publishedAt": "2026-08-26T03:55:24.000Z",
@@ -355,12 +361,6 @@
           "publisher": "네이트",
           "publishedAt": "2026-08-26T03:51:00.000Z",
           "snippet": "실적보다 '메시지'에 쏠린 눈…엔비디아 실적발표 'D-1'"
-        },
-        {
-          "title": "Nvidia Earnings Preview: The Market No Longer Expects It to Beat Expectations",
-          "publisher": "odaily.news",
-          "publishedAt": "2026-08-26T03:45:00.000Z",
-          "snippet": "Nvidia Earnings Preview: The Market No Longer Expects It to Beat Expectations"
         }
       ],
       "detailSummary": {
@@ -1841,6 +1841,26 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQhpCSHWekiTrEQKxiKS\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQhpe1BYSANdNWJddr4y\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQhpeVCQ6aU1mag6V1zp\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQiJAi923mS11Uk239hK\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQiJBPpGS5mkbiWHie6m\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
