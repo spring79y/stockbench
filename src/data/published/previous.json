@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "slot": "kr-post",
-  "publishedAt": "2026-08-26T07:30:54.381Z",
+  "slot": "us-pre",
+  "publishedAt": "2026-08-26T13:36:11.863Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
-    "temperature": "국내 강세 · 미국 강세",
-    "mood": "risk-on",
-    "moodLabel": "위험선호",
-    "asOfLabel": "2026. 08. 26. 16:30 · Yahoo 참고"
+    "temperature": "국내 강세 · 미국 보합",
+    "mood": "mixed",
+    "moodLabel": "혼조",
+    "asOfLabel": "2026. 08. 26. 22:36 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -343,6 +343,26 @@
         ],
         "isEstimate": false
       },
+      "contextNews": [
+        {
+          "title": "US stock futures flat as markets await Nvidia earnings",
+          "publisher": "Latest news from Azerbaijan",
+          "publishedAt": "2026-08-26T13:31:44.000Z",
+          "snippet": "US stock futures flat as markets await Nvidia earnings"
+        },
+        {
+          "title": "What will Nvidia say after the bell in its latest earnings call?",
+          "publisher": "Seeking Alpha",
+          "publishedAt": "2026-08-26T13:14:50.000Z",
+          "snippet": "What will Nvidia say after the bell in its latest earnings call?"
+        },
+        {
+          "title": "Nvidia Earnings Countdown Begins: What to Expect From Upcoming Report",
+          "publisher": "TradingView",
+          "publishedAt": "2026-08-26T12:33:27.000Z",
+          "snippet": "Nvidia Earnings Countdown Begins: What to Expect From Upcoming Report"
+        }
+      ],
       "detailSummary": {
         "expectation": "시장 예상 매출 약 $92.2B · 주당 순이익(EPS) 시장 예상 약 $2.09",
         "meaning": "점검 포인트는 엔비디아 발표 숫자와 시장 예상을 같은 단위로 비교하는 것입니다."
@@ -1871,6 +1891,16 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeQy9V7v7Ggb5v7ie4p4m\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeRT16Vv1xXKZ8X91bxjx\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeRT17A79Z2mK5Gw3Wo1y\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
