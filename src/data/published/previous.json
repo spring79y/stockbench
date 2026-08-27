@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "slot": "us-post",
-  "publishedAt": "2026-08-27T02:58:24.852Z",
+  "slot": "us-noon",
+  "publishedAt": "2026-08-27T04:16:17.997Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 강세 · 미국 보합",
     "mood": "mixed",
     "moodLabel": "혼조",
-    "asOfLabel": "2026. 08. 27. 11:58 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 27. 13:16 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -348,30 +348,30 @@
       },
       "contextNews": [
         {
-          "title": "Nvidia earnings: AI boom meets margin test",
-          "publisher": "Saxo",
-          "publishedAt": "2026-08-27T02:32:47.000Z",
-          "snippet": "Nvidia earnings: AI boom meets margin test"
+          "title": "[D-BIZ 암호화폐 뉴스] 엔비디아, '어닝 서프라이즈'에도 마진 압박 우려… 3분기 매출 1,080억 달러 전망",
+          "publisher": "데일리비즈온",
+          "publishedAt": "2026-08-27T03:27:16.000Z",
+          "snippet": "[D-BIZ 암호화폐 뉴스] 엔비디아, '어닝 서프라이즈'에도 마진 압박 우려… 3분기 매출 1,080억 달러 전망"
         },
         {
-          "title": "엔비디아 실적 컨퍼런스콜서 등장한 삼전닉스·LG·현대차… 젠슨 황 \"메모리 공급 훨씬 더 필요\"",
-          "publisher": "Chosunbiz",
-          "publishedAt": "2026-08-27T02:29:00.000Z",
-          "snippet": "엔비디아 실적 컨퍼런스콜서 등장한 삼전닉스·LG·현대차… 젠슨 황 \"메모리 공급 훨씬 더 필요\""
+          "title": "SPCX Stock Rises Overnight: Analyst Says Nvidia’s Results Reveal SpaceX’s Growing Hyperscaler Status",
+          "publisher": "TradingView",
+          "publishedAt": "2026-08-27T03:15:00.000Z",
+          "snippet": "SPCX Stock Rises Overnight: Analyst Says Nvidia’s Results Reveal SpaceX’s Growing Hyperscaler Status"
         },
         {
-          "title": "NVIDIA Earnings Exceed Expectations, Can It Still Sustain the AI Boom?",
-          "publisher": "Moomoo",
-          "publishedAt": "2026-08-27T02:22:09.000Z",
-          "snippet": "NVIDIA Earnings Exceed Expectations, Can It Still Sustain the AI Boom?"
+          "title": "S&P500 선물, 엔비디아 실적 호조에 상승…美 국채금리↑",
+          "publisher": "연합인포맥스",
+          "publishedAt": "2026-08-27T03:10:32.000Z",
+          "snippet": "S&P500 선물, 엔비디아 실적 호조에 상승…美 국채금리↑"
         }
       ],
       "detailSummary": {
         "expectation": "시장 예상 매출 약 $104.4B · 주당 순이익(EPS) 시장 예상 약 $2.09",
         "meaning": "점검 포인트는 엔비디아 발표 숫자와 시장 예상을 같은 단위로 비교하는 것입니다.",
         "result": "발표됨 · 주당순이익(EPS) $2.22 vs 예상 $2.09",
-        "reaction": "뉴스에서는 AI 관련 이슈 흐름이 함께 언급됩니다.",
-        "implication": "점검 포인트는 엔비디아 주가·섹터 반응이 발표 숫자와 같은 방향인지입니다."
+        "reaction": "뉴스에서는 가이던스·전망와 주가 강세 보도 흐름이 함께 언급됩니다.",
+        "implication": "점검 포인트는 엔비디아 주가·섹터 반응이 발표 숫자와 같은 방향인지입니다.\n관련 보도 단서: S&P500 선물, 엔비디아 실적 호조에 상승…美 국채금리↑"
       }
     }
   ],
@@ -1947,6 +1947,26 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSWBCZg9XCLbwecEG7LN\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSWBTohviMEM62r1Wgai\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSWBULCqTxyEKNVnW6cQ\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSc7fRnjwuASZ1qCPia8\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSc7g8TDuovQqtgDMhWd\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
