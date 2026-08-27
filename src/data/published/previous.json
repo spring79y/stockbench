@@ -1,14 +1,14 @@
 {
   "version": 2,
   "slot": "us-post",
-  "publishedAt": "2026-08-26T22:46:20.888Z",
+  "publishedAt": "2026-08-27T02:58:24.852Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 강세 · 미국 보합",
     "mood": "mixed",
     "moodLabel": "혼조",
-    "asOfLabel": "2026. 08. 27. 07:46 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 27. 11:58 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -348,30 +348,30 @@
       },
       "contextNews": [
         {
-          "title": "엔비디아, AI 열풍에 또 최대 실적…분기 매출 962억 달러",
-          "publisher": "중앙일보",
-          "publishedAt": "2026-08-26T22:38:32.000Z",
-          "snippet": "엔비디아, AI 열풍에 또 최대 실적…분기 매출 962억 달러"
+          "title": "Nvidia earnings: AI boom meets margin test",
+          "publisher": "Saxo",
+          "publishedAt": "2026-08-27T02:32:47.000Z",
+          "snippet": "Nvidia earnings: AI boom meets margin test"
         },
         {
-          "title": "'엔비디아 실적 경계' 뉴욕증시 하락…나스닥 0.1%↓",
-          "publisher": "중소기업신문",
-          "publishedAt": "2026-08-26T22:37:46.000Z",
-          "snippet": "'엔비디아 실적 경계' 뉴욕증시 하락…나스닥 0.1%↓"
+          "title": "엔비디아 실적 컨퍼런스콜서 등장한 삼전닉스·LG·현대차… 젠슨 황 \"메모리 공급 훨씬 더 필요\"",
+          "publisher": "Chosunbiz",
+          "publishedAt": "2026-08-27T02:29:00.000Z",
+          "snippet": "엔비디아 실적 컨퍼런스콜서 등장한 삼전닉스·LG·현대차… 젠슨 황 \"메모리 공급 훨씬 더 필요\""
         },
         {
-          "title": "Futures Rise On Big Earnings: NVDA, CRM, CRWD Jump",
-          "publisher": "Investor's Business Daily",
-          "publishedAt": "2026-08-26T22:35:00.000Z",
-          "snippet": "Futures Rise On Big Earnings: NVDA, CRM, CRWD Jump"
+          "title": "NVIDIA Earnings Exceed Expectations, Can It Still Sustain the AI Boom?",
+          "publisher": "Moomoo",
+          "publishedAt": "2026-08-27T02:22:09.000Z",
+          "snippet": "NVIDIA Earnings Exceed Expectations, Can It Still Sustain the AI Boom?"
         }
       ],
       "detailSummary": {
         "expectation": "시장 예상 매출 약 $104.4B · 주당 순이익(EPS) 시장 예상 약 $2.09",
         "meaning": "점검 포인트는 엔비디아 발표 숫자와 시장 예상을 같은 단위로 비교하는 것입니다.",
         "result": "발표됨 · 주당순이익(EPS) $2.22 vs 예상 $2.09",
-        "reaction": "뉴스에서는 AI 관련 이슈와 주가 약세 보도 흐름이 함께 언급됩니다.",
-        "implication": "점검 포인트는 엔비디아 주가·섹터 반응이 발표 숫자와 같은 방향인지입니다.\n관련 보도 단서: '엔비디아 실적 경계' 뉴욕증시 하락…나스닥 0.1%↓"
+        "reaction": "뉴스에서는 AI 관련 이슈 흐름이 함께 언급됩니다.",
+        "implication": "점검 포인트는 엔비디아 주가·섹터 반응이 발표 숫자와 같은 방향인지입니다."
       }
     }
   ],
@@ -1927,6 +1927,26 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSAxLqgC6qUsw4Heddk6\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSAxYqFFEnQnqTgV7zwZ\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSAxZdsFF4nFqQyYYwQ8\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSWBBs1DsYGQegtC3PSt\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSWBCZg9XCLbwecEG7LN\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
