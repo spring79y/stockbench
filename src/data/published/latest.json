@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "slot": "kr-mid",
-  "publishedAt": "2026-08-27T04:16:20.968Z",
+  "slot": "kr-post",
+  "publishedAt": "2026-08-27T07:26:17.459Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 강세 · 미국 보합",
     "mood": "mixed",
     "moodLabel": "혼조",
-    "asOfLabel": "2026. 08. 27. 13:16 · Yahoo 참고"
+    "asOfLabel": "2026. 08. 27. 16:26 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -348,30 +348,30 @@
       },
       "contextNews": [
         {
-          "title": "[D-BIZ 암호화폐 뉴스] 엔비디아, '어닝 서프라이즈'에도 마진 압박 우려… 3분기 매출 1,080억 달러 전망",
-          "publisher": "데일리비즈온",
-          "publishedAt": "2026-08-27T03:27:16.000Z",
-          "snippet": "[D-BIZ 암호화폐 뉴스] 엔비디아, '어닝 서프라이즈'에도 마진 압박 우려… 3분기 매출 1,080억 달러 전망"
+          "title": "엔비디아 `깜짝 실적`…매출액 전년 대비 106% 급증…시장 평균 전망치 큰 폭 웃돌아",
+          "publisher": "매일신문",
+          "publishedAt": "2026-08-27T07:18:06.000Z",
+          "snippet": "엔비디아 `깜짝 실적`…매출액 전년 대비 106% 급증…시장 평균 전망치 큰 폭 웃돌아"
         },
         {
-          "title": "SPCX Stock Rises Overnight: Analyst Says Nvidia’s Results Reveal SpaceX’s Growing Hyperscaler Status",
-          "publisher": "TradingView",
-          "publishedAt": "2026-08-27T03:15:00.000Z",
-          "snippet": "SPCX Stock Rises Overnight: Analyst Says Nvidia’s Results Reveal SpaceX’s Growing Hyperscaler Status"
+          "title": "Nvidia 실적 호조 속 유럽 증시 보합세…AI 수요 주목",
+          "publisher": "Investing.com",
+          "publishedAt": "2026-08-27T07:18:00.000Z",
+          "snippet": "Nvidia 실적 호조 속 유럽 증시 보합세…AI 수요 주목"
         },
         {
-          "title": "S&P500 선물, 엔비디아 실적 호조에 상승…美 국채금리↑",
-          "publisher": "연합인포맥스",
-          "publishedAt": "2026-08-27T03:10:32.000Z",
-          "snippet": "S&P500 선물, 엔비디아 실적 호조에 상승…美 국채금리↑"
+          "title": "Seoul stocks end higher for 3rd day on Nvidia earnings",
+          "publisher": "The Korea Herald",
+          "publishedAt": "2026-08-27T07:08:09.000Z",
+          "snippet": "Seoul stocks end higher for 3rd day on Nvidia earnings"
         }
       ],
       "detailSummary": {
         "expectation": "시장 예상 매출 약 $104.4B · 주당 순이익(EPS) 시장 예상 약 $2.09",
         "meaning": "점검 포인트는 엔비디아 발표 숫자와 시장 예상을 같은 단위로 비교하는 것입니다.",
         "result": "발표됨 · 주당순이익(EPS) $2.22 vs 예상 $2.09",
-        "reaction": "뉴스에서는 가이던스·전망와 주가 강세 보도 흐름이 함께 언급됩니다.",
-        "implication": "점검 포인트는 엔비디아 주가·섹터 반응이 발표 숫자와 같은 방향인지입니다.\n관련 보도 단서: S&P500 선물, 엔비디아 실적 호조에 상승…美 국채금리↑"
+        "reaction": "뉴스에서는 AI 관련 이슈와 가이던스·전망 흐름이 함께 언급됩니다.",
+        "implication": "점검 포인트는 엔비디아 주가·섹터 반응이 발표 숫자와 같은 방향인지입니다."
       }
     }
   ],
@@ -1977,6 +1977,16 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSc7tXqFjaxR1hL4eTg5\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSrbyDXCipoSd9TZUxV2\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CeSrbyyAhpaXKGiFiRQZ6\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
