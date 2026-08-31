@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "slot": "us-pre",
-  "publishedAt": "2026-08-31T19:15:49.390Z",
+  "slot": "kr-pre",
+  "publishedAt": "2026-08-31T22:46:12.133Z",
   "source": "pipeline",
   "mode": "full",
   "market": {
     "temperature": "국내 보합 · 미국 보합",
     "mood": "mixed",
     "moodLabel": "혼조",
-    "asOfLabel": "2026. 09. 01. 04:15 · Yahoo 참고"
+    "asOfLabel": "2026. 09. 01. 07:46 · Yahoo 참고"
   },
   "views": {
     "all": {
@@ -2222,6 +2222,26 @@
         "severity": "warn",
         "code": "llm-seed-suppressed",
         "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CebMwoTcQL3pJHFhsz26N\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CebdyzrsyHgNj1K7VGSZL\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[us] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011Cebdz1b2gBFymvtAedsYe\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[all] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CebdzGBcr1j5gLD8aYBJX\"}): kept previous briefing (facts-only not published to board)"
+      },
+      {
+        "severity": "warn",
+        "code": "llm-seed-suppressed",
+        "message": "[kr] briefing LLM unavailable (Anthropic error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CebdzGgP7ckG16LrTLbvk\"}): kept previous briefing (facts-only not published to board)"
       }
     ]
   }
