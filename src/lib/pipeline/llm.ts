@@ -4,7 +4,7 @@ import { join } from "node:path";
 export type LlmProvider = "gemini" | "openai" | "ollama" | "anthropic" | "none";
 
 /** Free-tier default: Flash-Lite (slot volume). Override with GEMINI_MODEL. */
-export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
+export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
 
 export type LlmConfig = {
   provider: LlmProvider;
@@ -201,10 +201,10 @@ type GeminiGenerateResponse = {
 function geminiGenerationConfig(model: string): Record<string, unknown> {
   const config: Record<string, unknown> = {
     temperature: 0.3,
-    maxOutputTokens: 4096,
+    maxOutputTokens: 8192,
     responseMimeType: "application/json",
   };
-  // 2.5 Flash-Lite: skip thinking so JSON isn't truncated. 3.x cannot always disable it.
+  // 2.5 only: skip thinking so JSON isn't truncated. 3.x Flash-Lite keeps default thinking.
   if (/2\.5/i.test(model)) {
     config.thinkingConfig = { thinkingBudget: 0 };
   }
@@ -217,27 +217,61 @@ async function callGemini(
   user: string,
 ): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "x-goog-api-key": config.apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: system }] },
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: `${user}\n\n반드시 JSON 객체만 출력하세요.` }],
-        },
-      ],
-      generationConfig: geminiGenerationConfig(config.model),
-    }),
+  const payload = JSON.stringify({
+    system_instruction: { parts: [{ text: system }] },
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: `${user}\n\n반드시 JSON 객체만 출력하세요.` }],
+      },
+    ],
+    generationConfig: geminiGenerationConfig(config.model),
   });
 
-  const rawBody = await res.text();
-  if (!res.ok) {
-    throw new Error(`Gemini error ${res.status}: ${rawBody.slice(0, 400)}`);
+  const maxAttempts = 3;
+  let rawBody = "";
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "x-goog-api-key": config.apiKey,
+          "Content-Type": "application/json",
+        },
+        body: payload,
+        signal: AbortSignal.timeout(25_000),
+      });
+    } catch (error) {
+      const timedOut =
+        error instanceof Error &&
+        (error.name === "TimeoutError" || error.name === "AbortError");
+      if (!timedOut || attempt === maxAttempts) {
+        throw new Error(
+          `Gemini error ${timedOut ? "timeout" : "network"}: ${error instanceof Error ? error.message : String(error)}`.slice(
+            0,
+            400,
+          ),
+        );
+      }
+      const waitMs = 2000 * attempt;
+      console.warn(
+        `  Gemini timeout (attempt ${attempt}/${maxAttempts}) — retry in ${waitMs}ms`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      continue;
+    }
+    rawBody = await res.text();
+    if (res.ok) break;
+    const retryable = res.status === 429 || res.status === 503;
+    if (!retryable || attempt === maxAttempts) {
+      throw new Error(`Gemini error ${res.status}: ${rawBody.slice(0, 400)}`);
+    }
+    const waitMs = 2000 * attempt;
+    console.warn(
+      `  Gemini ${res.status} (attempt ${attempt}/${maxAttempts}) — retry in ${waitMs}ms`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
   }
 
   const data = JSON.parse(rawBody) as GeminiGenerateResponse;

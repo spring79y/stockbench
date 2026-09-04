@@ -27,9 +27,9 @@ describe("resolveLlmConfigFromEnv", () => {
   it("uses GEMINI_MODEL override", () => {
     const cfg = resolveLlmConfigFromEnv({
       GEMINI_API_KEY: "g-key",
-      GEMINI_MODEL: "gemini-3.1-flash-lite",
+      GEMINI_MODEL: "gemini-3.5-flash",
     });
-    assert.equal(cfg.model, "gemini-3.1-flash-lite");
+    assert.equal(cfg.model, "gemini-3.5-flash");
   });
 
   it("falls back to none when no keys", () => {

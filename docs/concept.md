@@ -94,7 +94,7 @@ Briefing/Decision이 받는 구조화 근거. UI 대시보드가 아님.
 | 직전 발행 | 이전 헤드라인(반복 방지) + **같은 시장 탭 직전 1건**의 구조화 연속성 |
 | 직전 연속성 | `scenarios` A/B 한 줄 · `checkItems` · 미결 `upcoming`. Collector가 due를 Evidence 사실로 해석(`carryForward`/`dueFollowUps`). **forceCite는 재평가 문장 필수**(키워드만 금지). 무관 due 드롭. 본문 덤프·멀티데이 스택 금지. 최대 5 · forceCite ≤3 · 무변화 2슬롯 드롭 |
 
-LLM: `.env.local` / Actions — 운영은 **Google Gemini 무료**(기본 `gemini-2.5-flash-lite`). 숫자는 비AI. 한도·품질 미달·하드 블록이면 직전 본문 유지. 소형 로컬은 비권장.  
+LLM: `.env.local` / Actions — 운영은 **Google Gemini 무료**(기본 `gemini-3.5-flash-lite`). 숫자는 비AI. 한도·품질 미달·하드 블록이면 직전 본문 유지. 소형 로컬은 비권장.  
 실행: `npm run pipeline -- kr-post` (슬롯: kr-pre / kr-mid / kr-post / us-pre / us-mid / us-noon / us-post)  
 스케줄: 자동 `us-post·kr-pre 07:00` · `us-noon·kr-mid 12:30` · `kr-post 15:40` · `us-pre 21:50` (주말 스킵). `us-mid`는 수동/`all`. 탭: 한국슬롯→통합+한국, 미국슬롯→통합+미국. 웹 푸시는 KST 00:00–07:00 미발송이며, **latest.json 커밋·프로덕션 반영 후**에만 발송.  
 실패·키 없음 → seed는 **사실 앵커/개발·콜드스타트용**일 뿐 full 발행 보드 본문에 넣지 않음. **Guard block 시 scope당 최대 3회 재생성. soft만 남은 최종 거절 → 마지막 LLM 드래프트 발행. 하드 블록·LLM 실패면 같은 시장 직전 본문 유지.** 뉴스 없는 반응은 **생략**(「반응 근거 부족」금지).
