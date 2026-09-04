@@ -610,7 +610,7 @@ async function main() {
       kr: previous?.views.kr,
       us: previous?.views.us,
     } as PublishedBundle["views"];
-    const findings = [...(previous?.guard.findings ?? []).filter((f) => f.severity !== "block")];
+    const findings: PublishedBundle["guard"]["findings"] = [];
 
     const keptScopes: MarketScope[] = [];
     const keptCodes: string[] = [];
@@ -691,7 +691,16 @@ async function main() {
       ok: findings.every((f) => f.severity !== "block"),
       findings,
     };
-    console.log("[pipeline] Guard", JSON.stringify(guard, null, 2));
+    console.log("[pipeline] Guard", summarizeGuard(guard), `findings=${findings.length}`);
+    const notable = findings.filter(
+      (f) =>
+        f.severity === "block" ||
+        f.code === "llm-seed-suppressed" ||
+        f.code === "guard-soft-publish",
+    );
+    for (const f of notable.slice(-8)) {
+      console.log(`  ${f.severity} ${f.code}: ${f.message.slice(0, 180)}`);
+    }
     if (!guard.ok) {
       console.error(
         "[pipeline] blocked by guard — keep previous publication (latest.json unchanged)",
