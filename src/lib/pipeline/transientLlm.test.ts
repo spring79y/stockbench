@@ -19,6 +19,18 @@ describe("isTransientLlmFailure", () => {
     );
   });
 
+  it("retries Groq/OpenAI-compat 503", () => {
+    assert.equal(
+      isTransientLlmFailure([
+        {
+          code: "llm-seed-suppressed",
+          message: "[kr] LLM error 503: over capacity",
+        },
+      ]),
+      true,
+    );
+  });
+
   it("does not retry 429 quota or 404", () => {
     assert.equal(
       isTransientLlmFailure([

@@ -2,12 +2,35 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   DEFAULT_GEMINI_MODEL,
+  DEFAULT_GROQ_MODEL,
+  GROQ_BASE_URL,
   extractJsonObject,
   resolveLlmConfigFromEnv,
 } from "@/lib/pipeline/llm";
 
 describe("resolveLlmConfigFromEnv", () => {
-  it("prefers Gemini over leftover Anthropic/OpenAI keys", () => {
+  it("prefers Groq over leftover Gemini/Anthropic/OpenAI keys", () => {
+    const cfg = resolveLlmConfigFromEnv({
+      GROQ_API_KEY: " groq-key ",
+      GEMINI_API_KEY: "g-key",
+      ANTHROPIC_API_KEY: "a-key",
+      OPENAI_API_KEY: "o-key",
+    });
+    assert.equal(cfg.provider, "groq");
+    assert.equal(cfg.model, DEFAULT_GROQ_MODEL);
+    assert.equal(cfg.apiKey, "groq-key");
+    assert.equal(cfg.baseUrl, GROQ_BASE_URL);
+  });
+
+  it("uses GROQ_MODEL override", () => {
+    const cfg = resolveLlmConfigFromEnv({
+      GROQ_API_KEY: "groq-key",
+      GROQ_MODEL: "openai/gpt-oss-120b",
+    });
+    assert.equal(cfg.model, "openai/gpt-oss-120b");
+  });
+
+  it("uses leftover Gemini when Groq key is absent", () => {
     const cfg = resolveLlmConfigFromEnv({
       GEMINI_API_KEY: "g-key",
       ANTHROPIC_API_KEY: "a-key",

@@ -1,9 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-export type LlmProvider = "gemini" | "openai" | "ollama" | "anthropic" | "none";
+export type LlmProvider = "groq" | "gemini" | "openai" | "ollama" | "anthropic" | "none";
 
-/** Free-tier default: Flash-Lite (slot volume). Override with GEMINI_MODEL. */
+/** Free-tier default. Override with GROQ_MODEL. */
+export const DEFAULT_GROQ_MODEL = "qwen/qwen3.6-27b";
+export const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+
+/** Leftover optional host — not used when GROQ_API_KEY is set. */
 export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
 
 export type LlmConfig = {
@@ -47,6 +51,17 @@ function envTrim(env: NodeJS.Dict<string | undefined>, key: string): string {
 export function resolveLlmConfigFromEnv(
   env: NodeJS.Dict<string | undefined>,
 ): LlmConfig {
+  const groqKey = envTrim(env, "GROQ_API_KEY");
+  if (groqKey) {
+    return {
+      provider: "groq",
+      apiKey: groqKey,
+      model: envTrim(env, "GROQ_MODEL") || DEFAULT_GROQ_MODEL,
+      baseUrl: GROQ_BASE_URL,
+      forceJsonObject: true,
+    };
+  }
+
   const geminiKey = envTrim(env, "GEMINI_API_KEY") || envTrim(env, "GOOGLE_API_KEY");
   if (geminiKey) {
     return {
@@ -132,22 +147,63 @@ async function callOpenAiCompat(
   if (config.forceJsonObject) {
     body.response_format = { type: "json_object" };
   }
-
-  const res = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const errBody = await res.text();
-    throw new Error(`LLM error ${res.status}: ${errBody.slice(0, 400)}`);
+  // Qwen on Groq: skip thinking so JSON isn't buried in reasoning tokens.
+  if (config.provider === "groq" && /qwen/i.test(config.model)) {
+    body.reasoning_effort = "none";
+    body.reasoning_format = "hidden";
   }
 
-  const data = (await res.json()) as {
+  const maxAttempts = 3;
+  let rawBody = "";
+  let res: Response | undefined;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      res = await fetch(`${config.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(25_000),
+      });
+    } catch (error) {
+      const timedOut =
+        error instanceof Error &&
+        (error.name === "TimeoutError" || error.name === "AbortError");
+      if (!timedOut || attempt === maxAttempts) {
+        throw new Error(
+          `LLM error ${timedOut ? "timeout" : "network"}: ${error instanceof Error ? error.message : String(error)}`.slice(
+            0,
+            400,
+          ),
+        );
+      }
+      const waitMs = 2000 * attempt;
+      console.warn(
+        `  LLM timeout (attempt ${attempt}/${maxAttempts}) — retry in ${waitMs}ms`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      continue;
+    }
+    rawBody = await res.text();
+    if (res.ok) break;
+    const retryable = res.status === 503;
+    if (!retryable || attempt === maxAttempts) {
+      throw new Error(`LLM error ${res.status}: ${rawBody.slice(0, 400)}`);
+    }
+    const waitMs = 2000 * attempt;
+    console.warn(
+      `  LLM ${res.status} (attempt ${attempt}/${maxAttempts}) — retry in ${waitMs}ms`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+
+  if (!res?.ok) {
+    throw new Error(`LLM error ${res?.status ?? "unknown"}: ${rawBody.slice(0, 400)}`);
+  }
+
+  const data = JSON.parse(rawBody) as {
     choices?: Array<{ message?: { content?: string } }>;
   };
   const content = data.choices?.[0]?.message?.content;
