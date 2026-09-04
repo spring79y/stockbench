@@ -80,7 +80,8 @@ Actions Secret: `GEMINI_API_KEY` (Google AI Studio 무료 키). 키는 git에 �
 2. 아침 슬롯이 비었으면 **Run workflow** → `morning` (`us-post` → `kr-pre`)
 3. YAML로 “runner 미획득만 자동 재시도”는 사실상 불가 → 위 수동 재실행이 정답
 
-동시 실행: `concurrency.group: publish-briefing`, `cancel-in-progress: false` — 겹치면 대기하고, 진행 중 run을 취소해 슬롯을 버리지 않는다. `timeout-minutes: 60`.
+동시 실행: `concurrency.group: publish-briefing`, `cancel-in-progress: false` — 겹치면 대기하고, 진행 중 run을 취소해 슬롯을 버리지 않는다. `timeout-minutes: 60`.  
+Gemini **503·timeout**으로 슬롯이 keep-previous면 Briefing/Decision만 **30초 간격**으로 다시 시도한다(Collector는 1회). 상한 **12분·20회** — 한도(429)·404·Guard 하드블록은 재시도하지 않고 직전 유지. 그 다음 선은 Catch-up(+45분, 당일 1회).
 
 웹 푸시 순서: pipeline → `latest.json` 커밋·push → `/api/published`로 프로덕션 반영 대기 → `push:slot`. 로컬 파이프라인 직후 푸시하지 않는다.  
 `wait:published-live`가 타임아웃·불일치로 **실패(exit 1)** 하면 Publish job이 실패하고 **슬롯 푸시는 스킵**된다(배포 미반영인데 알림만 가는 것 방지). 보드 복구는 Vercel Redeploy 후 `/api/published` 스탬프 확인.

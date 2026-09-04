@@ -27,6 +27,10 @@ import { writePipelineStatus } from "../src/lib/pipeline/pipelineStatus";
 import { runBriefingAgent } from "../src/lib/pipeline/runBriefingAgent";
 import { runDecisionAgent } from "../src/lib/pipeline/runDecisionAgent";
 import { ALL_PIPELINE_SLOTS, modeForSlot, scopesForSlot } from "../src/lib/pipeline/schedule";
+import {
+  TRANSIENT_RETRY_INTERVAL_MS,
+  shouldRetryTransientKeepPrevious,
+} from "../src/lib/pipeline/transientLlm";
 import { buildChangeLines } from "../src/lib/pipeline/briefingDelta";
 import {
   briefingHasForbiddenSeedVoice,
@@ -604,168 +608,195 @@ async function main() {
       );
     }
     const targetScopes = scopesForSlot(slot);
-    const publishedAt = new Date().toISOString();
-    const views = {
-      all: previous?.views.all,
-      kr: previous?.views.kr,
-      us: previous?.views.us,
-    } as PublishedBundle["views"];
-    const findings: PublishedBundle["guard"]["findings"] = [];
+    const retryStarted = Date.now();
+    let attempt = 0;
 
-    const keptScopes: MarketScope[] = [];
-    const keptCodes: string[] = [];
+    while (true) {
+      attempt += 1;
+      const publishedAt = new Date().toISOString();
+      const views = {
+        all: previous?.views.all,
+        kr: previous?.views.kr,
+        us: previous?.views.us,
+      } as PublishedBundle["views"];
+      const findings: PublishedBundle["guard"]["findings"] = [];
 
-    for (const scope of targetScopes) {
-      const generated =
-        mode === "refresh"
-          ? await generateRefreshView(snapshot, scope, publishedAt, slot, views[scope])
-          : await generateFullView(snapshot, scope, publishedAt, slot, views[scope]);
-      findings.push(...generated.findings);
-      if (generated.keptPrevious) {
-        keptScopes.push(scope);
-        keptCodes.push(...(generated.hardBlockCodes ?? []));
-      }
-      const { view, blocked } = generated;
-      if (blocked || !view) {
-        console.error(
-          `[pipeline] scope=${scope} blocked after ${MAX_GUARD_ATTEMPTS} attempts — keep previous view`,
-        );
-        if (!views[scope] && previous?.views?.[scope]) {
-          views[scope] = previous.views[scope];
+      const keptScopes: MarketScope[] = [];
+      const keptCodes: string[] = [];
+
+      for (const scope of targetScopes) {
+        const generated =
+          mode === "refresh"
+            ? await generateRefreshView(snapshot, scope, publishedAt, slot, views[scope])
+            : await generateFullView(snapshot, scope, publishedAt, slot, views[scope]);
+        findings.push(...generated.findings);
+        if (generated.keptPrevious) {
+          keptScopes.push(scope);
+          keptCodes.push(...(generated.hardBlockCodes ?? []));
         }
-        continue;
-      }
-      const changeLines = buildChangeLines(previous?.views?.[scope], view, mode);
-      views[scope] = { ...view, changeLines };
-    }
-
-    (["all", "kr", "us"] as MarketScope[]).forEach((scope) => {
-      const v = views[scope];
-      if (!v) return;
-      if (!v.publishedAt) {
-        views[scope] = {
-          ...v,
-          publishedAt: previous?.publishedAt ?? publishedAt,
-          slot: previous?.slot ?? slot,
-          mode: previous?.mode ?? mode,
-        };
-      }
-    });
-
-    if (!views.all || !views.kr || !views.us) {
-      console.error("[pipeline] missing views — seeding missing scopes with full generation");
-      for (const scope of ["all", "kr", "us"] as MarketScope[]) {
-        if (!views[scope]) {
-          const { view, findings: scopeFindings, blocked } = await generateFullView(
-            snapshot,
-            scope,
-            publishedAt,
-            slot,
-            previous?.views?.[scope],
+        const { view, blocked } = generated;
+        if (blocked || !view) {
+          console.error(
+            `[pipeline] scope=${scope} blocked after ${MAX_GUARD_ATTEMPTS} attempts — keep previous view`,
           );
-          findings.push(...scopeFindings);
-          if (blocked || !view) {
-            console.error(`[pipeline] cannot seed scope=${scope} — abort publish, keep previous`);
-            recordStatus({
-              slot,
-              ok: false,
-              mode,
-              guardOk: false,
-              guardSummary: summarizeGuard({
-                ok: false,
-                findings,
-              }),
-              error: `keep-previous: missing ${scope} after guard blocks`,
-            });
-            process.exit(0);
+          if (!views[scope] && previous?.views?.[scope]) {
+            views[scope] = previous.views[scope];
           }
+          continue;
+        }
+        const changeLines = buildChangeLines(previous?.views?.[scope], view, mode);
+        views[scope] = { ...view, changeLines };
+      }
+
+      (["all", "kr", "us"] as MarketScope[]).forEach((scope) => {
+        const v = views[scope];
+        if (!v) return;
+        if (!v.publishedAt) {
           views[scope] = {
-            ...view,
-            changeLines: buildChangeLines(previous?.views?.[scope], view, "full"),
+            ...v,
+            publishedAt: previous?.publishedAt ?? publishedAt,
+            slot: previous?.slot ?? slot,
+            mode: previous?.mode ?? mode,
           };
         }
-      }
-    }
-
-    const guard = {
-      ok: findings.every((f) => f.severity !== "block"),
-      findings,
-    };
-    console.log("[pipeline] Guard", summarizeGuard(guard), `findings=${findings.length}`);
-    const notable = findings.filter(
-      (f) =>
-        f.severity === "block" ||
-        f.code === "llm-seed-suppressed" ||
-        f.code === "guard-soft-publish",
-    );
-    for (const f of notable.slice(-8)) {
-      console.log(`  ${f.severity} ${f.code}: ${f.message.slice(0, 180)}`);
-    }
-    if (!guard.ok) {
-      console.error(
-        "[pipeline] blocked by guard — keep previous publication (latest.json unchanged)",
-      );
-      recordStatus({
-        slot,
-        ok: false,
-        mode,
-        guardOk: false,
-        guardSummary: summarizeGuard(guard),
-        error: `keep-previous: ${summarizeGuard(guard)}`,
       });
-      // 직전 발행 유지 — 오보로 latest를 덮지 않음
-      process.exit(0);
-    }
 
-    const bundle = sanitizePublishedBundle({
-      version: 2,
-      slot,
-      publishedAt,
-      source: "pipeline",
-      mode,
-      market: {
-        temperature: snapshot.temperature,
-        mood: snapshot.mood,
-        moodLabel: snapshot.moodLabel,
-        asOfLabel: snapshot.asOfLabel,
-      },
-      views: views as PublishedBundle["views"],
-      events: snapshot.events ?? previous?.events ?? defaultPipelineEvents(),
-      guard,
-    });
+      if (!views.all || !views.kr || !views.us) {
+        console.error("[pipeline] missing views — seeding missing scopes with full generation");
+        for (const scope of ["all", "kr", "us"] as MarketScope[]) {
+          if (!views[scope]) {
+            const { view, findings: scopeFindings, blocked } = await generateFullView(
+              snapshot,
+              scope,
+              publishedAt,
+              slot,
+              previous?.views?.[scope],
+            );
+            findings.push(...scopeFindings);
+            if (blocked || !view) {
+              console.error(`[pipeline] cannot seed scope=${scope} — abort publish, keep previous`);
+              recordStatus({
+                slot,
+                ok: false,
+                mode,
+                guardOk: false,
+                guardSummary: summarizeGuard({
+                  ok: false,
+                  findings,
+                }),
+                error: `keep-previous: missing ${scope} after guard blocks`,
+              });
+              process.exit(0);
+            }
+            views[scope] = {
+              ...view,
+              changeLines: buildChangeLines(previous?.views?.[scope], view, "full"),
+            };
+          }
+        }
+      }
 
-    mkdirSync(dirname(latestPath), { recursive: true });
-    if (previous) {
-      writeFileSync(
-        previousPath,
-        `${JSON.stringify(sanitizePublishedBundle(previous), null, 2)}\n`,
-        "utf8",
+      const guard = {
+        ok: findings.every((f) => f.severity !== "block"),
+        findings,
+      };
+      console.log(
+        "[pipeline] Guard",
+        summarizeGuard(guard),
+        `findings=${findings.length} attempt=${attempt}`,
       );
+      const notable = findings.filter(
+        (f) =>
+          f.severity === "block" ||
+          f.code === "llm-seed-suppressed" ||
+          f.code === "guard-soft-publish",
+      );
+      for (const f of notable.slice(-8)) {
+        console.log(`  ${f.severity} ${f.code}: ${f.message.slice(0, 180)}`);
+      }
+      if (!guard.ok) {
+        console.error(
+          "[pipeline] blocked by guard — keep previous publication (latest.json unchanged)",
+        );
+        recordStatus({
+          slot,
+          ok: false,
+          mode,
+          guardOk: false,
+          guardSummary: summarizeGuard(guard),
+          error: `keep-previous: ${summarizeGuard(guard)}`,
+        });
+        // 직전 발행 유지 — 오보로 latest를 덮지 않음
+        process.exit(0);
+      }
+
+      const uniqueKeptCodes = [...new Set(keptCodes)];
+      const tabFrozen = keptScopes.length > 0;
+      if (
+        shouldRetryTransientKeepPrevious({
+          tabFrozen,
+          hardBlockCodes: uniqueKeptCodes,
+          findings,
+          elapsedMs: Date.now() - retryStarted,
+          attempt,
+        })
+      ) {
+        console.log(
+          `[pipeline] transient LLM fail — retry in ${TRANSIENT_RETRY_INTERVAL_MS / 1000}s (attempt ${attempt})`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, TRANSIENT_RETRY_INTERVAL_MS));
+        continue;
+      }
+
+      const bundle = sanitizePublishedBundle({
+        version: 2,
+        slot,
+        publishedAt,
+        source: "pipeline",
+        mode,
+        market: {
+          temperature: snapshot.temperature,
+          mood: snapshot.mood,
+          moodLabel: snapshot.moodLabel,
+          asOfLabel: snapshot.asOfLabel,
+        },
+        views: views as PublishedBundle["views"],
+        events: snapshot.events ?? previous?.events ?? defaultPipelineEvents(),
+        guard,
+      });
+
+      mkdirSync(dirname(latestPath), { recursive: true });
+      if (previous) {
+        writeFileSync(
+          previousPath,
+          `${JSON.stringify(sanitizePublishedBundle(previous), null, 2)}\n`,
+          "utf8",
+        );
+      }
+      writeFileSync(latestPath, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
+      recordStatus({
+        updatedAt: publishedAt,
+        slot,
+        ok: !tabFrozen,
+        mode,
+        guardOk: !tabFrozen,
+        guardSummary: tabFrozen
+          ? `keep-previous ${keptScopes.join(",")}: ${uniqueKeptCodes.join(", ") || "unknown"}`
+          : summarizeGuard(guard),
+        error: tabFrozen
+          ? `keep-previous ${keptScopes.join(",")}: ${uniqueKeptCodes.join(", ") || "unknown"}`
+          : undefined,
+        degraded: tabFrozen,
+        keepPreviousScopes: tabFrozen ? keptScopes : undefined,
+        keepPreviousCodes: tabFrozen ? uniqueKeptCodes : undefined,
+      });
+      console.log(`[pipeline] published → ${latestPath}`);
+      console.log(`updated scopes: ${targetScopes.join(", ")} · mode=${mode}`);
+      console.log(`all@${bundle.views.all.publishedAt}: ${bundle.views.all.briefing.headline}`);
+      console.log(`kr@${bundle.views.kr.publishedAt}: ${bundle.views.kr.briefing.headline}`);
+      console.log(`us@${bundle.views.us.publishedAt}: ${bundle.views.us.briefing.headline}`);
+      break;
     }
-    writeFileSync(latestPath, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
-    const uniqueKeptCodes = [...new Set(keptCodes)];
-    const tabFrozen = keptScopes.length > 0;
-    recordStatus({
-      updatedAt: publishedAt,
-      slot,
-      ok: !tabFrozen,
-      mode,
-      guardOk: !tabFrozen,
-      guardSummary: tabFrozen
-        ? `keep-previous ${keptScopes.join(",")}: ${uniqueKeptCodes.join(", ") || "unknown"}`
-        : summarizeGuard(guard),
-      error: tabFrozen
-        ? `keep-previous ${keptScopes.join(",")}: ${uniqueKeptCodes.join(", ") || "unknown"}`
-        : undefined,
-      degraded: tabFrozen,
-      keepPreviousScopes: tabFrozen ? keptScopes : undefined,
-      keepPreviousCodes: tabFrozen ? uniqueKeptCodes : undefined,
-    });
-    console.log(`[pipeline] published → ${latestPath}`);
-    console.log(`updated scopes: ${targetScopes.join(", ")} · mode=${mode}`);
-    console.log(`all@${bundle.views.all.publishedAt}: ${bundle.views.all.briefing.headline}`);
-    console.log(`kr@${bundle.views.kr.publishedAt}: ${bundle.views.kr.briefing.headline}`);
-    console.log(`us@${bundle.views.us.publishedAt}: ${bundle.views.us.briefing.headline}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     recordStatus({
