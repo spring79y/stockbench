@@ -1,11 +1,11 @@
 # 한·미 장전·장중·장후 풀 + 12:30 미국 점검 (평일 자동 최대 6창)
-# us-mid(02:00)는 크레딧 절약으로 자동 cron 제외 — workflow_dispatch / all 만
+# us-mid(02:00)는 무료 한도 절약으로 자동 cron 제외 — workflow_dispatch / all 만
 # Vercel은 git push 후 자동 재배포됩니다.
 # 웹 푸시는 latest.json 커밋·프로덕션 반영 확인 뒤에만 발송합니다.
 # catchup-watchdog.yml 이 누락 슬롯을 workflow_call 로 재실행할 수 있습니다.
 #
 # GitHub → Settings → Secrets and variables → Actions 에 등록:
-#   ANTHROPIC_API_KEY
+#   GEMINI_API_KEY
 name: Publish briefing
 
 on:
@@ -106,11 +106,11 @@ jobs:
       - name: Run pipeline
         id: pipeline
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_MODEL: claude-sonnet-4-5
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: gemini-2.5-flash-lite
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::error::ANTHROPIC_API_KEY secret is missing. Add it in repo Settings → Secrets → Actions."
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY secret is missing. Add it in repo Settings → Secrets → Actions (Google AI Studio 무료 키)."
             exit 1
           fi
           FAILED=0

@@ -1,7 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-export type LlmProvider = "openai" | "ollama" | "anthropic" | "none";
+export type LlmProvider = "gemini" | "openai" | "ollama" | "anthropic" | "none";
+
+/** Free-tier default: Flash-Lite (slot volume). Override with GEMINI_MODEL. */
+export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
 
 export type LlmConfig = {
   provider: LlmProvider;
@@ -36,50 +39,70 @@ export function loadPipelineEnv(cwd = process.cwd()): void {
   parseEnvFile(join(cwd, ".env.local"));
 }
 
-export function resolveLlmConfig(): LlmConfig {
-  loadPipelineEnv();
+function envTrim(env: NodeJS.Dict<string | undefined>, key: string): string {
+  return env[key]?.trim() ?? "";
+}
 
-  const ollamaKey = process.env.OLLAMA_API_KEY?.trim();
-  if (ollamaKey || process.env.OLLAMA_BASE_URL || process.env.OLLAMA_HOST) {
+/** Resolve provider from an env snapshot (testable; no file I/O). */
+export function resolveLlmConfigFromEnv(
+  env: NodeJS.Dict<string | undefined>,
+): LlmConfig {
+  const geminiKey = envTrim(env, "GEMINI_API_KEY") || envTrim(env, "GOOGLE_API_KEY");
+  if (geminiKey) {
+    return {
+      provider: "gemini",
+      apiKey: geminiKey,
+      model: envTrim(env, "GEMINI_MODEL") || DEFAULT_GEMINI_MODEL,
+      forceJsonObject: true,
+    };
+  }
+
+  const ollamaKey = envTrim(env, "OLLAMA_API_KEY");
+  if (ollamaKey || envTrim(env, "OLLAMA_BASE_URL") || envTrim(env, "OLLAMA_HOST")) {
     const baseUrl =
-      process.env.OLLAMA_BASE_URL?.trim() ||
-      process.env.OLLAMA_HOST?.trim() ||
+      envTrim(env, "OLLAMA_BASE_URL") ||
+      envTrim(env, "OLLAMA_HOST") ||
       "http://127.0.0.1:11434/v1";
     return {
       provider: "ollama",
       apiKey: ollamaKey || "ollama",
-      model: process.env.OLLAMA_MODEL?.trim() || "llama3.2",
+      model: envTrim(env, "OLLAMA_MODEL") || "llama3.2",
       baseUrl: baseUrl.replace(/\/$/, ""),
       forceJsonObject: false,
     };
   }
 
-  const openaiKey = process.env.OPENAI_API_KEY?.trim();
+  const openaiKey = envTrim(env, "OPENAI_API_KEY");
   if (openaiKey) {
-    const baseUrl = process.env.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1";
+    const baseUrl = envTrim(env, "OPENAI_BASE_URL") || "https://api.openai.com/v1";
     const isOllamaCompat = /ollama|11434/i.test(baseUrl);
     return {
       provider: isOllamaCompat ? "ollama" : "openai",
       apiKey: openaiKey,
       model:
-        process.env.OPENAI_MODEL?.trim() ||
+        envTrim(env, "OPENAI_MODEL") ||
         (isOllamaCompat ? "llama3.2" : "gpt-4.1-mini"),
       baseUrl: baseUrl.replace(/\/$/, ""),
       forceJsonObject: !isOllamaCompat,
     };
   }
 
-  const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const anthropicKey = envTrim(env, "ANTHROPIC_API_KEY");
   if (anthropicKey) {
     return {
       provider: "anthropic",
       apiKey: anthropicKey,
-      model: process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-4-5",
+      model: envTrim(env, "ANTHROPIC_MODEL") || "claude-sonnet-4-5",
       forceJsonObject: false,
     };
   }
 
   return { provider: "none", apiKey: "", model: "" };
+}
+
+export function resolveLlmConfig(): LlmConfig {
+  loadPipelineEnv();
+  return resolveLlmConfigFromEnv(process.env);
 }
 
 export function extractJsonObject(text: string): unknown {
@@ -166,6 +189,70 @@ async function callAnthropic(
   return text;
 }
 
+type GeminiGenerateResponse = {
+  candidates?: Array<{
+    content?: { parts?: Array<{ text?: string }> };
+    finishReason?: string;
+  }>;
+  promptFeedback?: { blockReason?: string };
+  error?: { message?: string };
+};
+
+function geminiGenerationConfig(model: string): Record<string, unknown> {
+  const config: Record<string, unknown> = {
+    temperature: 0.3,
+    maxOutputTokens: 4096,
+    responseMimeType: "application/json",
+  };
+  // 2.5 Flash-Lite: skip thinking so JSON isn't truncated. 3.x cannot always disable it.
+  if (/2\.5/i.test(model)) {
+    config.thinkingConfig = { thinkingBudget: 0 };
+  }
+  return config;
+}
+
+async function callGemini(
+  config: LlmConfig,
+  system: string,
+  user: string,
+): Promise<string> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "x-goog-api-key": config.apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: system }] },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: `${user}\n\n반드시 JSON 객체만 출력하세요.` }],
+        },
+      ],
+      generationConfig: geminiGenerationConfig(config.model),
+    }),
+  });
+
+  const rawBody = await res.text();
+  if (!res.ok) {
+    throw new Error(`Gemini error ${res.status}: ${rawBody.slice(0, 400)}`);
+  }
+
+  const data = JSON.parse(rawBody) as GeminiGenerateResponse;
+  const blocked = data.promptFeedback?.blockReason;
+  if (blocked) {
+    throw new Error(`Gemini blocked prompt (${blocked})`);
+  }
+  const text = data.candidates?.[0]?.content?.parts
+    ?.map((part) => part.text ?? "")
+    .join("")
+    .trim();
+  if (!text) throw new Error("Gemini returned empty content");
+  return text;
+}
+
 export async function completeJson(system: string, user: string): Promise<unknown> {
   const config = resolveLlmConfig();
   if (config.provider === "none") {
@@ -173,9 +260,11 @@ export async function completeJson(system: string, user: string): Promise<unknow
   }
 
   const raw =
-    config.provider === "anthropic"
-      ? await callAnthropic(config, system, user)
-      : await callOpenAiCompat(config, system, user);
+    config.provider === "gemini"
+      ? await callGemini(config, system, user)
+      : config.provider === "anthropic"
+        ? await callAnthropic(config, system, user)
+        : await callOpenAiCompat(config, system, user);
 
   return extractJsonObject(raw);
 }

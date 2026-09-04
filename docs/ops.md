@@ -53,7 +53,8 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 
 ## Publish briefing (GitHub Actions)
 
-워크플로: [`.github/workflows/pipeline.yml`](../.github/workflows/pipeline.yml) · 이름 **Publish briefing**.
+워크플로: [`.github/workflows/pipeline.yml`](../.github/workflows/pipeline.yml) · 이름 **Publish briefing**.  
+Actions Secret: `GEMINI_API_KEY` (Google AI Studio 무료 키). 키는 git에 넣지 않는다. 한도 초과 시 직전 본문 유지.
 
 ### 스케줄은 서로 독립
 
@@ -71,7 +72,7 @@ GitHub Actions 로그 자체는 Vercel에서 읽지 못한다. 커밋된 `latest
 - `Internal server error. Correlation ID: …`
 - `The job was not acquired by Runner of type hosted even after multiple attempts`
 
-원인: GitHub **hosted runner 풀 고갈·인프라 ISE** (저장소/ANTHROPIC 키/pipeline 버그가 아님). Checkout·`npm ci`·`npm run pipeline` 로그가 없으면 이 케이스다.
+원인: GitHub **hosted runner 풀 고갈·인프라 ISE** (저장소/GEMINI 키/pipeline 버그가 아님). Checkout·`npm ci`·`npm run pipeline` 로그가 없으면 이 케이스다.
 
 대응 (앱에서 runner 풀을 고칠 수 없음):
 
