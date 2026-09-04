@@ -67,7 +67,31 @@ function parsePoints(raw: NightFuturesRaw["points"]): Ks200NightChartPoint[] {
     if (t == null || v == null) continue;
     out.push({ t, v });
   }
-  return out.sort((a, b) => a.t - b.t);
+  return latestContiguousSession(out);
+}
+
+/** Drop leftover ticks from the prior session so the chart does not draw a 12h diagonal. */
+export const NIGHT_SESSION_GAP_MS = 3 * 60 * 60 * 1000;
+
+export function latestContiguousSession(
+  points: Ks200NightChartPoint[],
+): Ks200NightChartPoint[] {
+  const sorted = [...points].sort((a, b) => a.t - b.t);
+  if (sorted.length <= 1) return sorted;
+  const clusters: Ks200NightChartPoint[][] = [];
+  let cur: Ks200NightChartPoint[] = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].t - sorted[i - 1].t > NIGHT_SESSION_GAP_MS) {
+      clusters.push(cur);
+      cur = [sorted[i]];
+    } else {
+      cur.push(sorted[i]);
+    }
+  }
+  clusters.push(cur);
+  return clusters.reduce((best, cluster) =>
+    cluster[cluster.length - 1].t >= best[best.length - 1].t ? cluster : best,
+  );
 }
 
 async function fetchFresh(): Promise<Ks200NightFuturesQuote> {
