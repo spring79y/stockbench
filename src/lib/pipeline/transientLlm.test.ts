@@ -31,6 +31,19 @@ describe("isTransientLlmFailure", () => {
     );
   });
 
+  it("retries Groq OTPM 429 (rolling minute cap)", () => {
+    assert.equal(
+      isTransientLlmFailure([
+        {
+          code: "llm-seed-suppressed",
+          message:
+            "[kr] LLM error 429: output tokens per minute (OTPM): Limit 1000, Requested 1754. Please try again in 20s",
+        },
+      ]),
+      true,
+    );
+  });
+
   it("does not retry 429 quota or 404", () => {
     assert.equal(
       isTransientLlmFailure([
@@ -40,7 +53,7 @@ describe("isTransientLlmFailure", () => {
     );
     assert.equal(
       isTransientLlmFailure([
-        { code: "llm-seed-suppressed", message: "Gemini error 404: not found" },
+        { code: "llm-seed-suppressed", message: "LLM error 429: tokens per day (TPD) exceeded" },
       ]),
       false,
     );

@@ -6,6 +6,8 @@ export type LlmProvider = "groq" | "gemini" | "openai" | "ollama" | "anthropic" 
 /** Free-tier default. Override with GROQ_MODEL. */
 export const DEFAULT_GROQ_MODEL = "qwen/qwen3.6-27b";
 export const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+/** Free on_demand OTPM is 1000; Groq bills declared max_tokens, not actual output. */
+export const GROQ_MAX_TOKENS = 900;
 
 /** Leftover optional host — not used when GROQ_API_KEY is set. */
 export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
@@ -146,6 +148,9 @@ async function callOpenAiCompat(
   };
   if (config.forceJsonObject) {
     body.response_format = { type: "json_object" };
+  }
+  if (config.provider === "groq") {
+    body.max_tokens = GROQ_MAX_TOKENS;
   }
   // Qwen on Groq: skip thinking so JSON isn't buried in reasoning tokens.
   if (config.provider === "groq" && /qwen/i.test(config.model)) {

@@ -11,13 +11,21 @@ export function isTransientLlmFailure(
   const blob = findings.map((f) => `${f.code ?? ""} ${f.message}`).join("\n");
   if (!blob) return false;
   if (
-    /Gemini error 429|LLM error 429|RESOURCE_EXHAUSTED|quota exceeded|credit balance is too low/i.test(
+    /Gemini error 429|RESOURCE_EXHAUSTED|quota exceeded|credit balance is too low/i.test(
       blob,
     )
   ) {
     return false;
   }
   if (/Gemini error 404|LLM error 404|NO_LLM_KEY/i.test(blob)) return false;
+  // Groq free OTPM/TPM is a rolling minute cap (not a spent daily credit).
+  if (
+    /LLM error 429/i.test(blob) &&
+    /OTPM|ITPM|tokens per minute|per minute|try again in/i.test(blob)
+  ) {
+    return true;
+  }
+  if (/LLM error 429/i.test(blob)) return false;
   return /Gemini error 503|LLM error 503|Gemini error timeout|LLM error timeout|UNAVAILABLE|high demand/i.test(
     blob,
   );
